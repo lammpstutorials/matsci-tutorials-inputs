@@ -1,0 +1,54 @@
+# LAMMPS Input File
+# Licensed under CC BY 4.0
+# A Set of Materials-Science Tutorials for the LAMMPS Simulation Package
+# Tutorial 11 (visualization): render the molten core at the cascade peak.
+# Reads peak.dump (written by cascade.lmp at ~0.28 ps, the moment of maximum
+# disorder), selects the atoms that have been knocked off their lattice sites,
+# and wraps that disordered region in a translucent surface with
+# fix graphics/chunk (an alpha-shape hull around the cluster of atoms).
+
+units        metal
+atom_style   atomic
+atom_modify  map array
+boundary     p p p
+
+variable     a0 equal 2.8553
+lattice      bcc ${a0}
+region       box block 0 30 0 30 0 30 open 4
+create_box   3 box
+mass         1 55.845
+mass         2 55.845
+mass         3 55.845
+# no forces are needed for a static render, so use pair_style zero
+pair_style   zero 5.0
+pair_coeff   * *
+
+# load the peak-damage atom positions and place them on the iron color slot
+read_dump    peak.dump 320 x y z box no add yes
+group        iron type 1
+set          group iron type 3
+
+# distance of each atom from its nearest lattice site (Wigner-Seitz)
+compute      fr all frenkel
+run          0 post no
+
+# the disordered cascade core = atoms knocked >0.7 A off their lattice site
+variable     hot atom "c_fr > 0.7"
+group        core variable hot
+
+# wrap the core atoms in one translucent alpha-shape hull (alpha ~2-3x the
+# nearest-neighbor distance smooths the surface without over-inflating it)
+compute      cc all chunk/atom type
+fix          hull core graphics/chunk 1 cc alpha 6.0
+run          0 post no
+
+# render the hull (orange, half-opaque) inside the translucent simulation cell
+group        boxonly type 1
+# fflag1=1 draws the hull triangles as filled surfaces (0 would draw only edges)
+write_dump   boxonly image peak.png type type adiam 1.0                &
+             fix hull const 1 0                                        &
+             region box lightcyan transparent 0.75                &
+             view 60 -30 zoom 1.2 size 1100 850                        &
+             shiny 0.2 fsaa yes ssao yes 9988 0.6 box yes 0.02         &
+             modify backcolor white boxcolor midnightblue             &
+             fcolor hull red 

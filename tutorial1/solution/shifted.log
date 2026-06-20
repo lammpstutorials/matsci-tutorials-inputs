@@ -1,0 +1,115 @@
+LAMMPS (30 Mar 2026 - Development - patch_30Mar2026-1121-g91d4111a9)
+OMP_NUM_THREADS environment is not set. Defaulting to 1 thread.
+  using 1 OpenMP thread(s) per MPI task
+# LAMMPS Input File
+# Licensed under CC BY 4.0
+# A Set of Materials-Science Tutorials for the LAMMPS Simulation Package
+# Modernized recreation of the MSU/CAVS tutorials by Mark A. Tschopp
+# Tutorial 1: Crystalline metals and the EAM potential -- shifted cell
+# Same as minimize.lmp, but the lattice origin is shifted off the box faces.
+
+# 1) Initialization
+units metal
+dimension 3
+boundary p p p
+atom_style atomic
+
+# 2) System definition
+# Shift the lattice origin by a quarter spacing so that no atoms sit exactly
+# on the box faces (fcc has lattice planes every half spacing, so a 0.5 region
+# shift would still land on the face-centered plane).
+lattice fcc 4.05 origin 0.25 0.25 0.25
+Lattice spacing in x,y,z = 4.05 4.05 4.05
+region box block 0 4 0 4 0 4
+create_box 1 box
+Created orthogonal box = (0 0 0) to (16.2 16.2 16.2)
+  1 by 1 by 1 MPI processor grid
+create_atoms 1 box
+Created 256 atoms
+  using lattice units in orthogonal box = (0 0 0) to (16.2 16.2 16.2)
+  create_atoms CPU = 0.000 seconds
+
+# 3) Settings
+pair_style eam/alloy
+pair_coeff * * Al_zhou.eam.alloy Al
+Reading eam/alloy potential file Al_zhou.eam.alloy with DATE: 2007-10-12
+
+compute eng all pe/atom
+compute eatoms all reduce sum c_eng
+
+# 4) Monitoring
+thermo 10
+thermo_style custom step pe c_eatoms press lx pxx pyy pzz
+
+# 5) Run
+fix relax all box/relax iso 0.0 vmax 0.001
+min_style cg
+minimize 1.0e-12 1.0e-12 10000 100000
+Neighbor list info ...
+  update: every = 1 steps, delay = 0 steps, check = yes
+  max neighbors/atom: 2000, page size: 100000
+  master list distance cutoff = 12.1025
+  ghost atom cutoff = 12.1025
+  binsize = 6.05125, bins = 3 3 3
+  1 neighbor lists, perpetual/occasional/extra = 1 0 0
+  (1) pair eam/alloy, perpetual
+      attributes: half, newton on
+      pair build: half/bin/atomonly/newton
+      stencil: half/bin/3d
+      bin: standard
+WARNING: Energy due to 1 extra global DOFs will be included in minimizer energies
+ (src/min.cpp:222)
+Per MPI rank memory allocation (min/avg/max) = 4.742 | 4.742 | 4.742 Mbytes
+   Step         PotEng        c_eatoms        Press            Lx            Pxx            Pyy            Pzz      
+         0  -915.75277     -915.75277      23601.197      16.2           23601.197      23601.197      23601.197    
+        10  -916.47966     -916.47966     -4.5083787e-06  16.32662      -4.5083808e-06 -4.508371e-06  -4.5083842e-06
+Loop time of 0.0108376 on 1 procs for 10 steps with 256 atoms
+
+99.5% CPU use with 1 MPI tasks x 1 OpenMP threads
+
+Minimization stats:
+  Stopping criterion = energy tolerance
+  Energy initial, next-to-last, final = 
+      -915.75277307193  -916.479656942128  -916.479656942035
+  Force two-norm initial, final = 187.88408 3.6453468e-08
+  Force max component initial, final = 187.88408 3.6453468e-08
+  Final line search alpha, max atom move = 1 3.6453468e-08
+  Iterations, force evaluations = 10 13
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 0.01034    | 0.01034    | 0.01034    |   0.0 | 95.41
+Neigh   | 0          | 0          | 0          |   0.0 |  0.00
+Comm    | 0.00011188 | 0.00011188 | 0.00011188 |   0.0 |  1.03
+Output  | 0          | 0          | 0          |   0.0 |  0.00
+Modify  | 0          | 0          | 0          |   0.0 |  0.00
+Other   |            | 0.0003861  |            |       |  3.56
+
+Nlocal:            256 ave         256 max         256 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Nghost:           3744 ave        3744 max        3744 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Neighs:          54784 ave       54784 max       54784 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+
+Total # of neighbors = 54784
+Ave neighs/atom = 214
+Neighbor list builds = 0
+Dangerous builds = 0
+
+# results -- should match minimize.lmp (translation invariance under PBC)
+variable ncell equal 4
+variable a0    equal lx/v_ncell
+variable ecoh  equal pe/count(all)
+print "----------------------------------------------------"
+----------------------------------------------------
+print "Number of atoms        = $(count(all))"
+Number of atoms        = 256
+print "Equilibrium a0 (Ang)   = ${a0}"
+Equilibrium a0 (Ang)   = 4.08165490079097
+print "Cohesive energy (eV)   = ${ecoh}"
+Cohesive energy (eV)   = -3.57999865992983
+print "----------------------------------------------------"
+----------------------------------------------------
+Total wall time: 0:00:00

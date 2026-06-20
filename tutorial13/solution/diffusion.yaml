@@ -1,0 +1,4 @@
+- {temperature: 1000, D_A2_per_ps: 0.629660,     natoms: 2048, volume_A3: 38480.15}
+- {temperature: 1100, D_A2_per_ps: 0.798971,     natoms: 2048, volume_A3: 39062.21}
+- {temperature: 1200, D_A2_per_ps: 1.006737,     natoms: 2048, volume_A3: 39608.12}
+- {temperature: 1300, D_A2_per_ps: 1.186415,     natoms: 2048, volume_A3: 39756.38}

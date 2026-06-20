@@ -1,0 +1,66 @@
+# LAMMPS Input File
+# Licensed under CC BY 4.0
+# A Set of Materials-Science Tutorials for the LAMMPS Simulation Package
+# Appendix (multi-partition): vacancy migration barrier in fcc aluminum
+# by the nudged elastic band (NEB) method.
+#
+# NEB finds the minimum-energy path between two states; here the two states
+# are a vacancy on one site and the same vacancy after a neighboring atom has
+# hopped into it.  The peak of the path is the migration energy barrier that
+# sets the temperature dependence of vacancy diffusion in the solid (compare
+# the liquid-diffusion Arrhenius law of Tutorial 13).  The same Mendelev
+# Finnis-Sinclair Al potential as Tutorial 13 is used.
+#
+# This is a MULTI-PARTITION calculation: each image of the band is a separate
+# replica, so it must be run from the command line with MPI, e.g. 12 images:
+#   mpirun -np 12 lmp -partition 12x1 -in in.neb
+# It cannot be run inside LAMMPS-GUI, which hosts a single LAMMPS instance.
+
+units metal
+atom_style atomic
+boundary p p p
+atom_modify map array sort 0 0.0      # NEB needs an atom map; no re-sorting
+
+# build an fcc aluminum crystal (5x5x5 = 500 sites)
+lattice fcc 4.05 origin 0.25 0.25 0.25
+region box block 0 5 0 5 0 5
+create_box 1 box
+create_atoms 1 box
+pair_style eam/fs
+pair_coeff * * Al_mm.eam.fs Al
+
+# create a vacancy by deleting one atom near the center; "compress no" keeps
+# the atom IDs unchanged so the final-state file below still refers to atom 132
+group del id 249
+delete_atoms group del compress no
+
+# relax the vacancy: this is the initial state (first image of the band)
+min_style cg
+minimize 1.0e-8 1.0e-8 1000 10000
+reset_timestep 0
+
+# --- optional visualization of the band -------------------------------------
+# Uncomment the block below to render the whole migration path in one image.
+# It requires the GRAPHICS package (the barrier calculation itself needs only
+# REPLICA and MANYBODY).  fix graphics/replica gathers the chosen atom's
+# position from *every* replica, and the "partition yes 1" prefix runs the dump
+# image on only the first partition -- the canonical way to produce one combined
+# picture from a multi-partition run.
+#group migrant id 132
+#fix sf1 migrant graphics/replica 100 display 0.6
+#partition yes 1 dump viz all image 100 neb-path.*.png type type &
+#    size 900 750 zoom 3.4 shiny 0.2 fsaa yes box no 0.0 view 90 0 &
+#    center s 0.45 0.45 0.45 fix sf1 const 0 0
+#partition yes 1 dump_modify viz pad 4 backcolor white &
+#    adiam 1 1.6 atrans 1 0.25 acolor 1 lightblue fcolor sf1 red
+# ----------------------------------------------------------------------------
+
+# NEB run: atom 132, a nearest neighbor of the vacancy, migrates into the
+# vacant site.  final.neb gives that atom's target position (the vacancy site);
+# NEB interpolates the band and relaxes every other atom in each image.
+fix 1 all neb 1.0
+timestep 0.01
+min_style quickmin
+thermo 200
+variable u uloop 20
+neb 0.0 1.0e-4 2000 2000 100 final final.neb

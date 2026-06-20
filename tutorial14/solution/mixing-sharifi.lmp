@@ -1,0 +1,61 @@
+# LAMMPS Input File
+# Licensed under CC BY 4.0
+# A Set of Materials-Science Tutorials for the LAMMPS Simulation Package
+# Tutorial 14: chemical short-range order in a high-entropy alloy
+#
+# A thirty-second sanity check of a potential's alloy thermodynamics: compute
+# the mixing enthalpy of every equimolar fcc binary,
+#     dHmix = E(A50B50) - [E(A) + E(B)]/2 ,
+# from box-relaxed energy minimizations of a random 256-atom cell, and compare
+# against the experiment-based (Miedema) values.  A potential whose dHmix has
+# the wrong sign or a grossly wrong magnitude cannot give meaningful chemical
+# ordering in a Monte Carlo simulation, no matter how good its elastic or
+# defect properties are.  Types: 1=Co 2=Cr 3=Fe 4=Ni.
+#
+# Variant for the eight-element MEAM of Sharifi and Wick (2025), using the
+# included library.meam and FeMnNiTiCuCrCoAl.meam (see sro-sharifi.lmp for
+# the provenance and a caution about the element order).
+
+units metal
+atom_style atomic
+boundary p p p
+
+lattice fcc 3.56
+region box block 0 4 0 4 0 4
+create_box 4 box
+create_atoms 1 box
+mass 1 58.933   # Co
+mass 2 51.996   # Cr
+mass 3 55.845   # Fe
+mass 4 58.693   # Ni
+pair_style meam
+pair_coeff * * library.meam Fe Mn Ni Ti Cu Cr Co Al FeMnNiTiCuCrCoAl.meam Co Cr Fe Ni
+
+variable peat equal pe/atoms
+fix rel all box/relax iso 0.0
+
+# energies of the four pure fcc elements
+label pureloop
+variable it loop 4
+set group all type ${it}
+minimize 1e-12 1e-12 1000 10000
+variable e${it} equal ${peat}
+next it
+jump SELF pureloop
+
+# all six binaries: a random equimolar fcc solid solution of types ia and ib
+variable ia loop 3
+label aloop
+  variable ibstart equal v_ia+1
+  variable ib loop ${ibstart} 4
+  label bloop
+    set group all type ${ia}
+    set group all type/subset ${ib} 128 4242
+    minimize 1e-12 1e-12 1000 10000
+    variable dh equal 1000.0*(v_peat-0.5*v_e${ia}-0.5*v_e${ib})
+    print "dHmix(${ia}-${ib}) = $(v_dh:%.0f) meV/atom"
+    variable dh delete
+  next ib
+  jump SELF bloop
+next ia
+jump SELF aloop

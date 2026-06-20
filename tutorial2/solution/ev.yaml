@@ -1,0 +1,18 @@
+# energy-volume curve of fcc Al; lengths in Angstrom, energy in eV
+- {lattice_constant: 3.90, volume_per_atom: 14.829750,       cohesive_energy: -3.481539}
+- {lattice_constant: 3.925, volume_per_atom: 15.116770,       cohesive_energy: -3.507205}
+- {lattice_constant: 3.95, volume_per_atom: 15.407469,       cohesive_energy: -3.528894}
+- {lattice_constant: 3.975, volume_per_atom: 15.701871,       cohesive_energy: -3.546661}
+- {lattice_constant: 4.00, volume_per_atom: 16.000000,       cohesive_energy: -3.560619}
+- {lattice_constant: 4.025, volume_per_atom: 16.301879,       cohesive_energy: -3.570772}
+- {lattice_constant: 4.05, volume_per_atom: 16.607531,       cohesive_energy: -3.577159}
+- {lattice_constant: 4.075, volume_per_atom: 16.916980,       cohesive_energy: -3.579875}
+- {lattice_constant: 4.10, volume_per_atom: 17.230250,       cohesive_energy: -3.579082}
+- {lattice_constant: 4.125, volume_per_atom: 17.547363,       cohesive_energy: -3.575011}
+- {lattice_constant: 4.15, volume_per_atom: 17.868344,       cohesive_energy: -3.567962}
+- {lattice_constant: 4.175, volume_per_atom: 18.193215,       cohesive_energy: -3.558294}
+- {lattice_constant: 4.20, volume_per_atom: 18.522000,       cohesive_energy: -3.546404}
+- {lattice_constant: 4.225, volume_per_atom: 18.854723,       cohesive_energy: -3.532701}
+- {lattice_constant: 4.25, volume_per_atom: 19.191406,       cohesive_energy: -3.517518}
+- {lattice_constant: 4.275, volume_per_atom: 19.532074,       cohesive_energy: -3.501059}
+- {lattice_constant: 4.30, volume_per_atom: 19.876750,       cohesive_energy: -3.483501}

@@ -1,0 +1,83 @@
+# LAMMPS Input File  (figure: two-phase coexistence, grown solid)
+# Licensed under CC BY 4.0
+# A Set of Materials-Science Tutorials for the LAMMPS Simulation Package
+# Modernized recreation of the MSU/CAVS tutorials by Mark A. Tschopp
+# Tutorial 12, part 2 (step 1 of 2): build a solid-liquid two-phase cell of
+# fcc aluminum.  A pre-existing interface removes the nucleation barrier that
+# made the one-phase estimate of part 1 so uncertain.  The companion script
+# velocity.lmp then reads the cell back and measures the melting point from
+# the direction the interface moves.
+#
+# This uses the Mendelev et al. aluminum potential, which is fitted for
+# liquid structure and solid-liquid coexistence and reproduces the melting
+# point well.
+
+units metal
+atom_style atomic
+boundary p p p
+lattice fcc 4.05
+region box block 0 5 0 5 0 20            # square cross-section, elongated along z
+create_box 1 box
+create_atoms 1 box
+mass 1 26.98
+pair_style eam/fs
+pair_coeff * * ../Al_mm.eam.fs Al
+velocity all create 800.0 7654 mom yes rot yes
+timestep 0.002
+thermo 5000
+
+# 1) equilibrate the whole crystal well BELOW the melting point so it stays
+#    solid.  The barostat keeps the square cross-section that the cubic
+#    crystal wants (x and y coupled, so they relax together) while the long
+#    z axis relaxes on its own:
+fix eq all npt temp 800.0 800.0 0.2 x 0.0 0.0 2.0 y 0.0 0.0 2.0 z 0.0 0.0 2.0 couple xy
+run 10000
+unfix eq
+
+# 2) split the cell into a lower half (kept solid) and an upper half (to be
+#    melted) and create the interface: drive the upper half hot with a local
+#    Langevin thermostat while a second one holds the lower half cold and
+#    crystalline.  Now barostat ONLY z, so the less-dense liquid can expand
+#    along the interface normal without straining the solid cross-section
+#    (an x-y barostat here would let the liquid pull the lattice apart):
+variable zmid equal zlo+(zhi-zlo)/2.0
+region rtop block INF INF INF INF ${zmid} INF units box
+group top region rtop
+group bot subtract all top
+fix baro all nph z 0.0 0.0 2.0
+fix hot  top langevin 1400.0 1400.0 0.1 11111   # melt the upper half
+fix cold bot langevin  800.0  800.0 0.1 22222   # keep the lower half solid
+run 12000
+unfix hot
+unfix cold
+
+# 3) directional growth: the upper half is now a supercooled liquid (below Tm)
+#    and freezes onto the cold solid interface -- the front advances upward
+
+unfix baro
+fix baro all nph x 0 0 2 y 0 0 2 z 0 0 2 couple xy
+fix th all langevin 890 890 0.1 4321
+run 15000
+unfix th
+unfix baro
+
+# 4) inherent structure: minimize so CNA cleanly separates solid from liquid
+minimize 1.0e-6 1.0e-6 2000 20000
+compute cna all cna/atom 3.5
+variable isfcc atom "c_cna==1"
+compute nfcc all reduce sum v_isfcc
+thermo_style custom step pe c_nfcc
+run 0
+print "fcc-coordinated atoms after minimization: $(c_nfcc) of 2000"
+
+# pale-red plane at the (current) box center marks the original interface
+
+region divide block INF INF INF INF $(zlo+(zhi-zlo)/2.0-0.01) $(zlo+(zhi-zlo)/2.0+0.01) units box
+
+write_dump all image coexist-grown.png c_cna type adiam 3.0 &
+    view 80 15 up 0 1 0 zoom 4.0 size 800 800 shiny 0.15 fsaa yes ssao yes 7123 0.6 &
+    box yes 0.02 &
+    region divide lightcoral frame 0.5 &
+    modify backcolor white boxcolor midnightblue &
+    amap 1 5 sa 1.0 5 steelblue purple green red gray &
+    lights 0.2 0.9 0.5 0.9

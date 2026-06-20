@@ -1,0 +1,60 @@
+# LAMMPS Input File
+# Licensed under CC BY 4.0
+# A Set of Materials-Science Tutorials for the LAMMPS Simulation Package
+# Appendix: structure-analysis toolkit
+#
+# Compare common neighbor analysis (CNA) and polyhedral template matching
+# (PTM) on a thermally vibrating -- but perfectly crystalline -- aluminum
+# solid at 800 K.  CNA's fixed-cutoff classification degrades with thermal
+# displacement, while PTM's template fit stays robust.  Prints the fraction
+# of atoms classified as fcc by each method and renders one image per
+# method (blue = fcc, red = unclassified).
+
+variable a0 equal 4.04526
+variable T  equal 800.0
+
+units metal
+atom_style atomic
+boundary p p p
+
+lattice fcc ${a0}
+region box block 0 8 0 8 0 8
+create_box 1 box
+create_atoms 1 box
+mass 1 26.9815
+pair_style eam/fs
+pair_coeff * * Al_mm.eam.fs Al
+
+velocity all create ${T} 2917 mom yes rot yes dist gaussian
+fix md all npt temp ${T} ${T} 0.2 iso 0.0 0.0 1.0
+thermo 500
+thermo_style custom step temp pe press lx
+run 10000
+
+# CNA cutoff halfway between the 1st and 2nd neighbor shell, computed from
+# the *current* (thermally expanded) lattice constant lx/8
+variable rc equal 0.8536*lx/8
+compute cna all cna/atom ${rc}
+compute ptm all ptm/atom fcc-hcp-bcc-ico 0.15 all
+
+# fraction of atoms classified as fcc by each method
+variable iscna atom c_cna==1
+variable isptm atom c_ptm[1]==1
+compute ncna all reduce sum v_iscna
+compute nptm all reduce sum v_isptm
+
+thermo_style custom step temp c_ncna c_nptm
+run 0
+print "fcc fraction at $(v_T:%.0f) K:  CNA $(c_ncna/atoms:%.3f)   PTM $(c_nptm/atoms:%.3f)"
+
+# side-by-side render: same snapshot, colored by each classification
+write_dump all image cna-hot.png v_iscna type adiam 2.6 &
+    view 60 30 zoom 1.2 size 800 800 box yes 0.02 &
+    shiny 0.2 ssao yes 4539 0.6 fsaa yes &
+    modify backcolor white boxcolor midnightblue &
+    amap 0.0 1.0 ca 0.0 2 min firebrick max steelblue
+write_dump all image ptm-hot.png v_isptm type adiam 2.6 &
+    view 60 30 zoom 1.2 size 800 800 box yes 0.02 &
+    shiny 0.2 ssao yes 4539 0.6 fsaa yes &
+    modify backcolor white boxcolor midnightblue &
+    amap 0.0 1.0 ca 0.0 2 min firebrick max steelblue

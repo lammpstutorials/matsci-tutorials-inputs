@@ -1,0 +1,25 @@
+# LAMMPS Tutorial manifest file. This file determines what is downloaded when.
+# comments start with a # as the first character.
+# comments and empty lines are ignored
+##############################################################################
+# Tutorial 5: Nanoindentation and nano-stamping
+#
+# 1) input file templates
+# the first file will be automatically loaded
+indent.lmp
+stamp.lmp
+generate_tool.py
+plot.py
+
+# 2) support files (bundled potential and the tool geometry)
+Al_zhou.eam.alloy
+tool.stl
+
+# 3) solution files
+# only downloaded on request
+solution/visualize_indent.lmp
+solution/indent_viz_advanced.lmp
+solution/visualize_stamp.lmp
+solution/load-displacement.png
+solution/indent-defects.png
+solution/smiley-imprint.png

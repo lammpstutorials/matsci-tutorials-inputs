@@ -1,0 +1,8 @@
+# finite-size RNEMD thermal conductivity of germanium (tersoff)
+# records: ncells length_A edelta_eV time_ps area_A2 (heat along z, 20 slabs)
+- {ncells: 20, length_A: 111.331, edelta_eV: 719.317192,     time_ps: 400.000, area_A2: 1115.5227}
+- {ncells: 40, length_A: 222.707, edelta_eV: 787.267158,     time_ps: 400.000, area_A2: 1115.9654}
+- {ncells: 80, length_A: 445.314, edelta_eV: 857.315005,     time_ps: 400.000, area_A2: 1115.4607}
+- {ncells: 120, length_A: 667.915, edelta_eV: 885.832974,     time_ps: 400.000, area_A2: 1115.2775}
+- {ncells: 160, length_A: 890.623, edelta_eV: 907.894879,     time_ps: 400.000, area_A2: 1115.4505}
+- {ncells: 200, length_A: 1113.309, edelta_eV: 914.459651,     time_ps: 400.000, area_A2: 1115.5122}

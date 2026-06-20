@@ -1,0 +1,31 @@
+# LAMMPS Tutorial manifest file. This file determines what is downloaded when.
+# comments start with a # as the first character.
+# comments and empty lines are ignored
+##############################################################################
+# Tutorial 11: Radiation damage cascade (bcc iron, compute frenkel)
+#
+# 1) input file templates
+# the first file will be automatically loaded
+cascade.lmp
+cascade-plot.py
+
+# 2) support files
+Fe_mm.eam.fs
+
+# 3) solution files
+# only downloaded on request
+solution/cascade.log
+solution/Fe_mm.eam.fs
+solution/cascade.lmp
+solution/cascade-plot.py
+solution/clusters.lmp
+solution/clusters.txt
+solution/clusters.log
+solution/cascade.dat
+solution/cascade.png
+solution/final.dump
+solution/defectviz.lmp
+solution/defects.png
+solution/peak.dump
+solution/peakviz.lmp
+solution/peak.png

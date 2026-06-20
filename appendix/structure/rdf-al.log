@@ -1,0 +1,525 @@
+LAMMPS (30 Mar 2026 - Development - patch_30Mar2026-1178-g5f8b8984a-modified)
+  using 2 OpenMP thread(s) per MPI task
+# LAMMPS Input File
+# Licensed under CC BY 4.0
+# A Set of Materials-Science Tutorials for the LAMMPS Simulation Package
+# Appendix: structure-analysis toolkit -- radial distribution functions
+#
+# Compute g(r) of fcc aluminum (Mendelev EAM) at three temperatures: room temperature, an
+# intermediate temperature, and above the superheating limit, where the
+# crystal melts during the run and the final sampling sees the liquid.
+# A force-less pair_style zero is overlaid only to extend the neighbor
+# list to 8.5 A so that g(r) covers several coordination shells
+# independent of the force cutoff.  Outputs rdf_al_<T>.dat; plot all
+# materials with rdf-plot.py.
+
+variable T index 300 600 1400
+
+units metal
+atom_style atomic
+boundary p p p
+
+lattice fcc 4.045
+Lattice spacing in x,y,z = 4.045 4.045 4.045
+region box block 0 8 0 8 0 8
+create_box 1 box
+Created orthogonal box = (0 0 0) to (32.36 32.36 32.36)
+  1 by 1 by 1 MPI processor grid
+create_atoms 1 box
+Created 2048 atoms
+  using lattice units in orthogonal box = (0 0 0) to (32.36 32.36 32.36)
+  create_atoms CPU = 0.000 seconds
+mass 1 26.9815
+pair_style hybrid/overlay eam/fs zero 8.5
+pair_coeff * * eam/fs Al_mm.eam.fs Al
+Reading eam/fs potential file Al_mm.eam.fs with DATE: 2007-06-11
+pair_coeff * * zero
+
+velocity all create $(2.0*v_T) 31415 mom yes rot yes dist gaussian
+velocity all create 600 31415 mom yes rot yes dist gaussian
+fix md all npt temp ${T} ${T} 0.2 iso 0.0 0.0 1.0
+fix md all npt temp 300 ${T} 0.2 iso 0.0 0.0 1.0
+fix md all npt temp 300 300 0.2 iso 0.0 0.0 1.0
+thermo 1000
+thermo_style custom step temp pe press vol
+run 10000
+Neighbor list info ...
+  update: every = 1 steps, delay = 0 steps, check = yes
+  max neighbors/atom: 2000, page size: 100000
+  master list distance cutoff = 10.5
+  ghost atom cutoff = 10.5
+  binsize = 5.25, bins = 7 7 7
+  2 neighbor lists, perpetual/occasional/extra = 2 0 0
+  (1) pair eam/fs, perpetual
+      attributes: half, newton on
+      pair build: half/bin/atomonly/newton
+      stencil: half/bin/3d
+      bin: standard
+  (2) pair zero, perpetual
+      attributes: half, newton on, cut 10.5
+      pair build: half/bin/atomonly/newton
+      stencil: half/bin/3d
+      bin: standard
+Per MPI rank memory allocation (min/avg/max) = 7.954 | 7.954 | 7.954 Mbytes
+   Step          Temp          PotEng         Press          Volume    
+         0   600           -6985.0251      5150.0932      33886.408    
+      1000   307.20356     -6906.2247      882.39253      34573.234    
+      2000   303.6226      -6906.3641      757.83281      34566.583    
+      3000   304.51832     -6909.4575     -352.3578       34598.853    
+      4000   294.51416     -6905.1022      417.77626      34594.124    
+      5000   292.33608     -6903.2355     -169.68489      34623.082    
+      6000   298.87437     -6907.8862     -2328.8951      34686.839    
+      7000   299.06292     -6906.4282     -2135.65        34684.11     
+      8000   303.01462     -6903.0504     -805.67039      34657.54     
+      9000   290.48599     -6902.445       339.42725      34608.255    
+     10000   302.50953     -6906.8579     -675.53484      34622.717    
+Loop time of 33.6615 on 2 procs for 10000 steps with 2048 atoms
+
+Performance: 25.667 ns/day, 0.935 hours/ns, 297.075 timesteps/s, 608.410 katom-step/s
+199.3% CPU use with 1 MPI tasks x 2 OpenMP threads
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 33.063     | 33.063     | 33.063     |   0.0 | 98.22
+Neigh   | 0          | 0          | 0          |   0.0 |  0.00
+Comm    | 0.17342    | 0.17342    | 0.17342    |   0.0 |  0.52
+Output  | 0.00021591 | 0.00021591 | 0.00021591 |   0.0 |  0.00
+Modify  | 0.37679    | 0.37679    | 0.37679    |   0.0 |  1.12
+Other   |            | 0.04793    |            |       |  0.14
+
+Nlocal:           2048 ave        2048 max        2048 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Nghost:           7793 ave        7793 max        7793 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Neighs:         327680 ave      327680 max      327680 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+
+Total # of neighbors = 327680
+Ave neighs/atom = 160
+Neighbor list builds = 0
+Dangerous builds = 0
+
+# sample g(r) over 10 ps
+compute gr all rdf 250
+fix rec all ave/time 100 100 10000 c_gr[*] file rdf_al_${T}.dat mode vector
+fix rec all ave/time 100 100 10000 c_gr[*] file rdf_al_300.dat mode vector
+run 10000
+Neighbor list info ...
+  update: every = 1 steps, delay = 0 steps, check = yes
+  max neighbors/atom: 2000, page size: 100000
+  master list distance cutoff = 10.5
+  ghost atom cutoff = 10.5
+  binsize = 5.25, bins = 7 7 7
+  3 neighbor lists, perpetual/occasional/extra = 2 1 0
+  (1) pair eam/fs, perpetual
+      attributes: half, newton on
+      pair build: half/bin/atomonly/newton
+      stencil: half/bin/3d
+      bin: standard
+  (2) pair zero, perpetual
+      attributes: half, newton on, cut 10.5
+      pair build: half/bin/atomonly/newton
+      stencil: half/bin/3d
+      bin: standard
+  (3) compute rdf, occasional, copy from (1)
+      attributes: half, newton on
+      pair build: copy
+      stencil: none
+      bin: none
+Per MPI rank memory allocation (min/avg/max) = 7.954 | 7.954 | 7.954 Mbytes
+   Step          Temp          PotEng         Press          Volume    
+     10000   302.50953     -6906.8579     -675.53484      34622.717    
+     11000   290.87906     -6905.517      -116.2637       34599.759    
+     12000   296.53077     -6904.9067      248.3587       34603.177    
+     13000   304.43391     -6904.6014     -1821.6932      34684.98     
+     14000   295.82274     -6904.9008     -2121.7297      34695.04     
+     15000   272.45601     -6901.0922      735.73003      34596.272    
+     16000   287.58688     -6905.9426      716.29188      34567.358    
+     17000   299.34395     -6905.273      -110.48616      34612.102    
+     18000   306.56442     -6905.8211     -200.50462      34616.038    
+     19000   302.43859     -6906.0623     -1276.198       34654.04     
+     20000   295.28731     -6906.3987     -1470.147       34657.022    
+Loop time of 34.5404 on 2 procs for 10000 steps with 2048 atoms
+
+Performance: 25.014 ns/day, 0.959 hours/ns, 289.516 timesteps/s, 592.930 katom-step/s
+198.4% CPU use with 1 MPI tasks x 2 OpenMP threads
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 33.623     | 33.623     | 33.623     |   0.0 | 97.34
+Neigh   | 0          | 0          | 0          |   0.0 |  0.00
+Comm    | 0.17298    | 0.17298    | 0.17298    |   0.0 |  0.50
+Output  | 0.00019296 | 0.00019296 | 0.00019296 |   0.0 |  0.00
+Modify  | 0.6936     | 0.6936     | 0.6936     |   0.0 |  2.01
+Other   |            | 0.05033    |            |       |  0.15
+
+Nlocal:           2048 ave        2048 max        2048 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Nghost:           7793 ave        7793 max        7793 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Neighs:         311749 ave      311749 max      311749 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+
+Total # of neighbors = 311749
+Ave neighs/atom = 152.22119
+Neighbor list builds = 0
+Dangerous builds = 0
+
+print "RESULT al T=${T} done"
+RESULT al T=300 done
+
+clear
+  using 2 OpenMP thread(s) per MPI task
+next T
+jump SELF
+# LAMMPS Input File
+# Licensed under CC BY 4.0
+# A Set of Materials-Science Tutorials for the LAMMPS Simulation Package
+# Appendix: structure-analysis toolkit -- radial distribution functions
+#
+# Compute g(r) of fcc aluminum (Mendelev EAM) at three temperatures: room temperature, an
+# intermediate temperature, and above the superheating limit, where the
+# crystal melts during the run and the final sampling sees the liquid.
+# A force-less pair_style zero is overlaid only to extend the neighbor
+# list to 8.5 A so that g(r) covers several coordination shells
+# independent of the force cutoff.  Outputs rdf_al_<T>.dat; plot all
+# materials with rdf-plot.py.
+
+variable T index 300 600 1400
+
+units metal
+atom_style atomic
+boundary p p p
+
+lattice fcc 4.045
+Lattice spacing in x,y,z = 4.045 4.045 4.045
+region box block 0 8 0 8 0 8
+create_box 1 box
+Created orthogonal box = (0 0 0) to (32.36 32.36 32.36)
+  1 by 1 by 1 MPI processor grid
+create_atoms 1 box
+Created 2048 atoms
+  using lattice units in orthogonal box = (0 0 0) to (32.36 32.36 32.36)
+  create_atoms CPU = 0.000 seconds
+mass 1 26.9815
+pair_style hybrid/overlay eam/fs zero 8.5
+pair_coeff * * eam/fs Al_mm.eam.fs Al
+Reading eam/fs potential file Al_mm.eam.fs with DATE: 2007-06-11
+pair_coeff * * zero
+
+velocity all create $(2.0*v_T) 31415 mom yes rot yes dist gaussian
+velocity all create 1200 31415 mom yes rot yes dist gaussian
+fix md all npt temp ${T} ${T} 0.2 iso 0.0 0.0 1.0
+fix md all npt temp 600 ${T} 0.2 iso 0.0 0.0 1.0
+fix md all npt temp 600 600 0.2 iso 0.0 0.0 1.0
+thermo 1000
+thermo_style custom step temp pe press vol
+run 10000
+Neighbor list info ...
+  update: every = 1 steps, delay = 0 steps, check = yes
+  max neighbors/atom: 2000, page size: 100000
+  master list distance cutoff = 10.5
+  ghost atom cutoff = 10.5
+  binsize = 5.25, bins = 7 7 7
+  2 neighbor lists, perpetual/occasional/extra = 2 0 0
+  (1) pair eam/fs, perpetual
+      attributes: half, newton on
+      pair build: half/bin/atomonly/newton
+      stencil: half/bin/3d
+      bin: standard
+  (2) pair zero, perpetual
+      attributes: half, newton on, cut 10.5
+      pair build: half/bin/atomonly/newton
+      stencil: half/bin/3d
+      bin: standard
+Per MPI rank memory allocation (min/avg/max) = 7.954 | 7.954 | 7.954 Mbytes
+   Step          Temp          PotEng         Press          Volume    
+         0   1200          -6985.0251      10154.208      33886.408    
+      1000   607.51442     -6807.9739     -1088.9173      35389.064    
+      2000   597.69116     -6809.9654      322.9847       35313.493    
+      3000   594.84699     -6810.5694      1606.0593      35255.799    
+      4000   592.31586     -6806.6402      529.74003      35321.548    
+      5000   591.86903     -6811.3895     -714.86729      35343.544    
+      6000   597.94891     -6815.7757      1459.6046      35221.818    
+      7000   579.28617     -6813.8489     -21.750811      35297.864    
+      8000   606.52238     -6811.1604      780.52897      35297.062    
+      9000   608.52801     -6809.6712      265.32528      35321.643    
+     10000   594.88214     -6810.723      -1210.737       35375.452    
+Loop time of 34.6883 on 2 procs for 10000 steps with 2048 atoms
+
+Performance: 24.907 ns/day, 0.964 hours/ns, 288.281 timesteps/s, 590.400 katom-step/s
+195.8% CPU use with 1 MPI tasks x 2 OpenMP threads
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 32.76      | 32.76      | 32.76      |   0.0 | 94.44
+Neigh   | 1.3093     | 1.3093     | 1.3093     |   0.0 |  3.77
+Comm    | 0.17551    | 0.17551    | 0.17551    |   0.0 |  0.51
+Output  | 0.00023734 | 0.00023734 | 0.00023734 |   0.0 |  0.00
+Modify  | 0.39294    | 0.39294    | 0.39294    |   0.0 |  1.13
+Other   |            | 0.0504     |            |       |  0.15
+
+Nlocal:           2048 ave        2048 max        2048 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Nghost:           7702 ave        7702 max        7702 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Neighs:         295744 ave      295744 max      295744 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+
+Total # of neighbors = 295744
+Ave neighs/atom = 144.40625
+Neighbor list builds = 142
+Dangerous builds = 0
+
+# sample g(r) over 10 ps
+compute gr all rdf 250
+fix rec all ave/time 100 100 10000 c_gr[*] file rdf_al_${T}.dat mode vector
+fix rec all ave/time 100 100 10000 c_gr[*] file rdf_al_600.dat mode vector
+run 10000
+Neighbor list info ...
+  update: every = 1 steps, delay = 0 steps, check = yes
+  max neighbors/atom: 2000, page size: 100000
+  master list distance cutoff = 10.5
+  ghost atom cutoff = 10.5
+  binsize = 5.25, bins = 7 7 7
+  3 neighbor lists, perpetual/occasional/extra = 2 1 0
+  (1) pair eam/fs, perpetual
+      attributes: half, newton on
+      pair build: half/bin/atomonly/newton
+      stencil: half/bin/3d
+      bin: standard
+  (2) pair zero, perpetual
+      attributes: half, newton on, cut 10.5
+      pair build: half/bin/atomonly/newton
+      stencil: half/bin/3d
+      bin: standard
+  (3) compute rdf, occasional, copy from (1)
+      attributes: half, newton on
+      pair build: copy
+      stencil: none
+      bin: none
+Per MPI rank memory allocation (min/avg/max) = 7.953 | 7.953 | 7.953 Mbytes
+   Step          Temp          PotEng         Press          Volume    
+     10000   594.88214     -6810.723      -1210.737       35375.452    
+     11000   601.36431     -6810.7504      1676.056       35242.173    
+     12000   607.09474     -6812.65       -2231.396       35414.308    
+     13000   576.04944     -6811.459       2988.1407      35184.109    
+     14000   580.49174     -6813.936      -1139.0704      35346.818    
+     15000   601.13212     -6807.7685      670.8868       35315.091    
+     16000   594.78783     -6808.5322     -1952.1674      35422.95     
+     17000   584.19343     -6816.3613      1930.2247      35201.896    
+     18000   601.80051     -6810.0704     -1555.7785      35385.911    
+     19000   614.08143     -6810.933       480.34101      35303.425    
+     20000   594.35103     -6816.7797     -1809.0238      35366.644    
+Loop time of 35.5295 on 2 procs for 10000 steps with 2048 atoms
+
+Performance: 24.318 ns/day, 0.987 hours/ns, 281.456 timesteps/s, 576.422 katom-step/s
+194.9% CPU use with 1 MPI tasks x 2 OpenMP threads
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 33.259     | 33.259     | 33.259     |   0.0 | 93.61
+Neigh   | 1.3124     | 1.3124     | 1.3124     |   0.0 |  3.69
+Comm    | 0.17937    | 0.17937    | 0.17937    |   0.0 |  0.50
+Output  | 0.00019389 | 0.00019389 | 0.00019389 |   0.0 |  0.00
+Modify  | 0.72125    | 0.72125    | 0.72125    |   0.0 |  2.03
+Other   |            | 0.05718    |            |       |  0.16
+
+Nlocal:           2048 ave        2048 max        2048 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Nghost:           7659 ave        7659 max        7659 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Neighs:         295904 ave      295904 max      295904 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+
+Total # of neighbors = 295904
+Ave neighs/atom = 144.48438
+Neighbor list builds = 141
+Dangerous builds = 0
+
+print "RESULT al T=${T} done"
+RESULT al T=600 done
+
+clear
+  using 2 OpenMP thread(s) per MPI task
+next T
+jump SELF
+# LAMMPS Input File
+# Licensed under CC BY 4.0
+# A Set of Materials-Science Tutorials for the LAMMPS Simulation Package
+# Appendix: structure-analysis toolkit -- radial distribution functions
+#
+# Compute g(r) of fcc aluminum (Mendelev EAM) at three temperatures: room temperature, an
+# intermediate temperature, and above the superheating limit, where the
+# crystal melts during the run and the final sampling sees the liquid.
+# A force-less pair_style zero is overlaid only to extend the neighbor
+# list to 8.5 A so that g(r) covers several coordination shells
+# independent of the force cutoff.  Outputs rdf_al_<T>.dat; plot all
+# materials with rdf-plot.py.
+
+variable T index 300 600 1400
+
+units metal
+atom_style atomic
+boundary p p p
+
+lattice fcc 4.045
+Lattice spacing in x,y,z = 4.045 4.045 4.045
+region box block 0 8 0 8 0 8
+create_box 1 box
+Created orthogonal box = (0 0 0) to (32.36 32.36 32.36)
+  1 by 1 by 1 MPI processor grid
+create_atoms 1 box
+Created 2048 atoms
+  using lattice units in orthogonal box = (0 0 0) to (32.36 32.36 32.36)
+  create_atoms CPU = 0.000 seconds
+mass 1 26.9815
+pair_style hybrid/overlay eam/fs zero 8.5
+pair_coeff * * eam/fs Al_mm.eam.fs Al
+Reading eam/fs potential file Al_mm.eam.fs with DATE: 2007-06-11
+pair_coeff * * zero
+
+velocity all create $(2.0*v_T) 31415 mom yes rot yes dist gaussian
+velocity all create 2800 31415 mom yes rot yes dist gaussian
+fix md all npt temp ${T} ${T} 0.2 iso 0.0 0.0 1.0
+fix md all npt temp 1400 ${T} 0.2 iso 0.0 0.0 1.0
+fix md all npt temp 1400 1400 0.2 iso 0.0 0.0 1.0
+thermo 1000
+thermo_style custom step temp pe press vol
+run 10000
+Neighbor list info ...
+  update: every = 1 steps, delay = 0 steps, check = yes
+  max neighbors/atom: 2000, page size: 100000
+  master list distance cutoff = 10.5
+  ghost atom cutoff = 10.5
+  binsize = 5.25, bins = 7 7 7
+  2 neighbor lists, perpetual/occasional/extra = 2 0 0
+  (1) pair eam/fs, perpetual
+      attributes: half, newton on
+      pair build: half/bin/atomonly/newton
+      stencil: half/bin/3d
+      bin: standard
+  (2) pair zero, perpetual
+      attributes: half, newton on, cut 10.5
+      pair build: half/bin/atomonly/newton
+      stencil: half/bin/3d
+      bin: standard
+Per MPI rank memory allocation (min/avg/max) = 7.954 | 7.954 | 7.954 Mbytes
+   Step          Temp          PotEng         Press          Volume    
+         0   2800          -6985.0251      23498.515      33886.408    
+      1000   1231.5774     -6435.3212      781.98651      38409.16     
+      2000   1416.7691     -6259.7579      825.70309      40450.372    
+      3000   1362.6805     -6273.1391      851.89596      40184.788    
+      4000   1413.0415     -6271.4417      1047.7807      40356.688    
+      5000   1409.9848     -6257.1229      2322.2954      40352.113    
+      6000   1384.47       -6265.5971      940.00694      40307.429    
+      7000   1393.7453     -6281.7428     -599.94966      40211.871    
+      8000   1405.3598     -6269.2371     -477.53473      40352.347    
+      9000   1351.3866     -6281.6324     -184.6084       40207.827    
+     10000   1368.3751     -6264.6901     -878.70179      40392.868    
+Loop time of 32.5126 on 2 procs for 10000 steps with 2048 atoms
+
+Performance: 26.574 ns/day, 0.903 hours/ns, 307.573 timesteps/s, 629.910 katom-step/s
+192.7% CPU use with 1 MPI tasks x 2 OpenMP threads
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 29.542     | 29.542     | 29.542     |   0.0 | 90.86
+Neigh   | 2.3578     | 2.3578     | 2.3578     |   0.0 |  7.25
+Comm    | 0.16673    | 0.16673    | 0.16673    |   0.0 |  0.51
+Output  | 0.00020659 | 0.00020659 | 0.00020659 |   0.0 |  0.00
+Modify  | 0.39468    | 0.39468    | 0.39468    |   0.0 |  1.21
+Other   |            | 0.05132    |            |       |  0.16
+
+Nlocal:           2048 ave        2048 max        2048 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Nghost:           6560 ave        6560 max        6560 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Neighs:         250885 ave      250885 max      250885 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+
+Total # of neighbors = 250885
+Ave neighs/atom = 122.50244
+Neighbor list builds = 265
+Dangerous builds = 0
+
+# sample g(r) over 10 ps
+compute gr all rdf 250
+fix rec all ave/time 100 100 10000 c_gr[*] file rdf_al_${T}.dat mode vector
+fix rec all ave/time 100 100 10000 c_gr[*] file rdf_al_1400.dat mode vector
+run 10000
+Neighbor list info ...
+  update: every = 1 steps, delay = 0 steps, check = yes
+  max neighbors/atom: 2000, page size: 100000
+  master list distance cutoff = 10.5
+  ghost atom cutoff = 10.5
+  binsize = 5.25, bins = 7 7 7
+  3 neighbor lists, perpetual/occasional/extra = 2 1 0
+  (1) pair eam/fs, perpetual
+      attributes: half, newton on
+      pair build: half/bin/atomonly/newton
+      stencil: half/bin/3d
+      bin: standard
+  (2) pair zero, perpetual
+      attributes: half, newton on, cut 10.5
+      pair build: half/bin/atomonly/newton
+      stencil: half/bin/3d
+      bin: standard
+  (3) compute rdf, occasional, copy from (1)
+      attributes: half, newton on
+      pair build: copy
+      stencil: none
+      bin: none
+Per MPI rank memory allocation (min/avg/max) = 7.173 | 7.173 | 7.173 Mbytes
+   Step          Temp          PotEng         Press          Volume    
+     10000   1368.3751     -6264.6901     -878.70179      40392.868    
+     11000   1412.066      -6282.838       1519.7219      40070.193    
+     12000   1417.4289     -6278.8941      1698.4434      40198.986    
+     13000   1420.2337     -6270.4484      9.947407       40363.793    
+     14000   1396.395      -6277.3449     -2084.3478      40440.332    
+     15000   1445.6037     -6263.6684     -1173.0099      40626.462    
+     16000   1446.4643     -6267.0046      1538.0908      40481.534    
+     17000   1404.3895     -6266.3678      679.2495       40353.542    
+     18000   1473.9051     -6265.3544      2236.7419      40322.538    
+     19000   1417.7772     -6278.9967      584.82513      40205.704    
+     20000   1405.8679     -6259.3613     -1094.7019      40672.977    
+Loop time of 32.8752 on 2 procs for 10000 steps with 2048 atoms
+
+Performance: 26.281 ns/day, 0.913 hours/ns, 304.180 timesteps/s, 622.962 katom-step/s
+192.1% CPU use with 1 MPI tasks x 2 OpenMP threads
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 29.546     | 29.546     | 29.546     |   0.0 | 89.87
+Neigh   | 2.4225     | 2.4225     | 2.4225     |   0.0 |  7.37
+Comm    | 0.16699    | 0.16699    | 0.16699    |   0.0 |  0.51
+Output  | 0.00023087 | 0.00023087 | 0.00023087 |   0.0 |  0.00
+Modify  | 0.6857     | 0.6857     | 0.6857     |   0.0 |  2.09
+Other   |            | 0.05422    |            |       |  0.16
+
+Nlocal:           2048 ave        2048 max        2048 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Nghost:           6492 ave        6492 max        6492 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Neighs:         249339 ave      249339 max      249339 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+
+Total # of neighbors = 249339
+Ave neighs/atom = 121.74756
+Neighbor list builds = 270
+Dangerous builds = 0
+
+print "RESULT al T=${T} done"
+RESULT al T=1400 done
+
+clear
+  using 2 OpenMP thread(s) per MPI task
+next T
+jump SELF
+Total wall time: 0:03:23

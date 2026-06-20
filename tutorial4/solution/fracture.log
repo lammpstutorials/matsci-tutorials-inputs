@@ -1,0 +1,4414 @@
+LAMMPS (30 Mar 2026 - Development - patch_30Mar2026-1121-g91d4111a9)
+  using 8 OpenMP thread(s) per MPI task
+package omp 0
+using multi-threaded neighbor list subroutines
+# LAMMPS Input File
+# Licensed under CC BY 4.0
+# A Set of Materials-Science Tutorials for the LAMMPS Simulation Package
+# Tutorial 5: pull a bcc-iron <110> Sigma3(111) bicrystal apart perpendicular
+# to the grain boundary until it fractures, recording the stress-strain
+# response and per-atom stress for visualization.
+#
+# This is a quasi-static (athermal) test: two rigid "grips" at the top and
+# bottom are displaced apart in small increments, and the structure is
+# energy-minimized after each increment.  Run makegb.lmp first to create
+# Fe_gb.data (the relaxed grain boundary).
+
+variable delta  index 0.06     # grip displacement per step and side (Angstrom)
+variable nsteps index 80       # number of loading increments
+variable grip   index 6.0      # thickness of each rigid grip (Angstrom)
+
+# 1) Initialization -- non-periodic along y so the bicrystal has free surfaces
+#    at the top and bottom and a single grain boundary at y = 0
+units metal
+dimension 3
+boundary p s p
+atom_style atomic
+
+read_data Fe_gb.data
+Reading data file ...
+  orthogonal box = (-0.020345129 -39.56453 -0.0058919572) to (27.996693 39.56453 8.0819678)
+  1 by 1 by 1 MPI processor grid
+  reading atoms ...
+WARNING: Non-zero imageflag(s) in y direction for non-periodic boundary reset to zero (src/read_data.cpp:1570)
+  1534 atoms
+  reading velocities ...
+  1534 velocities
+  read_data CPU = 0.004 seconds
+
+# 2) Interatomic potential (Mendelev 2003 bcc iron)
+pair_style eam/fs
+pair_coeff * * Fe_mm.eam.fs Fe Fe
+Reading eam/fs potential file Fe_mm.eam.fs with DATE: 2007-06-11
+
+# 3) Per-atom virial stress; sigma_yy (component 2) is the pulling direction.
+#    stress/atom has units of pressure*volume, so divide by the atomic volume
+#    (a0^3/2 for bcc) and by 1e4 to express it in GPa for coloring.
+compute satom all stress/atom NULL
+variable a0 equal 2.855324
+variable vatom equal ${a0}*${a0}*${a0}/2.0
+variable vatom equal 2.855324*${a0}*${a0}/2.0
+variable vatom equal 2.855324*2.855324*${a0}/2.0
+variable vatom equal 2.855324*2.855324*2.855324/2.0
+variable syy atom c_satom[2]/v_vatom/10000.0
+
+# 4) Relax the slab (now with free y-surfaces) BEFORE gripping it, so the
+#    zero-strain state is stress free
+min_style cg
+thermo 50
+thermo_style custom step pe ly pyy
+minimize 1.0e-10 1.0e-10 1000 10000
+Last active /omp style is pair_style eam/fs/omp
+Neighbor list info ...
+  update: every = 1 steps, delay = 0 steps, check = yes
+  max neighbors/atom: 2000, page size: 100000
+  master list distance cutoff = 7.3
+  ghost atom cutoff = 7.3
+  binsize = 3.65, bins = 8 22 3
+  1 neighbor lists, perpetual/occasional/extra = 1 0 0
+  (1) pair eam/fs/omp, perpetual
+      attributes: half, newton on, omp
+      pair build: half/bin/atomonly/newton/omp
+      stencil: half/bin/3d
+      bin: standard
+Per MPI rank memory allocation (min/avg/max) = 11.69 | 11.69 | 11.69 Mbytes
+   Step         PotEng           Ly            Pyy      
+         0  -6240.1235      78.00351       19782.563    
+        50  -6245.2923      78.00351       74.852594    
+        60  -6245.2923      78.00351       7.1353167    
+Loop time of 0.0266875 on 8 procs for 60 steps with 1534 atoms
+
+776.0% CPU use with 1 MPI tasks x 8 OpenMP threads
+
+Minimization stats:
+  Stopping criterion = energy tolerance
+  Energy initial, next-to-last, final = 
+     -6240.12345027199  -6245.29230287382  -6245.29230337733
+  Force two-norm initial, final = 6.7376903 0.0020235929
+  Force max component initial, final = 1.0587357 0.00016317462
+  Final line search alpha, max atom move = 1 0.00016317462
+  Iterations, force evaluations = 60 119
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 0.022319   | 0.022319   | 0.022319   |   0.0 | 83.63
+Neigh   | 0          | 0          | 0          |   0.0 |  0.00
+Comm    | 0.0017125  | 0.0017125  | 0.0017125  |   0.0 |  6.42
+Output  | 1.5971e-05 | 1.5971e-05 | 1.5971e-05 |   0.0 |  0.06
+Modify  | 0.0010746  | 0.0010746  | 0.0010746  |   0.0 |  4.03
+Other   |            | 0.001565   |            |       |  5.87
+
+Nlocal:           1534 ave        1534 max        1534 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Nghost:           4953 ave        4953 max        4953 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Neighs:         100904 ave      100904 max      100904 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+
+Total # of neighbors = 100904
+Ave neighs/atom = 65.778357
+Neighbor list builds = 0
+Dangerous builds = 0
+
+# 5) Define the grips from the relaxed extent and freeze their forces.
+#    fix setforce records the pre-zeroed total force, so the top grip's
+#    reaction force (f_holdtop[2]) measures the load carried by the bicrystal.
+variable ylo equal bound(all,ymin)
+variable yhi equal bound(all,ymax)
+region rtop block INF INF $(v_yhi-v_grip) INF INF INF units box
+region rtop block INF INF 33.66606002836699929 INF INF INF units box
+region rbot block INF INF INF $(v_ylo+v_grip) INF INF units box
+region rbot block INF INF INF -32.845725572123299685 INF INF units box
+group gtop region rtop
+128 atoms in group gtop
+group gbot region rbot
+128 atoms in group gbot
+group grips union gtop gbot
+256 atoms in group grips
+group mobile subtract all grips
+1278 atoms in group mobile
+fix holdtop gtop setforce 0.0 0.0 0.0
+fix holdbot gbot setforce 0.0 0.0 0.0
+minimize 1.0e-10 1.0e-10 500 5000
+Last active /omp style is pair_style eam/fs/omp
+Per MPI rank memory allocation (min/avg/max) = 11.69 | 11.69 | 11.69 Mbytes
+   Step         PotEng           Ly            Pyy      
+        60  -6245.2923      78.527611      7.0876948    
+        61  -6245.2923      78.527611      7.0200568    
+Loop time of 0.00079996 on 8 procs for 1 steps with 1534 atoms
+
+971.0% CPU use with 1 MPI tasks x 8 OpenMP threads
+
+Minimization stats:
+  Stopping criterion = energy tolerance
+  Energy initial, next-to-last, final = 
+     -6245.29230337732  -6245.29230337732  -6245.29230353119
+  Force two-norm initial, final = 0.0018115975 0.0014044679
+  Force max component initial, final = 0.00016115746 0.00014537634
+  Final line search alpha, max atom move = 1 0.00014537634
+  Iterations, force evaluations = 1 2
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 0.00068407 | 0.00068407 | 0.00068407 |   0.0 | 85.51
+Neigh   | 0          | 0          | 0          |   0.0 |  0.00
+Comm    | 4.5606e-05 | 4.5606e-05 | 4.5606e-05 |   0.0 |  5.70
+Output  | 0          | 0          | 0          |   0.0 |  0.00
+Modify  | 3.3092e-05 | 3.3092e-05 | 3.3092e-05 |   0.0 |  4.14
+Other   |            | 3.719e-05  |            |       |  4.65
+
+Nlocal:           1534 ave        1534 max        1534 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Nghost:           4953 ave        4953 max        4953 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Neighs:         100596 ave      100596 max      100596 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+
+Total # of neighbors = 100596
+Ave neighs/atom = 65.577575
+Neighbor list builds = 0
+Dangerous builds = 0
+
+# 6) Stress-strain bookkeeping (engineering strain; tensile stress in GPa from
+#    the grip reaction force per cross-section, converting eV/Ang^3 -> GPa)
+variable count  equal 0
+variable area   equal lx*lz
+variable L0     equal $((v_yhi-v_grip)-(v_ylo+v_grip))
+variable L0     equal 66.511785600490298975
+variable strain equal 2.0*v_delta*v_count/v_L0
+variable stress equal -f_holdtop[2]/v_area*160.21766
+print "strain,stress_GPa" file stress-fracture.csv screen no
+print "$(v_strain:%.5f),$(v_stress:%.5f)" append stress-fracture.csv screen no
+write_dump all custom fracture.dump id type x y z v_syy modify append no
+
+# 7) Quasi-static loading loop: displace grips, minimize, record
+variable i loop ${nsteps}
+variable i loop 80
+label loop
+displace_atoms gtop move 0  ${delta} 0 units box
+displace_atoms gtop move 0  0.06 0 units box
+Displacing atoms ...
+displace_atoms gbot move 0 -${delta} 0 units box
+displace_atoms gbot move 0 -0.06 0 units box
+Displacing atoms ...
+minimize 1.0e-10 1.0e-10 500 5000
+Last active /omp style is pair_style eam/fs/omp
+Per MPI rank memory allocation (min/avg/max) = 12.44 | 12.44 | 12.44 Mbytes
+   Step         PotEng           Ly            Pyy      
+        61  -6244.5578      78.647611     -4820.487     
+        94  -6245.2475      78.647611     -4601.6084    
+Loop time of 0.0134715 on 8 procs for 33 steps with 1534 atoms
+
+824.8% CPU use with 1 MPI tasks x 8 OpenMP threads
+
+Minimization stats:
+  Stopping criterion = energy tolerance
+  Energy initial, next-to-last, final = 
+     -6244.55779733721   -6245.2475286672  -6245.24752900626
+  Force two-norm initial, final = 2.4575852 0.0014514996
+  Force max component initial, final = 0.29402986 0.00011049582
+  Final line search alpha, max atom move = 1 0.00011049582
+  Iterations, force evaluations = 33 66
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 0.010882   | 0.010882   | 0.010882   |   0.0 | 80.78
+Neigh   | 0          | 0          | 0          |   0.0 |  0.00
+Comm    | 0.00096412 | 0.00096412 | 0.00096412 |   0.0 |  7.16
+Output  | 0          | 0          | 0          |   0.0 |  0.00
+Modify  | 0.00071602 | 0.00071602 | 0.00071602 |   0.0 |  5.32
+Other   |            | 0.0009093  |            |       |  6.75
+
+Nlocal:           1534 ave        1534 max        1534 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Nghost:           4953 ave        4953 max        4953 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Neighs:         100596 ave      100596 max      100596 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+
+Total # of neighbors = 100596
+Ave neighs/atom = 65.577575
+Neighbor list builds = 0
+Dangerous builds = 0
+variable count equal $i
+variable count equal 1
+print "$(v_strain:%.5f),$(v_stress:%.5f)" append stress-fracture.csv screen no
+write_dump all custom fracture.dump id type x y z v_syy modify append yes
+next i
+jump SELF loop
+displace_atoms gtop move 0  ${delta} 0 units box
+displace_atoms gtop move 0  0.06 0 units box
+Displacing atoms ...
+displace_atoms gbot move 0 -${delta} 0 units box
+displace_atoms gbot move 0 -0.06 0 units box
+Displacing atoms ...
+minimize 1.0e-10 1.0e-10 500 5000
+Last active /omp style is pair_style eam/fs/omp
+Per MPI rank memory allocation (min/avg/max) = 12.44 | 12.44 | 12.44 Mbytes
+   Step         PotEng           Ly            Pyy      
+        94  -6244.4284      78.767611     -9346.0862    
+       100  -6245.0536      78.767611     -9652.1896    
+       127  -6245.1126      78.767611     -9233.2747    
+Loop time of 0.0155935 on 8 procs for 33 steps with 1534 atoms
+
+769.3% CPU use with 1 MPI tasks x 8 OpenMP threads
+
+Minimization stats:
+  Stopping criterion = energy tolerance
+  Energy initial, next-to-last, final = 
+       -6244.428374585  -6245.11263051507  -6245.11263077861
+  Force two-norm initial, final = 2.4283388 0.0012849186
+  Force max component initial, final = 0.29169365 0.00010198653
+  Final line search alpha, max atom move = 1 0.00010198653
+  Iterations, force evaluations = 33 66
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 0.012739   | 0.012739   | 0.012739   |   0.0 | 81.69
+Neigh   | 0          | 0          | 0          |   0.0 |  0.00
+Comm    | 0.0010975  | 0.0010975  | 0.0010975  |   0.0 |  7.04
+Output  | 6.152e-06  | 6.152e-06  | 6.152e-06  |   0.0 |  0.04
+Modify  | 0.00078293 | 0.00078293 | 0.00078293 |   0.0 |  5.02
+Other   |            | 0.0009679  |            |       |  6.21
+
+Nlocal:           1534 ave        1534 max        1534 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Nghost:           4953 ave        4953 max        4953 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Neighs:         100472 ave      100472 max      100472 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+
+Total # of neighbors = 100472
+Ave neighs/atom = 65.496741
+Neighbor list builds = 0
+Dangerous builds = 0
+variable count equal $i
+variable count equal 2
+print "$(v_strain:%.5f),$(v_stress:%.5f)" append stress-fracture.csv screen no
+write_dump all custom fracture.dump id type x y z v_syy modify append yes
+next i
+jump SELF loop
+displace_atoms gtop move 0  ${delta} 0 units box
+displace_atoms gtop move 0  0.06 0 units box
+Displacing atoms ...
+displace_atoms gbot move 0 -${delta} 0 units box
+displace_atoms gbot move 0 -0.06 0 units box
+Displacing atoms ...
+minimize 1.0e-10 1.0e-10 500 5000
+Last active /omp style is pair_style eam/fs/omp
+Per MPI rank memory allocation (min/avg/max) = 12.44 | 12.44 | 12.44 Mbytes
+   Step         PotEng           Ly            Pyy      
+       127  -6244.2101      78.887611     -13885.667    
+       150  -6244.8873      78.887611     -13891.824    
+       160  -6244.8873      78.887611     -13879.954    
+Loop time of 0.015285 on 8 procs for 33 steps with 1534 atoms
+
+778.2% CPU use with 1 MPI tasks x 8 OpenMP threads
+
+Minimization stats:
+  Stopping criterion = energy tolerance
+  Energy initial, next-to-last, final = 
+     -6244.21014108395  -6244.88728327674  -6244.88728352825
+  Force two-norm initial, final = 2.3954071 0.0012206414
+  Force max component initial, final = 0.2891121 0.00010757506
+  Final line search alpha, max atom move = 1 0.00010757506
+  Iterations, force evaluations = 33 66
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 0.012726   | 0.012726   | 0.012726   |   0.0 | 83.26
+Neigh   | 0          | 0          | 0          |   0.0 |  0.00
+Comm    | 0.00095918 | 0.00095918 | 0.00095918 |   0.0 |  6.28
+Output  | 8.035e-06  | 8.035e-06  | 8.035e-06  |   0.0 |  0.05
+Modify  | 0.0007293  | 0.0007293  | 0.0007293  |   0.0 |  4.77
+Other   |            | 0.0008621  |            |       |  5.64
+
+Nlocal:           1534 ave        1534 max        1534 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Nghost:           4953 ave        4953 max        4953 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Neighs:         100426 ave      100426 max      100426 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+
+Total # of neighbors = 100426
+Ave neighs/atom = 65.466754
+Neighbor list builds = 0
+Dangerous builds = 0
+variable count equal $i
+variable count equal 3
+print "$(v_strain:%.5f),$(v_stress:%.5f)" append stress-fracture.csv screen no
+write_dump all custom fracture.dump id type x y z v_syy modify append yes
+next i
+jump SELF loop
+displace_atoms gtop move 0  ${delta} 0 units box
+displace_atoms gtop move 0  0.06 0 units box
+Displacing atoms ...
+displace_atoms gbot move 0 -${delta} 0 units box
+displace_atoms gbot move 0 -0.06 0 units box
+Displacing atoms ...
+minimize 1.0e-10 1.0e-10 500 5000
+Last active /omp style is pair_style eam/fs/omp
+Per MPI rank memory allocation (min/avg/max) = 12.44 | 12.44 | 12.44 Mbytes
+   Step         PotEng           Ly            Pyy      
+       160  -6243.9027      79.007611     -18430.82     
+       192  -6244.5713      79.007611     -18535.344    
+Loop time of 0.0133388 on 8 procs for 32 steps with 1534 atoms
+
+780.2% CPU use with 1 MPI tasks x 8 OpenMP threads
+
+Minimization stats:
+  Stopping criterion = energy tolerance
+  Energy initial, next-to-last, final = 
+     -6243.90271505337  -6244.57129374733  -6244.57129435165
+  Force two-norm initial, final = 2.3589408 0.0019747894
+  Force max component initial, final = 0.28629955 0.00014248069
+  Final line search alpha, max atom move = 1 0.00014248069
+  Iterations, force evaluations = 32 64
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 0.010858   | 0.010858   | 0.010858   |   0.0 | 81.40
+Neigh   | 0          | 0          | 0          |   0.0 |  0.00
+Comm    | 0.00093097 | 0.00093097 | 0.00093097 |   0.0 |  6.98
+Output  | 0          | 0          | 0          |   0.0 |  0.00
+Modify  | 0.00069926 | 0.00069926 | 0.00069926 |   0.0 |  5.24
+Other   |            | 0.0008503  |            |       |  6.37
+
+Nlocal:           1534 ave        1534 max        1534 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Nghost:           4953 ave        4953 max        4953 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Neighs:         100252 ave      100252 max      100252 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+
+Total # of neighbors = 100252
+Ave neighs/atom = 65.353325
+Neighbor list builds = 0
+Dangerous builds = 0
+variable count equal $i
+variable count equal 4
+print "$(v_strain:%.5f),$(v_stress:%.5f)" append stress-fracture.csv screen no
+write_dump all custom fracture.dump id type x y z v_syy modify append yes
+next i
+jump SELF loop
+displace_atoms gtop move 0  ${delta} 0 units box
+displace_atoms gtop move 0  0.06 0 units box
+Displacing atoms ...
+displace_atoms gbot move 0 -${delta} 0 units box
+displace_atoms gbot move 0 -0.06 0 units box
+Displacing atoms ...
+minimize 1.0e-10 1.0e-10 500 5000
+Last active /omp style is pair_style eam/fs/omp
+Per MPI rank memory allocation (min/avg/max) = 12.44 | 12.44 | 12.44 Mbytes
+   Step         PotEng           Ly            Pyy      
+       192  -6243.5062      79.127611     -22975.435    
+       200  -6244.1277      79.127611     -23549.959    
+       225  -6244.1646      79.127611     -23192.854    
+Loop time of 0.0157417 on 8 procs for 33 steps with 1534 atoms
+
+809.2% CPU use with 1 MPI tasks x 8 OpenMP threads
+
+Minimization stats:
+  Stopping criterion = energy tolerance
+  Energy initial, next-to-last, final = 
+     -6243.50621775551  -6244.16459992187  -6244.16460016168
+  Force two-norm initial, final = 2.3189642 0.0011677434
+  Force max component initial, final = 0.28325785 9.120759e-05
+  Final line search alpha, max atom move = 1 9.120759e-05
+  Iterations, force evaluations = 33 66
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 0.013001   | 0.013001   | 0.013001   |   0.0 | 82.59
+Neigh   | 0          | 0          | 0          |   0.0 |  0.00
+Comm    | 0.0010567  | 0.0010567  | 0.0010567  |   0.0 |  6.71
+Output  | 6.042e-06  | 6.042e-06  | 6.042e-06  |   0.0 |  0.04
+Modify  | 0.00074301 | 0.00074301 | 0.00074301 |   0.0 |  4.72
+Other   |            | 0.000935   |            |       |  5.94
+
+Nlocal:           1534 ave        1534 max        1534 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Nghost:           4953 ave        4953 max        4953 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Neighs:         100230 ave      100230 max      100230 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+
+Total # of neighbors = 100230
+Ave neighs/atom = 65.338983
+Neighbor list builds = 0
+Dangerous builds = 0
+variable count equal $i
+variable count equal 5
+print "$(v_strain:%.5f),$(v_stress:%.5f)" append stress-fracture.csv screen no
+write_dump all custom fracture.dump id type x y z v_syy modify append yes
+next i
+jump SELF loop
+displace_atoms gtop move 0  ${delta} 0 units box
+displace_atoms gtop move 0  0.06 0 units box
+Displacing atoms ...
+displace_atoms gbot move 0 -${delta} 0 units box
+displace_atoms gbot move 0 -0.06 0 units box
+Displacing atoms ...
+minimize 1.0e-10 1.0e-10 500 5000
+Last active /omp style is pair_style eam/fs/omp
+Per MPI rank memory allocation (min/avg/max) = 12.44 | 12.44 | 12.44 Mbytes
+   Step         PotEng           Ly            Pyy      
+       225  -6243.0209      79.247611     -27512.831    
+       250  -6243.6672      79.247611     -27850.891    
+       257  -6243.6672      79.247611     -27847.352    
+Loop time of 0.0229383 on 8 procs for 32 steps with 1534 atoms
+
+795.7% CPU use with 1 MPI tasks x 8 OpenMP threads
+
+Minimization stats:
+  Stopping criterion = energy tolerance
+  Energy initial, next-to-last, final = 
+     -6243.02090210115  -6243.66724236386  -6243.66724292534
+  Force two-norm initial, final = 2.2756776 0.0019595238
+  Force max component initial, final = 0.27997562 0.00017632651
+  Final line search alpha, max atom move = 1 0.00017632651
+  Iterations, force evaluations = 32 64
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 0.019413   | 0.019413   | 0.019413   |   0.0 | 84.63
+Neigh   | 0          | 0          | 0          |   0.0 |  0.00
+Comm    | 0.0013789  | 0.0013789  | 0.0013789  |   0.0 |  6.01
+Output  | 1.6661e-05 | 1.6661e-05 | 1.6661e-05 |   0.0 |  0.07
+Modify  | 0.00080706 | 0.00080706 | 0.00080706 |   0.0 |  3.52
+Other   |            | 0.001322   |            |       |  5.76
+
+Nlocal:           1534 ave        1534 max        1534 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Nghost:           4953 ave        4953 max        4953 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Neighs:         100216 ave      100216 max      100216 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+
+Total # of neighbors = 100216
+Ave neighs/atom = 65.329857
+Neighbor list builds = 0
+Dangerous builds = 0
+variable count equal $i
+variable count equal 6
+print "$(v_strain:%.5f),$(v_stress:%.5f)" append stress-fracture.csv screen no
+write_dump all custom fracture.dump id type x y z v_syy modify append yes
+next i
+jump SELF loop
+displace_atoms gtop move 0  ${delta} 0 units box
+displace_atoms gtop move 0  0.06 0 units box
+Displacing atoms ...
+displace_atoms gbot move 0 -${delta} 0 units box
+displace_atoms gbot move 0 -0.06 0 units box
+Displacing atoms ...
+minimize 1.0e-10 1.0e-10 500 5000
+Last active /omp style is pair_style eam/fs/omp
+Per MPI rank memory allocation (min/avg/max) = 12.44 | 12.44 | 12.44 Mbytes
+   Step         PotEng           Ly            Pyy      
+       257  -6242.4471      79.367611     -32038.076    
+       290  -6243.0794      79.367611     -32492.386    
+Loop time of 0.02103 on 8 procs for 33 steps with 1534 atoms
+
+795.0% CPU use with 1 MPI tasks x 8 OpenMP threads
+
+Minimization stats:
+  Stopping criterion = energy tolerance
+  Energy initial, next-to-last, final = 
+     -6242.44705417782  -6243.07937206027  -6243.07937232386
+  Force two-norm initial, final = 2.2289632 0.0012096823
+  Force max component initial, final = 0.27645392 0.00011002602
+  Final line search alpha, max atom move = 1 0.00011002602
+  Iterations, force evaluations = 33 66
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 0.017718   | 0.017718   | 0.017718   |   0.0 | 84.25
+Neigh   | 0          | 0          | 0          |   0.0 |  0.00
+Comm    | 0.0013204  | 0.0013204  | 0.0013204  |   0.0 |  6.28
+Output  | 0          | 0          | 0          |   0.0 |  0.00
+Modify  | 0.00079089 | 0.00079089 | 0.00079089 |   0.0 |  3.76
+Other   |            | 0.001201   |            |       |  5.71
+
+Nlocal:           1534 ave        1534 max        1534 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Nghost:           4953 ave        4953 max        4953 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Neighs:         100186 ave      100186 max      100186 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+
+Total # of neighbors = 100186
+Ave neighs/atom = 65.3103
+Neighbor list builds = 0
+Dangerous builds = 0
+variable count equal $i
+variable count equal 7
+print "$(v_strain:%.5f),$(v_stress:%.5f)" append stress-fracture.csv screen no
+write_dump all custom fracture.dump id type x y z v_syy modify append yes
+next i
+jump SELF loop
+displace_atoms gtop move 0  ${delta} 0 units box
+displace_atoms gtop move 0  0.06 0 units box
+Displacing atoms ...
+displace_atoms gbot move 0 -${delta} 0 units box
+displace_atoms gbot move 0 -0.06 0 units box
+Displacing atoms ...
+minimize 1.0e-10 1.0e-10 500 5000
+Last active /omp style is pair_style eam/fs/omp
+Per MPI rank memory allocation (min/avg/max) = 12.44 | 12.44 | 12.44 Mbytes
+   Step         PotEng           Ly            Pyy      
+       290  -6241.7848      79.487611     -36545.541    
+       300  -6242.3786      79.487611     -37398.689    
+       323  -6242.4015      79.487611     -37093.515    
+Loop time of 0.0222991 on 8 procs for 33 steps with 1534 atoms
+
+817.4% CPU use with 1 MPI tasks x 8 OpenMP threads
+
+Minimization stats:
+  Stopping criterion = energy tolerance
+  Energy initial, next-to-last, final = 
+     -6241.78481923834  -6242.40145339567  -6242.40145366204
+  Force two-norm initial, final = 2.1794633 0.0013220174
+  Force max component initial, final = 0.27265974 0.0001088461
+  Final line search alpha, max atom move = 1 0.0001088461
+  Iterations, force evaluations = 33 66
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 0.018577   | 0.018577   | 0.018577   |   0.0 | 83.31
+Neigh   | 0          | 0          | 0          |   0.0 |  0.00
+Comm    | 0.0014566  | 0.0014566  | 0.0014566  |   0.0 |  6.53
+Output  | 1.4628e-05 | 1.4628e-05 | 1.4628e-05 |   0.0 |  0.07
+Modify  | 0.00088575 | 0.00088575 | 0.00088575 |   0.0 |  3.97
+Other   |            | 0.001365   |            |       |  6.12
+
+Nlocal:           1534 ave        1534 max        1534 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Nghost:           4953 ave        4953 max        4953 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Neighs:         100158 ave      100158 max      100158 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+
+Total # of neighbors = 100158
+Ave neighs/atom = 65.292047
+Neighbor list builds = 0
+Dangerous builds = 0
+variable count equal $i
+variable count equal 8
+print "$(v_strain:%.5f),$(v_stress:%.5f)" append stress-fracture.csv screen no
+write_dump all custom fracture.dump id type x y z v_syy modify append yes
+next i
+jump SELF loop
+displace_atoms gtop move 0  ${delta} 0 units box
+displace_atoms gtop move 0  0.06 0 units box
+Displacing atoms ...
+displace_atoms gbot move 0 -${delta} 0 units box
+displace_atoms gbot move 0 -0.06 0 units box
+Displacing atoms ...
+minimize 1.0e-10 1.0e-10 500 5000
+Last active /omp style is pair_style eam/fs/omp
+Per MPI rank memory allocation (min/avg/max) = 12.44 | 12.44 | 12.44 Mbytes
+   Step         PotEng           Ly            Pyy      
+       323  -6241.0347      79.607611     -41003.723    
+       350  -6241.6351      79.607611     -41583.119    
+       356  -6241.6351      79.607611     -41581.13     
+Loop time of 0.0182987 on 8 procs for 33 steps with 1534 atoms
+
+784.7% CPU use with 1 MPI tasks x 8 OpenMP threads
+
+Minimization stats:
+  Stopping criterion = energy tolerance
+  Energy initial, next-to-last, final = 
+     -6241.03465701167   -6241.6351387998  -6241.63513927485
+  Force two-norm initial, final = 2.1277854 0.0015956959
+  Force max component initial, final = 0.2686147 0.00012270911
+  Final line search alpha, max atom move = 1 0.00012270911
+  Iterations, force evaluations = 33 66
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 0.015384   | 0.015384   | 0.015384   |   0.0 | 84.07
+Neigh   | 0          | 0          | 0          |   0.0 |  0.00
+Comm    | 0.0010829  | 0.0010829  | 0.0010829  |   0.0 |  5.92
+Output  | 1.6461e-05 | 1.6461e-05 | 1.6461e-05 |   0.0 |  0.09
+Modify  | 0.00073287 | 0.00073287 | 0.00073287 |   0.0 |  4.01
+Other   |            | 0.001082   |            |       |  5.92
+
+Nlocal:           1534 ave        1534 max        1534 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Nghost:           4953 ave        4953 max        4953 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Neighs:         100110 ave      100110 max      100110 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+
+Total # of neighbors = 100110
+Ave neighs/atom = 65.260756
+Neighbor list builds = 0
+Dangerous builds = 0
+variable count equal $i
+variable count equal 9
+print "$(v_strain:%.5f),$(v_stress:%.5f)" append stress-fracture.csv screen no
+write_dump all custom fracture.dump id type x y z v_syy modify append yes
+next i
+jump SELF loop
+displace_atoms gtop move 0  ${delta} 0 units box
+displace_atoms gtop move 0  0.06 0 units box
+Displacing atoms ...
+displace_atoms gbot move 0 -${delta} 0 units box
+displace_atoms gbot move 0 -0.06 0 units box
+Displacing atoms ...
+minimize 1.0e-10 1.0e-10 500 5000
+Last active /omp style is pair_style eam/fs/omp
+Per MPI rank memory allocation (min/avg/max) = 12.44 | 12.44 | 12.44 Mbytes
+   Step         PotEng           Ly            Pyy      
+       356  -6240.199       79.727611     -45345.677    
+       389  -6240.7828      79.727611     -45942.474    
+Loop time of 0.0147106 on 8 procs for 33 steps with 1534 atoms
+
+811.4% CPU use with 1 MPI tasks x 8 OpenMP threads
+
+Minimization stats:
+  Stopping criterion = energy tolerance
+  Energy initial, next-to-last, final = 
+     -6240.19904446719  -6240.78283675051  -6240.78283736737
+  Force two-norm initial, final = 2.0753514 0.0020433791
+  Force max component initial, final = 0.2645427 0.00018591013
+  Final line search alpha, max atom move = 1 0.00018591013
+  Iterations, force evaluations = 33 66
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 0.012137   | 0.012137   | 0.012137   |   0.0 | 82.51
+Neigh   | 0          | 0          | 0          |   0.0 |  0.00
+Comm    | 0.00097219 | 0.00097219 | 0.00097219 |   0.0 |  6.61
+Output  | 0          | 0          | 0          |   0.0 |  0.00
+Modify  | 0.0007165  | 0.0007165  | 0.0007165  |   0.0 |  4.87
+Other   |            | 0.0008848  |            |       |  6.01
+
+Nlocal:           1534 ave        1534 max        1534 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Nghost:           4953 ave        4953 max        4953 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Neighs:         100084 ave      100084 max      100084 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+
+Total # of neighbors = 100084
+Ave neighs/atom = 65.243807
+Neighbor list builds = 0
+Dangerous builds = 0
+variable count equal $i
+variable count equal 10
+print "$(v_strain:%.5f),$(v_stress:%.5f)" append stress-fracture.csv screen no
+write_dump all custom fracture.dump id type x y z v_syy modify append yes
+next i
+jump SELF loop
+displace_atoms gtop move 0  ${delta} 0 units box
+displace_atoms gtop move 0  0.06 0 units box
+Displacing atoms ...
+displace_atoms gbot move 0 -${delta} 0 units box
+displace_atoms gbot move 0 -0.06 0 units box
+Displacing atoms ...
+minimize 1.0e-10 1.0e-10 500 5000
+Last active /omp style is pair_style eam/fs/omp
+Per MPI rank memory allocation (min/avg/max) = 12.44 | 12.44 | 12.44 Mbytes
+   Step         PotEng           Ly            Pyy      
+       389  -6239.2803      79.847611     -49559.902    
+       400  -6239.8297      79.847611     -50393.76     
+       423  -6239.8471      79.847611     -50171.648    
+Loop time of 0.0163159 on 8 procs for 34 steps with 1534 atoms
+
+783.6% CPU use with 1 MPI tasks x 8 OpenMP threads
+
+Minimization stats:
+  Stopping criterion = energy tolerance
+  Energy initial, next-to-last, final = 
+     -6239.28032018951  -6239.84711337579  -6239.84711371574
+  Force two-norm initial, final = 2.0228339 0.001462453
+  Force max component initial, final = 0.2604641 0.00010733464
+  Final line search alpha, max atom move = 1 0.00010733464
+  Iterations, force evaluations = 34 68
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 0.013563   | 0.013563   | 0.013563   |   0.0 | 83.13
+Neigh   | 0          | 0          | 0          |   0.0 |  0.00
+Comm    | 0.0010663  | 0.0010663  | 0.0010663  |   0.0 |  6.54
+Output  | 1.045e-05  | 1.045e-05  | 1.045e-05  |   0.0 |  0.06
+Modify  | 0.00074983 | 0.00074983 | 0.00074983 |   0.0 |  4.60
+Other   |            | 0.0009264  |            |       |  5.68
+
+Nlocal:           1534 ave        1534 max        1534 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Nghost:           4953 ave        4953 max        4953 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Neighs:          99988 ave       99988 max       99988 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+
+Total # of neighbors = 99988
+Ave neighs/atom = 65.181226
+Neighbor list builds = 0
+Dangerous builds = 0
+variable count equal $i
+variable count equal 11
+print "$(v_strain:%.5f),$(v_stress:%.5f)" append stress-fracture.csv screen no
+write_dump all custom fracture.dump id type x y z v_syy modify append yes
+next i
+jump SELF loop
+displace_atoms gtop move 0  ${delta} 0 units box
+displace_atoms gtop move 0  0.06 0 units box
+Displacing atoms ...
+displace_atoms gbot move 0 -${delta} 0 units box
+displace_atoms gbot move 0 -0.06 0 units box
+Displacing atoms ...
+minimize 1.0e-10 1.0e-10 500 5000
+Last active /omp style is pair_style eam/fs/omp
+Per MPI rank memory allocation (min/avg/max) = 12.44 | 12.44 | 12.44 Mbytes
+   Step         PotEng           Ly            Pyy      
+       423  -6238.2809      79.967611     -53641.773    
+       450  -6238.8306      79.967611     -54269.875    
+       453  -6238.8306      79.967611     -54268.282    
+Loop time of 0.0160043 on 8 procs for 30 steps with 1534 atoms
+
+796.5% CPU use with 1 MPI tasks x 8 OpenMP threads
+
+Minimization stats:
+  Stopping criterion = energy tolerance
+  Energy initial, next-to-last, final = 
+     -6238.28085140292   -6238.8305831857   -6238.8305836757
+  Force two-norm initial, final = 1.9709833 0.002376083
+  Force max component initial, final = 0.25638529 0.00019876523
+  Final line search alpha, max atom move = 1 0.00019876523
+  Iterations, force evaluations = 30 60
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 0.013549   | 0.013549   | 0.013549   |   0.0 | 84.66
+Neigh   | 0          | 0          | 0          |   0.0 |  0.00
+Comm    | 0.00090326 | 0.00090326 | 0.00090326 |   0.0 |  5.64
+Output  | 1.7664e-05 | 1.7664e-05 | 1.7664e-05 |   0.0 |  0.11
+Modify  | 0.00068877 | 0.00068877 | 0.00068877 |   0.0 |  4.30
+Other   |            | 0.0008456  |            |       |  5.28
+
+Nlocal:           1534 ave        1534 max        1534 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Nghost:           4953 ave        4953 max        4953 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Neighs:          99920 ave       99920 max       99920 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+
+Total # of neighbors = 99920
+Ave neighs/atom = 65.136897
+Neighbor list builds = 0
+Dangerous builds = 0
+variable count equal $i
+variable count equal 12
+print "$(v_strain:%.5f),$(v_stress:%.5f)" append stress-fracture.csv screen no
+write_dump all custom fracture.dump id type x y z v_syy modify append yes
+next i
+jump SELF loop
+displace_atoms gtop move 0  ${delta} 0 units box
+displace_atoms gtop move 0  0.06 0 units box
+Displacing atoms ...
+displace_atoms gbot move 0 -${delta} 0 units box
+displace_atoms gbot move 0 -0.06 0 units box
+Displacing atoms ...
+minimize 1.0e-10 1.0e-10 500 5000
+Last active /omp style is pair_style eam/fs/omp
+Per MPI rank memory allocation (min/avg/max) = 12.44 | 12.44 | 12.44 Mbytes
+   Step         PotEng           Ly            Pyy      
+       453  -6237.2028      80.087611     -57589.929    
+       482  -6237.7359      80.087611     -58228.478    
+Loop time of 0.012544 on 8 procs for 29 steps with 1534 atoms
+
+767.6% CPU use with 1 MPI tasks x 8 OpenMP threads
+
+Minimization stats:
+  Stopping criterion = energy tolerance
+  Energy initial, next-to-last, final = 
+     -6237.20279708236  -6237.73590444152  -6237.73590490372
+  Force two-norm initial, final = 1.9192841 0.0020483189
+  Force max component initial, final = 0.25225147 0.00018493214
+  Final line search alpha, max atom move = 1 0.00018493214
+  Iterations, force evaluations = 29 58
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 0.010313   | 0.010313   | 0.010313   |   0.0 | 82.21
+Neigh   | 0          | 0          | 0          |   0.0 |  0.00
+Comm    | 0.00084571 | 0.00084571 | 0.00084571 |   0.0 |  6.74
+Output  | 0          | 0          | 0          |   0.0 |  0.00
+Modify  | 0.00062755 | 0.00062755 | 0.00062755 |   0.0 |  5.00
+Other   |            | 0.0007582  |            |       |  6.04
+
+Nlocal:           1534 ave        1534 max        1534 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Nghost:           4953 ave        4953 max        4953 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Neighs:          99880 ave       99880 max       99880 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+
+Total # of neighbors = 99880
+Ave neighs/atom = 65.110821
+Neighbor list builds = 0
+Dangerous builds = 0
+variable count equal $i
+variable count equal 13
+print "$(v_strain:%.5f),$(v_stress:%.5f)" append stress-fracture.csv screen no
+write_dump all custom fracture.dump id type x y z v_syy modify append yes
+next i
+jump SELF loop
+displace_atoms gtop move 0  ${delta} 0 units box
+displace_atoms gtop move 0  0.06 0 units box
+Displacing atoms ...
+displace_atoms gbot move 0 -${delta} 0 units box
+displace_atoms gbot move 0 -0.06 0 units box
+Displacing atoms ...
+minimize 1.0e-10 1.0e-10 500 5000
+Last active /omp style is pair_style eam/fs/omp
+Per MPI rank memory allocation (min/avg/max) = 12.44 | 12.44 | 12.44 Mbytes
+   Step         PotEng           Ly            Pyy      
+       482  -6236.0496      80.207611     -61402.062    
+       500  -6236.5656      80.207611     -62050.866    
+       511  -6236.5658      80.207611     -62049.359    
+Loop time of 0.0132969 on 8 procs for 29 steps with 1534 atoms
+
+782.0% CPU use with 1 MPI tasks x 8 OpenMP threads
+
+Minimization stats:
+  Stopping criterion = energy tolerance
+  Energy initial, next-to-last, final = 
+      -6236.0496098436   -6236.5657766272   -6236.5657771569
+  Force two-norm initial, final = 1.8689504 0.0019977542
+  Force max component initial, final = 0.24817569 0.0001956525
+  Final line search alpha, max atom move = 1 0.0001956525
+  Iterations, force evaluations = 29 58
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 0.011031   | 0.011031   | 0.011031   |   0.0 | 82.96
+Neigh   | 0          | 0          | 0          |   0.0 |  0.00
+Comm    | 0.00085918 | 0.00085918 | 0.00085918 |   0.0 |  6.46
+Output  | 7.615e-06  | 7.615e-06  | 7.615e-06  |   0.0 |  0.06
+Modify  | 0.00063358 | 0.00063358 | 0.00063358 |   0.0 |  4.76
+Other   |            | 0.0007651  |            |       |  5.75
+
+Nlocal:           1534 ave        1534 max        1534 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Nghost:           4953 ave        4953 max        4953 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Neighs:          99850 ave       99850 max       99850 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+
+Total # of neighbors = 99850
+Ave neighs/atom = 65.091265
+Neighbor list builds = 0
+Dangerous builds = 0
+variable count equal $i
+variable count equal 14
+print "$(v_strain:%.5f),$(v_stress:%.5f)" append stress-fracture.csv screen no
+write_dump all custom fracture.dump id type x y z v_syy modify append yes
+next i
+jump SELF loop
+displace_atoms gtop move 0  ${delta} 0 units box
+displace_atoms gtop move 0  0.06 0 units box
+Displacing atoms ...
+displace_atoms gbot move 0 -${delta} 0 units box
+displace_atoms gbot move 0 -0.06 0 units box
+Displacing atoms ...
+minimize 1.0e-10 1.0e-10 500 5000
+Last active /omp style is pair_style eam/fs/omp
+Per MPI rank memory allocation (min/avg/max) = 12.44 | 12.44 | 12.44 Mbytes
+   Step         PotEng           Ly            Pyy      
+       511  -6234.8239      80.327611     -65075.137    
+       539  -6235.3229      80.327611     -65732.171    
+Loop time of 0.0158057 on 8 procs for 28 steps with 1534 atoms
+
+799.0% CPU use with 1 MPI tasks x 8 OpenMP threads
+
+Minimization stats:
+  Stopping criterion = energy tolerance
+  Energy initial, next-to-last, final = 
+     -6234.82387226877   -6235.3229438445  -6235.32294440858
+  Force two-norm initial, final = 1.8194195 0.0021255553
+  Force max component initial, final = 0.24409582 0.00022393387
+  Final line search alpha, max atom move = 1 0.00022393387
+  Iterations, force evaluations = 28 56
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 0.013502   | 0.013502   | 0.013502   |   0.0 | 85.42
+Neigh   | 0          | 0          | 0          |   0.0 |  0.00
+Comm    | 0.00087541 | 0.00087541 | 0.00087541 |   0.0 |  5.54
+Output  | 0          | 0          | 0          |   0.0 |  0.00
+Modify  | 0.00061148 | 0.00061148 | 0.00061148 |   0.0 |  3.87
+Other   |            | 0.0008168  |            |       |  5.17
+
+Nlocal:           1534 ave        1534 max        1534 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Nghost:           4953 ave        4953 max        4953 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Neighs:          99834 ave       99834 max       99834 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+
+Total # of neighbors = 99834
+Ave neighs/atom = 65.080834
+Neighbor list builds = 0
+Dangerous builds = 0
+variable count equal $i
+variable count equal 15
+print "$(v_strain:%.5f),$(v_stress:%.5f)" append stress-fracture.csv screen no
+write_dump all custom fracture.dump id type x y z v_syy modify append yes
+next i
+jump SELF loop
+displace_atoms gtop move 0  ${delta} 0 units box
+displace_atoms gtop move 0  0.06 0 units box
+Displacing atoms ...
+displace_atoms gbot move 0 -${delta} 0 units box
+displace_atoms gbot move 0 -0.06 0 units box
+Displacing atoms ...
+minimize 1.0e-10 1.0e-10 500 5000
+Last active /omp style is pair_style eam/fs/omp
+Per MPI rank memory allocation (min/avg/max) = 12.44 | 12.44 | 12.44 Mbytes
+   Step         PotEng           Ly            Pyy      
+       539  -6233.5282      80.447611     -68611.297    
+       550  -6233.9928      80.447611     -69371.217    
+       567  -6234.0101      80.447611     -69278.173    
+Loop time of 0.0147038 on 8 procs for 28 steps with 1534 atoms
+
+763.7% CPU use with 1 MPI tasks x 8 OpenMP threads
+
+Minimization stats:
+  Stopping criterion = energy tolerance
+  Energy initial, next-to-last, final = 
+     -6233.52823120493  -6234.01009409111  -6234.01009452052
+  Force two-norm initial, final = 1.7710045 0.0018229541
+  Force max component initial, final = 0.24001006 0.00019650836
+  Final line search alpha, max atom move = 1 0.00019650836
+  Iterations, force evaluations = 28 56
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 0.012459   | 0.012459   | 0.012459   |   0.0 | 84.73
+Neigh   | 0          | 0          | 0          |   0.0 |  0.00
+Comm    | 0.00084974 | 0.00084974 | 0.00084974 |   0.0 |  5.78
+Output  | 9.298e-06  | 9.298e-06  | 9.298e-06  |   0.0 |  0.06
+Modify  | 0.00060874 | 0.00060874 | 0.00060874 |   0.0 |  4.14
+Other   |            | 0.0007769  |            |       |  5.28
+
+Nlocal:           1534 ave        1534 max        1534 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Nghost:           4953 ave        4953 max        4953 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Neighs:          99825 ave       99825 max       99825 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+
+Total # of neighbors = 99825
+Ave neighs/atom = 65.074967
+Neighbor list builds = 0
+Dangerous builds = 0
+variable count equal $i
+variable count equal 16
+print "$(v_strain:%.5f),$(v_stress:%.5f)" append stress-fracture.csv screen no
+write_dump all custom fracture.dump id type x y z v_syy modify append yes
+next i
+jump SELF loop
+displace_atoms gtop move 0  ${delta} 0 units box
+displace_atoms gtop move 0  0.06 0 units box
+Displacing atoms ...
+displace_atoms gbot move 0 -${delta} 0 units box
+displace_atoms gbot move 0 -0.06 0 units box
+Displacing atoms ...
+minimize 1.0e-10 1.0e-10 500 5000
+Last active /omp style is pair_style eam/fs/omp
+Per MPI rank memory allocation (min/avg/max) = 12.44 | 12.44 | 12.44 Mbytes
+   Step         PotEng           Ly            Pyy      
+       567  -6232.1654      80.567611     -72016.983    
+       595  -6232.6299      80.567611     -72685.346    
+Loop time of 0.0139956 on 8 procs for 28 steps with 1534 atoms
+
+790.6% CPU use with 1 MPI tasks x 8 OpenMP threads
+
+Minimization stats:
+  Stopping criterion = energy tolerance
+  Energy initial, next-to-last, final = 
+     -6232.16535652149  -6232.62992589005  -6232.62992630373
+  Force two-norm initial, final = 1.7246944 0.0017232467
+  Force max component initial, final = 0.2359479 0.00014882146
+  Final line search alpha, max atom move = 1 0.00014882146
+  Iterations, force evaluations = 28 56
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 0.011735   | 0.011735   | 0.011735   |   0.0 | 83.85
+Neigh   | 0          | 0          | 0          |   0.0 |  0.00
+Comm    | 0.00086302 | 0.00086302 | 0.00086302 |   0.0 |  6.17
+Output  | 0          | 0          | 0          |   0.0 |  0.00
+Modify  | 0.00061323 | 0.00061323 | 0.00061323 |   0.0 |  4.38
+Other   |            | 0.0007845  |            |       |  5.61
+
+Nlocal:           1534 ave        1534 max        1534 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Nghost:           4953 ave        4953 max        4953 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Neighs:          99820 ave       99820 max       99820 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+
+Total # of neighbors = 99820
+Ave neighs/atom = 65.071708
+Neighbor list builds = 0
+Dangerous builds = 0
+variable count equal $i
+variable count equal 17
+print "$(v_strain:%.5f),$(v_stress:%.5f)" append stress-fracture.csv screen no
+write_dump all custom fracture.dump id type x y z v_syy modify append yes
+next i
+jump SELF loop
+displace_atoms gtop move 0  ${delta} 0 units box
+displace_atoms gtop move 0  0.06 0 units box
+Displacing atoms ...
+displace_atoms gbot move 0 -${delta} 0 units box
+displace_atoms gbot move 0 -0.06 0 units box
+Displacing atoms ...
+minimize 1.0e-10 1.0e-10 500 5000
+Last active /omp style is pair_style eam/fs/omp
+Per MPI rank memory allocation (min/avg/max) = 12.44 | 12.44 | 12.44 Mbytes
+   Step         PotEng           Ly            Pyy      
+       595  -6230.7377      80.687611     -75290.393    
+       600  -6231.1287      80.687611     -75906.697    
+       622  -6231.1852      80.687611     -75950.468    
+Loop time of 0.012758 on 8 procs for 27 steps with 1534 atoms
+
+810.8% CPU use with 1 MPI tasks x 8 OpenMP threads
+
+Minimization stats:
+  Stopping criterion = energy tolerance
+  Energy initial, next-to-last, final = 
+     -6230.73768965524  -6231.18519645073  -6231.18519697989
+  Force two-norm initial, final = 1.6801895 0.0022251462
+  Force max component initial, final = 0.23188495 0.00018143394
+  Final line search alpha, max atom move = 1 0.00018143394
+  Iterations, force evaluations = 27 54
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 0.010614   | 0.010614   | 0.010614   |   0.0 | 83.20
+Neigh   | 0          | 0          | 0          |   0.0 |  0.00
+Comm    | 0.0008129  | 0.0008129  | 0.0008129  |   0.0 |  6.37
+Output  | 7.535e-06  | 7.535e-06  | 7.535e-06  |   0.0 |  0.06
+Modify  | 0.00058855 | 0.00058855 | 0.00058855 |   0.0 |  4.61
+Other   |            | 0.000735   |            |       |  5.76
+
+Nlocal:           1534 ave        1534 max        1534 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Nghost:           4953 ave        4953 max        4953 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Neighs:          99808 ave       99808 max       99808 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+
+Total # of neighbors = 99808
+Ave neighs/atom = 65.063885
+Neighbor list builds = 0
+Dangerous builds = 0
+variable count equal $i
+variable count equal 18
+print "$(v_strain:%.5f),$(v_stress:%.5f)" append stress-fracture.csv screen no
+write_dump all custom fracture.dump id type x y z v_syy modify append yes
+next i
+jump SELF loop
+displace_atoms gtop move 0  ${delta} 0 units box
+displace_atoms gtop move 0  0.06 0 units box
+Displacing atoms ...
+displace_atoms gbot move 0 -${delta} 0 units box
+displace_atoms gbot move 0 -0.06 0 units box
+Displacing atoms ...
+minimize 1.0e-10 1.0e-10 500 5000
+Last active /omp style is pair_style eam/fs/omp
+Per MPI rank memory allocation (min/avg/max) = 12.44 | 12.44 | 12.44 Mbytes
+   Step         PotEng           Ly            Pyy      
+       622  -6229.2483      80.807611     -78429.559    
+       648  -6229.6787      80.807611     -79071.998    
+Loop time of 0.012723 on 8 procs for 26 steps with 1534 atoms
+
+812.6% CPU use with 1 MPI tasks x 8 OpenMP threads
+
+Minimization stats:
+  Stopping criterion = energy tolerance
+  Energy initial, next-to-last, final = 
+     -6229.24829243489  -6229.67870904048  -6229.67870952803
+  Force two-norm initial, final = 1.6373613 0.002190686
+  Force max component initial, final = 0.22784052 0.00015342472
+  Final line search alpha, max atom move = 1 0.00015342472
+  Iterations, force evaluations = 26 52
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 0.010644   | 0.010644   | 0.010644   |   0.0 | 83.66
+Neigh   | 0          | 0          | 0          |   0.0 |  0.00
+Comm    | 0.00079099 | 0.00079099 | 0.00079099 |   0.0 |  6.22
+Output  | 0          | 0          | 0          |   0.0 |  0.00
+Modify  | 0.00056897 | 0.00056897 | 0.00056897 |   0.0 |  4.47
+Other   |            | 0.0007194  |            |       |  5.65
+
+Nlocal:           1534 ave        1534 max        1534 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Nghost:           4953 ave        4953 max        4953 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Neighs:          99808 ave       99808 max       99808 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+
+Total # of neighbors = 99808
+Ave neighs/atom = 65.063885
+Neighbor list builds = 0
+Dangerous builds = 0
+variable count equal $i
+variable count equal 19
+print "$(v_strain:%.5f),$(v_stress:%.5f)" append stress-fracture.csv screen no
+write_dump all custom fracture.dump id type x y z v_syy modify append yes
+next i
+jump SELF loop
+displace_atoms gtop move 0  ${delta} 0 units box
+displace_atoms gtop move 0  0.06 0 units box
+Displacing atoms ...
+displace_atoms gbot move 0 -${delta} 0 units box
+displace_atoms gbot move 0 -0.06 0 units box
+Displacing atoms ...
+minimize 1.0e-10 1.0e-10 500 5000
+Last active /omp style is pair_style eam/fs/omp
+Per MPI rank memory allocation (min/avg/max) = 12.44 | 12.44 | 12.44 Mbytes
+   Step         PotEng           Ly            Pyy      
+       648  -6227.6991      80.927611     -81431.389    
+       650  -6227.9878      80.927611     -81744.619    
+       675  -6228.1133      80.927611     -82046.264    
+Loop time of 0.0125989 on 8 procs for 27 steps with 1534 atoms
+
+756.6% CPU use with 1 MPI tasks x 8 OpenMP threads
+
+Minimization stats:
+  Stopping criterion = energy tolerance
+  Energy initial, next-to-last, final = 
+     -6227.69913297533  -6228.11332423888  -6228.11332468626
+  Force two-norm initial, final = 1.5961081 0.0018782334
+  Force max component initial, final = 0.22381871 0.00013054997
+  Final line search alpha, max atom move = 1 0.00013054997
+  Iterations, force evaluations = 27 54
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 0.010478   | 0.010478   | 0.010478   |   0.0 | 83.16
+Neigh   | 0          | 0          | 0          |   0.0 |  0.00
+Comm    | 0.00080207 | 0.00080207 | 0.00080207 |   0.0 |  6.37
+Output  | 7.684e-06  | 7.684e-06  | 7.684e-06  |   0.0 |  0.06
+Modify  | 0.00058332 | 0.00058332 | 0.00058332 |   0.0 |  4.63
+Other   |            | 0.000728   |            |       |  5.78
+
+Nlocal:           1534 ave        1534 max        1534 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Nghost:           4953 ave        4953 max        4953 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Neighs:          99804 ave       99804 max       99804 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+
+Total # of neighbors = 99804
+Ave neighs/atom = 65.061278
+Neighbor list builds = 0
+Dangerous builds = 0
+variable count equal $i
+variable count equal 20
+print "$(v_strain:%.5f),$(v_stress:%.5f)" append stress-fracture.csv screen no
+write_dump all custom fracture.dump id type x y z v_syy modify append yes
+next i
+jump SELF loop
+displace_atoms gtop move 0  ${delta} 0 units box
+displace_atoms gtop move 0  0.06 0 units box
+Displacing atoms ...
+displace_atoms gbot move 0 -${delta} 0 units box
+displace_atoms gbot move 0 -0.06 0 units box
+Displacing atoms ...
+minimize 1.0e-10 1.0e-10 500 5000
+Last active /omp style is pair_style eam/fs/omp
+Per MPI rank memory allocation (min/avg/max) = 12.44 | 12.44 | 12.44 Mbytes
+   Step         PotEng           Ly            Pyy      
+       675  -6226.093       81.047611     -84292.387    
+       700  -6226.492       81.047611     -84871.291    
+       703  -6226.492       81.047611     -84871.054    
+Loop time of 0.0124187 on 8 procs for 28 steps with 1534 atoms
+
+830.5% CPU use with 1 MPI tasks x 8 OpenMP threads
+
+Minimization stats:
+  Stopping criterion = energy tolerance
+  Energy initial, next-to-last, final = 
+      -6226.0929524268  -6226.49195665354  -6226.49195724564
+  Force two-norm initial, final = 1.5559997 0.0023026882
+  Force max component initial, final = 0.21979472 0.00018601482
+  Final line search alpha, max atom move = 1 0.00018601482
+  Iterations, force evaluations = 28 56
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 0.010228   | 0.010228   | 0.010228   |   0.0 | 82.36
+Neigh   | 0          | 0          | 0          |   0.0 |  0.00
+Comm    | 0.00083108 | 0.00083108 | 0.00083108 |   0.0 |  6.69
+Output  | 7.805e-06  | 7.805e-06  | 7.805e-06  |   0.0 |  0.06
+Modify  | 0.00061036 | 0.00061036 | 0.00061036 |   0.0 |  4.91
+Other   |            | 0.0007418  |            |       |  5.97
+
+Nlocal:           1534 ave        1534 max        1534 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Nghost:           4953 ave        4953 max        4953 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Neighs:          99786 ave       99786 max       99786 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+
+Total # of neighbors = 99786
+Ave neighs/atom = 65.049544
+Neighbor list builds = 0
+Dangerous builds = 0
+variable count equal $i
+variable count equal 21
+print "$(v_strain:%.5f),$(v_stress:%.5f)" append stress-fracture.csv screen no
+write_dump all custom fracture.dump id type x y z v_syy modify append yes
+next i
+jump SELF loop
+displace_atoms gtop move 0  ${delta} 0 units box
+displace_atoms gtop move 0  0.06 0 units box
+Displacing atoms ...
+displace_atoms gbot move 0 -${delta} 0 units box
+displace_atoms gbot move 0 -0.06 0 units box
+Displacing atoms ...
+minimize 1.0e-10 1.0e-10 500 5000
+Last active /omp style is pair_style eam/fs/omp
+Per MPI rank memory allocation (min/avg/max) = 12.44 | 12.44 | 12.44 Mbytes
+   Step         PotEng           Ly            Pyy      
+       703  -6224.4328      81.167611     -87012.118    
+       739  -6224.8176      81.167611     -87542.97     
+Loop time of 0.0158238 on 8 procs for 36 steps with 1534 atoms
+
+805.6% CPU use with 1 MPI tasks x 8 OpenMP threads
+
+Minimization stats:
+  Stopping criterion = energy tolerance
+  Energy initial, next-to-last, final = 
+       -6224.432849607  -6224.81758629242  -6224.81758671141
+  Force two-norm initial, final = 1.5173558 0.0017361413
+  Force max component initial, final = 0.21579206 0.00011198168
+  Final line search alpha, max atom move = 1 0.00011198168
+  Iterations, force evaluations = 36 72
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 0.013056   | 0.013056   | 0.013056   |   0.0 | 82.51
+Neigh   | 0          | 0          | 0          |   0.0 |  0.00
+Comm    | 0.0010433  | 0.0010433  | 0.0010433  |   0.0 |  6.59
+Output  | 0          | 0          | 0          |   0.0 |  0.00
+Modify  | 0.00077462 | 0.00077462 | 0.00077462 |   0.0 |  4.90
+Other   |            | 0.00095    |            |       |  6.00
+
+Nlocal:           1534 ave        1534 max        1534 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Nghost:           4953 ave        4953 max        4953 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Neighs:          99748 ave       99748 max       99748 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+
+Total # of neighbors = 99748
+Ave neighs/atom = 65.024772
+Neighbor list builds = 0
+Dangerous builds = 0
+variable count equal $i
+variable count equal 22
+print "$(v_strain:%.5f),$(v_stress:%.5f)" append stress-fracture.csv screen no
+write_dump all custom fracture.dump id type x y z v_syy modify append yes
+next i
+jump SELF loop
+displace_atoms gtop move 0  ${delta} 0 units box
+displace_atoms gtop move 0  0.06 0 units box
+Displacing atoms ...
+displace_atoms gbot move 0 -${delta} 0 units box
+displace_atoms gbot move 0 -0.06 0 units box
+Displacing atoms ...
+minimize 1.0e-10 1.0e-10 500 5000
+Last active /omp style is pair_style eam/fs/omp
+Per MPI rank memory allocation (min/avg/max) = 12.44 | 12.44 | 12.44 Mbytes
+   Step         PotEng           Ly            Pyy      
+       739  -6222.721       81.287611     -89588.808    
+       750  -6223.0763      81.287611     -89996.61     
+       775  -6223.0932      81.287611     -90058.24     
+Loop time of 0.0180183 on 8 procs for 36 steps with 1534 atoms
+
+795.1% CPU use with 1 MPI tasks x 8 OpenMP threads
+
+Minimization stats:
+  Stopping criterion = energy tolerance
+  Energy initial, next-to-last, final = 
+     -6222.72101034495  -6223.09323010392  -6223.09323067361
+  Force two-norm initial, final = 1.480784 0.0020923387
+  Force max component initial, final = 0.21174267 0.00014475023
+  Final line search alpha, max atom move = 1 0.00014475023
+  Iterations, force evaluations = 36 72
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 0.014889   | 0.014889   | 0.014889   |   0.0 | 82.63
+Neigh   | 0          | 0          | 0          |   0.0 |  0.00
+Comm    | 0.0011652  | 0.0011652  | 0.0011652  |   0.0 |  6.47
+Output  | 6.282e-06  | 6.282e-06  | 6.282e-06  |   0.0 |  0.03
+Modify  | 0.00082093 | 0.00082093 | 0.00082093 |   0.0 |  4.56
+Other   |            | 0.001137   |            |       |  6.31
+
+Nlocal:           1534 ave        1534 max        1534 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Nghost:           4953 ave        4953 max        4953 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Neighs:          99740 ave       99740 max       99740 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+
+Total # of neighbors = 99740
+Ave neighs/atom = 65.019557
+Neighbor list builds = 0
+Dangerous builds = 0
+variable count equal $i
+variable count equal 23
+print "$(v_strain:%.5f),$(v_stress:%.5f)" append stress-fracture.csv screen no
+write_dump all custom fracture.dump id type x y z v_syy modify append yes
+next i
+jump SELF loop
+displace_atoms gtop move 0  ${delta} 0 units box
+displace_atoms gtop move 0  0.06 0 units box
+Displacing atoms ...
+displace_atoms gbot move 0 -${delta} 0 units box
+displace_atoms gbot move 0 -0.06 0 units box
+Displacing atoms ...
+minimize 1.0e-10 1.0e-10 500 5000
+Last active /omp style is pair_style eam/fs/omp
+Per MPI rank memory allocation (min/avg/max) = 12.44 | 12.44 | 12.44 Mbytes
+   Step         PotEng           Ly            Pyy      
+       775  -6220.9616      81.407611     -92022.932    
+       800  -6221.322       81.407611     -92414.729    
+       810  -6221.322       81.407611     -92413.76     
+Loop time of 0.016434 on 8 procs for 35 steps with 1534 atoms
+
+821.7% CPU use with 1 MPI tasks x 8 OpenMP threads
+
+Minimization stats:
+  Stopping criterion = energy tolerance
+  Energy initial, next-to-last, final = 
+     -6220.96155305785  -6221.32198654723  -6221.32198703742
+  Force two-norm initial, final = 1.4470295 0.002311574
+  Force max component initial, final = 0.20782426 0.0001784183
+  Final line search alpha, max atom move = 1 0.0001784183
+  Iterations, force evaluations = 35 70
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 0.013691   | 0.013691   | 0.013691   |   0.0 | 83.31
+Neigh   | 0          | 0          | 0          |   0.0 |  0.00
+Comm    | 0.0010313  | 0.0010313  | 0.0010313  |   0.0 |  6.28
+Output  | 7.514e-06  | 7.514e-06  | 7.514e-06  |   0.0 |  0.05
+Modify  | 0.00075919 | 0.00075919 | 0.00075919 |   0.0 |  4.62
+Other   |            | 0.0009453  |            |       |  5.75
+
+Nlocal:           1534 ave        1534 max        1534 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Nghost:           4953 ave        4953 max        4953 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Neighs:          99636 ave       99636 max       99636 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+
+Total # of neighbors = 99636
+Ave neighs/atom = 64.95176
+Neighbor list builds = 0
+Dangerous builds = 0
+variable count equal $i
+variable count equal 24
+print "$(v_strain:%.5f),$(v_stress:%.5f)" append stress-fracture.csv screen no
+write_dump all custom fracture.dump id type x y z v_syy modify append yes
+next i
+jump SELF loop
+displace_atoms gtop move 0  ${delta} 0 units box
+displace_atoms gtop move 0  0.06 0 units box
+Displacing atoms ...
+displace_atoms gbot move 0 -${delta} 0 units box
+displace_atoms gbot move 0 -0.06 0 units box
+Displacing atoms ...
+minimize 1.0e-10 1.0e-10 500 5000
+Last active /omp style is pair_style eam/fs/omp
+Per MPI rank memory allocation (min/avg/max) = 12.44 | 12.44 | 12.44 Mbytes
+   Step         PotEng           Ly            Pyy      
+       810  -6219.1568      81.527611     -94311.291    
+       848  -6219.507       81.527611     -94607.443    
+Loop time of 0.0163903 on 8 procs for 38 steps with 1534 atoms
+
+823.8% CPU use with 1 MPI tasks x 8 OpenMP threads
+
+Minimization stats:
+  Stopping criterion = energy tolerance
+  Energy initial, next-to-last, final = 
+     -6219.15675876276  -6219.50700948316  -6219.50700999797
+  Force two-norm initial, final = 1.4166586 0.0019994308
+  Force max component initial, final = 0.20415303 0.00015528842
+  Final line search alpha, max atom move = 1 0.00015528842
+  Iterations, force evaluations = 38 76
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 0.013441   | 0.013441   | 0.013441   |   0.0 | 82.00
+Neigh   | 0          | 0          | 0          |   0.0 |  0.00
+Comm    | 0.0011148  | 0.0011148  | 0.0011148  |   0.0 |  6.80
+Output  | 0          | 0          | 0          |   0.0 |  0.00
+Modify  | 0.00082691 | 0.00082691 | 0.00082691 |   0.0 |  5.05
+Other   |            | 0.001008   |            |       |  6.15
+
+Nlocal:           1534 ave        1534 max        1534 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Nghost:           4953 ave        4953 max        4953 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Neighs:          99628 ave       99628 max       99628 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+
+Total # of neighbors = 99628
+Ave neighs/atom = 64.946545
+Neighbor list builds = 0
+Dangerous builds = 0
+variable count equal $i
+variable count equal 25
+print "$(v_strain:%.5f),$(v_stress:%.5f)" append stress-fracture.csv screen no
+write_dump all custom fracture.dump id type x y z v_syy modify append yes
+next i
+jump SELF loop
+displace_atoms gtop move 0  ${delta} 0 units box
+displace_atoms gtop move 0  0.06 0 units box
+Displacing atoms ...
+displace_atoms gbot move 0 -${delta} 0 units box
+displace_atoms gbot move 0 -0.06 0 units box
+Displacing atoms ...
+minimize 1.0e-10 1.0e-10 500 5000
+Last active /omp style is pair_style eam/fs/omp
+Per MPI rank memory allocation (min/avg/max) = 12.44 | 12.44 | 12.44 Mbytes
+   Step         PotEng           Ly            Pyy      
+       848  -6217.3089      81.647611     -96451.064    
+       850  -6217.56        81.647611     -96373.477    
+       881  -6217.6515      81.647611     -96638.423    
+Loop time of 0.0174864 on 8 procs for 33 steps with 1534 atoms
+
+817.5% CPU use with 1 MPI tasks x 8 OpenMP threads
+
+Minimization stats:
+  Stopping criterion = energy tolerance
+  Energy initial, next-to-last, final = 
+     -6217.30889010334  -6217.65147594408  -6217.65147645743
+  Force two-norm initial, final = 1.3892206 0.0024644431
+  Force max component initial, final = 0.20063277 0.00021698344
+  Final line search alpha, max atom move = 1 0.00021698344
+  Iterations, force evaluations = 33 66
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 0.014782   | 0.014782   | 0.014782   |   0.0 | 84.53
+Neigh   | 0          | 0          | 0          |   0.0 |  0.00
+Comm    | 0.0010272  | 0.0010272  | 0.0010272  |   0.0 |  5.87
+Output  | 7.284e-06  | 7.284e-06  | 7.284e-06  |   0.0 |  0.04
+Modify  | 0.00072428 | 0.00072428 | 0.00072428 |   0.0 |  4.14
+Other   |            | 0.0009461  |            |       |  5.41
+
+Nlocal:           1534 ave        1534 max        1534 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Nghost:           4953 ave        4953 max        4953 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Neighs:          99622 ave       99622 max       99622 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+
+Total # of neighbors = 99622
+Ave neighs/atom = 64.942634
+Neighbor list builds = 0
+Dangerous builds = 0
+variable count equal $i
+variable count equal 26
+print "$(v_strain:%.5f),$(v_stress:%.5f)" append stress-fracture.csv screen no
+write_dump all custom fracture.dump id type x y z v_syy modify append yes
+next i
+jump SELF loop
+displace_atoms gtop move 0  ${delta} 0 units box
+displace_atoms gtop move 0  0.06 0 units box
+Displacing atoms ...
+displace_atoms gbot move 0 -${delta} 0 units box
+displace_atoms gbot move 0 -0.06 0 units box
+Displacing atoms ...
+minimize 1.0e-10 1.0e-10 500 5000
+Last active /omp style is pair_style eam/fs/omp
+Per MPI rank memory allocation (min/avg/max) = 12.44 | 12.44 | 12.44 Mbytes
+   Step         PotEng           Ly            Pyy      
+       881  -6215.4221      81.767611     -98443.095    
+       900  -6215.7545      81.767611     -98432.178    
+       918  -6215.7586      81.767611     -98508.988    
+Loop time of 0.0167605 on 8 procs for 37 steps with 1534 atoms
+
+807.8% CPU use with 1 MPI tasks x 8 OpenMP threads
+
+Minimization stats:
+  Stopping criterion = energy tolerance
+  Energy initial, next-to-last, final = 
+      -6215.4221465154  -6215.75855075424  -6215.75855115081
+  Force two-norm initial, final = 1.3657396 0.0017578012
+  Force max component initial, final = 0.1974884 0.00013315267
+  Final line search alpha, max atom move = 1 0.00013315267
+  Iterations, force evaluations = 37 74
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 0.01388    | 0.01388    | 0.01388    |   0.0 | 82.81
+Neigh   | 0          | 0          | 0          |   0.0 |  0.00
+Comm    | 0.0010769  | 0.0010769  | 0.0010769  |   0.0 |  6.43
+Output  | 1.052e-05  | 1.052e-05  | 1.052e-05  |   0.0 |  0.06
+Modify  | 0.00081456 | 0.00081456 | 0.00081456 |   0.0 |  4.86
+Other   |            | 0.0009789  |            |       |  5.84
+
+Nlocal:           1534 ave        1534 max        1534 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Nghost:           4953 ave        4953 max        4953 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Neighs:          99508 ave       99508 max       99508 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+
+Total # of neighbors = 99508
+Ave neighs/atom = 64.868318
+Neighbor list builds = 0
+Dangerous builds = 0
+variable count equal $i
+variable count equal 27
+print "$(v_strain:%.5f),$(v_stress:%.5f)" append stress-fracture.csv screen no
+write_dump all custom fracture.dump id type x y z v_syy modify append yes
+next i
+jump SELF loop
+displace_atoms gtop move 0  ${delta} 0 units box
+displace_atoms gtop move 0  0.06 0 units box
+Displacing atoms ...
+displace_atoms gbot move 0 -${delta} 0 units box
+displace_atoms gbot move 0 -0.06 0 units box
+Displacing atoms ...
+minimize 1.0e-10 1.0e-10 500 5000
+Last active /omp style is pair_style eam/fs/omp
+Per MPI rank memory allocation (min/avg/max) = 12.44 | 12.44 | 12.44 Mbytes
+   Step         PotEng           Ly            Pyy      
+       918  -6213.4985      81.887611     -100282.83    
+       950  -6213.8313      81.887611     -100219.04    
+       953  -6213.8313      81.887611     -100220.24    
+Loop time of 0.014773 on 8 procs for 35 steps with 1534 atoms
+
+801.9% CPU use with 1 MPI tasks x 8 OpenMP threads
+
+Minimization stats:
+  Stopping criterion = energy tolerance
+  Energy initial, next-to-last, final = 
+     -6213.49847836317  -6213.83127130494  -6213.83127184051
+  Force two-norm initial, final = 1.3447322 0.0023194963
+  Force max component initial, final = 0.19455871 0.00014799306
+  Final line search alpha, max atom move = 1 0.00014799306
+  Iterations, force evaluations = 35 70
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 0.012054   | 0.012054   | 0.012054   |   0.0 | 81.60
+Neigh   | 0          | 0          | 0          |   0.0 |  0.00
+Comm    | 0.0010278  | 0.0010278  | 0.0010278  |   0.0 |  6.96
+Output  | 6.533e-06  | 6.533e-06  | 6.533e-06  |   0.0 |  0.04
+Modify  | 0.00076458 | 0.00076458 | 0.00076458 |   0.0 |  5.18
+Other   |            | 0.0009199  |            |       |  6.23
+
+Nlocal:           1534 ave        1534 max        1534 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Nghost:           4953 ave        4953 max        4953 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Neighs:          99498 ave       99498 max       99498 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+
+Total # of neighbors = 99498
+Ave neighs/atom = 64.861799
+Neighbor list builds = 0
+Dangerous builds = 0
+variable count equal $i
+variable count equal 28
+print "$(v_strain:%.5f),$(v_stress:%.5f)" append stress-fracture.csv screen no
+write_dump all custom fracture.dump id type x y z v_syy modify append yes
+next i
+jump SELF loop
+displace_atoms gtop move 0  ${delta} 0 units box
+displace_atoms gtop move 0  0.06 0 units box
+Displacing atoms ...
+displace_atoms gbot move 0 -${delta} 0 units box
+displace_atoms gbot move 0 -0.06 0 units box
+Displacing atoms ...
+minimize 1.0e-10 1.0e-10 500 5000
+Last active /omp style is pair_style eam/fs/omp
+Per MPI rank memory allocation (min/avg/max) = 12.44 | 12.44 | 12.44 Mbytes
+   Step         PotEng           Ly            Pyy      
+       953  -6211.5433      82.007611     -101970.31    
+       990  -6211.8728      82.007611     -101769.28    
+Loop time of 0.0154454 on 8 procs for 37 steps with 1534 atoms
+
+777.9% CPU use with 1 MPI tasks x 8 OpenMP threads
+
+Minimization stats:
+  Stopping criterion = energy tolerance
+  Energy initial, next-to-last, final = 
+     -6211.54328912787  -6211.87276934233  -6211.87276980752
+  Force two-norm initial, final = 1.3274243 0.002350345
+  Force max component initial, final = 0.19199801 0.0001585808
+  Final line search alpha, max atom move = 1 0.0001585808
+  Iterations, force evaluations = 37 74
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 0.012576   | 0.012576   | 0.012576   |   0.0 | 81.42
+Neigh   | 0          | 0          | 0          |   0.0 |  0.00
+Comm    | 0.0010785  | 0.0010785  | 0.0010785  |   0.0 |  6.98
+Output  | 0          | 0          | 0          |   0.0 |  0.00
+Modify  | 0.00080584 | 0.00080584 | 0.00080584 |   0.0 |  5.22
+Other   |            | 0.000985   |            |       |  6.38
+
+Nlocal:           1534 ave        1534 max        1534 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Nghost:           4953 ave        4953 max        4953 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Neighs:          99284 ave       99284 max       99284 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+
+Total # of neighbors = 99284
+Ave neighs/atom = 64.722295
+Neighbor list builds = 0
+Dangerous builds = 0
+variable count equal $i
+variable count equal 29
+print "$(v_strain:%.5f),$(v_stress:%.5f)" append stress-fracture.csv screen no
+write_dump all custom fracture.dump id type x y z v_syy modify append yes
+next i
+jump SELF loop
+displace_atoms gtop move 0  ${delta} 0 units box
+displace_atoms gtop move 0  0.06 0 units box
+Displacing atoms ...
+displace_atoms gbot move 0 -${delta} 0 units box
+displace_atoms gbot move 0 -0.06 0 units box
+Displacing atoms ...
+minimize 1.0e-10 1.0e-10 500 5000
+Last active /omp style is pair_style eam/fs/omp
+Per MPI rank memory allocation (min/avg/max) = 12.44 | 12.44 | 12.44 Mbytes
+   Step         PotEng           Ly            Pyy      
+       990  -6209.5597      82.127611     -103501.75    
+      1000  -6209.8692      82.127611     -103055.79    
+      1029  -6209.8863      82.127611     -103148.52    
+Loop time of 0.0171756 on 8 procs for 39 steps with 1534 atoms
+
+785.0% CPU use with 1 MPI tasks x 8 OpenMP threads
+
+Minimization stats:
+  Stopping criterion = energy tolerance
+  Energy initial, next-to-last, final = 
+     -6209.55974122051  -6209.88628098982  -6209.88628156936
+  Force two-norm initial, final = 1.3136344 0.002603014
+  Force max component initial, final = 0.18992425 0.00013458132
+  Final line search alpha, max atom move = 1 0.00013458132
+  Iterations, force evaluations = 39 78
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 0.014098   | 0.014098   | 0.014098   |   0.0 | 82.08
+Neigh   | 0          | 0          | 0          |   0.0 |  0.00
+Comm    | 0.0011647  | 0.0011647  | 0.0011647  |   0.0 |  6.78
+Output  | 5.961e-06  | 5.961e-06  | 5.961e-06  |   0.0 |  0.03
+Modify  | 0.0008494  | 0.0008494  | 0.0008494  |   0.0 |  4.95
+Other   |            | 0.001058   |            |       |  6.16
+
+Nlocal:           1534 ave        1534 max        1534 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Nghost:           4953 ave        4953 max        4953 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Neighs:          99106 ave       99106 max       99106 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+
+Total # of neighbors = 99106
+Ave neighs/atom = 64.606258
+Neighbor list builds = 0
+Dangerous builds = 0
+variable count equal $i
+variable count equal 30
+print "$(v_strain:%.5f),$(v_stress:%.5f)" append stress-fracture.csv screen no
+write_dump all custom fracture.dump id type x y z v_syy modify append yes
+next i
+jump SELF loop
+displace_atoms gtop move 0  ${delta} 0 units box
+displace_atoms gtop move 0  0.06 0 units box
+Displacing atoms ...
+displace_atoms gbot move 0 -${delta} 0 units box
+displace_atoms gbot move 0 -0.06 0 units box
+Displacing atoms ...
+minimize 1.0e-10 1.0e-10 500 5000
+Last active /omp style is pair_style eam/fs/omp
+Per MPI rank memory allocation (min/avg/max) = 12.44 | 12.44 | 12.44 Mbytes
+   Step         PotEng           Ly            Pyy      
+      1029  -6207.5503      82.247611     -104868.64    
+      1050  -6207.8715      82.247611     -104290.76    
+      1068  -6207.8751      82.247611     -104374.72    
+Loop time of 0.0206619 on 8 procs for 39 steps with 1534 atoms
+
+807.1% CPU use with 1 MPI tasks x 8 OpenMP threads
+
+Minimization stats:
+  Stopping criterion = energy tolerance
+  Energy initial, next-to-last, final = 
+     -6207.55028602341  -6207.87508493228  -6207.87508540448
+  Force two-norm initial, final = 1.3024497 0.0023572227
+  Force max component initial, final = 0.18811636 0.00014378347
+  Final line search alpha, max atom move = 1 0.00014378347
+  Iterations, force evaluations = 39 78
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 0.017206   | 0.017206   | 0.017206   |   0.0 | 83.27
+Neigh   | 0          | 0          | 0          |   0.0 |  0.00
+Comm    | 0.0012787  | 0.0012787  | 0.0012787  |   0.0 |  6.19
+Output  | 6.4143e-05 | 6.4143e-05 | 6.4143e-05 |   0.0 |  0.31
+Modify  | 0.00088765 | 0.00088765 | 0.00088765 |   0.0 |  4.30
+Other   |            | 0.001226   |            |       |  5.93
+
+Nlocal:           1534 ave        1534 max        1534 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Nghost:           4953 ave        4953 max        4953 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Neighs:          96648 ave       96648 max       96648 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+
+Total # of neighbors = 96648
+Ave neighs/atom = 63.003911
+Neighbor list builds = 0
+Dangerous builds = 0
+variable count equal $i
+variable count equal 31
+print "$(v_strain:%.5f),$(v_stress:%.5f)" append stress-fracture.csv screen no
+write_dump all custom fracture.dump id type x y z v_syy modify append yes
+next i
+jump SELF loop
+displace_atoms gtop move 0  ${delta} 0 units box
+displace_atoms gtop move 0  0.06 0 units box
+Displacing atoms ...
+displace_atoms gbot move 0 -${delta} 0 units box
+displace_atoms gbot move 0 -0.06 0 units box
+Displacing atoms ...
+minimize 1.0e-10 1.0e-10 500 5000
+Last active /omp style is pair_style eam/fs/omp
+Per MPI rank memory allocation (min/avg/max) = 12.44 | 12.44 | 12.44 Mbytes
+   Step         PotEng           Ly            Pyy      
+      1068  -6205.5179      82.367611     -106086.78    
+      1100  -6205.8407      82.367611     -105595.72    
+      1110  -6205.8407      82.367611     -105600.79    
+Loop time of 0.0199034 on 8 procs for 42 steps with 1534 atoms
+
+800.9% CPU use with 1 MPI tasks x 8 OpenMP threads
+
+Minimization stats:
+  Stopping criterion = energy tolerance
+  Energy initial, next-to-last, final = 
+     -6205.51788197268  -6205.84066438019  -6205.84066489311
+  Force two-norm initial, final = 1.2928995 0.0021027241
+  Force max component initial, final = 0.18651972 0.000157019
+  Final line search alpha, max atom move = 1 0.000157019
+  Iterations, force evaluations = 42 84
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 0.016512   | 0.016512   | 0.016512   |   0.0 | 82.96
+Neigh   | 0          | 0          | 0          |   0.0 |  0.00
+Comm    | 0.0012864  | 0.0012864  | 0.0012864  |   0.0 |  6.46
+Output  | 1.7924e-05 | 1.7924e-05 | 1.7924e-05 |   0.0 |  0.09
+Modify  | 0.00092787 | 0.00092787 | 0.00092787 |   0.0 |  4.66
+Other   |            | 0.001159   |            |       |  5.82
+
+Nlocal:           1534 ave        1534 max        1534 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Nghost:           4953 ave        4953 max        4953 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Neighs:          96612 ave       96612 max       96612 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+
+Total # of neighbors = 96612
+Ave neighs/atom = 62.980443
+Neighbor list builds = 0
+Dangerous builds = 0
+variable count equal $i
+variable count equal 32
+print "$(v_strain:%.5f),$(v_stress:%.5f)" append stress-fracture.csv screen no
+write_dump all custom fracture.dump id type x y z v_syy modify append yes
+next i
+jump SELF loop
+displace_atoms gtop move 0  ${delta} 0 units box
+displace_atoms gtop move 0  0.06 0 units box
+Displacing atoms ...
+displace_atoms gbot move 0 -${delta} 0 units box
+displace_atoms gbot move 0 -0.06 0 units box
+Displacing atoms ...
+minimize 1.0e-10 1.0e-10 500 5000
+Last active /omp style is pair_style eam/fs/omp
+Per MPI rank memory allocation (min/avg/max) = 12.44 | 12.44 | 12.44 Mbytes
+   Step         PotEng           Ly            Pyy      
+      1110  -6203.462       82.487611     -107307.48    
+      1150  -6203.7827      82.487611     -106846.39    
+      1152  -6203.7827      82.487611     -106846.79    
+Loop time of 0.0182277 on 8 procs for 42 steps with 1534 atoms
+
+789.0% CPU use with 1 MPI tasks x 8 OpenMP threads
+
+Minimization stats:
+  Stopping criterion = energy tolerance
+  Energy initial, next-to-last, final = 
+     -6203.46204797863  -6203.78269459301  -6203.78269508412
+  Force two-norm initial, final = 1.2848414 0.0020705662
+  Force max component initial, final = 0.18505379 0.00014667461
+  Final line search alpha, max atom move = 1 0.00014667461
+  Iterations, force evaluations = 42 84
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 0.014961   | 0.014961   | 0.014961   |   0.0 | 82.08
+Neigh   | 0          | 0          | 0          |   0.0 |  0.00
+Comm    | 0.001227   | 0.001227   | 0.001227   |   0.0 |  6.73
+Output  | 8.276e-06  | 8.276e-06  | 8.276e-06  |   0.0 |  0.05
+Modify  | 0.00092119 | 0.00092119 | 0.00092119 |   0.0 |  5.05
+Other   |            | 0.00111    |            |       |  6.09
+
+Nlocal:           1534 ave        1534 max        1534 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Nghost:           4953 ave        4953 max        4953 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Neighs:          96548 ave       96548 max       96548 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+
+Total # of neighbors = 96548
+Ave neighs/atom = 62.938722
+Neighbor list builds = 0
+Dangerous builds = 0
+variable count equal $i
+variable count equal 33
+print "$(v_strain:%.5f),$(v_stress:%.5f)" append stress-fracture.csv screen no
+write_dump all custom fracture.dump id type x y z v_syy modify append yes
+next i
+jump SELF loop
+displace_atoms gtop move 0  ${delta} 0 units box
+displace_atoms gtop move 0  0.06 0 units box
+Displacing atoms ...
+displace_atoms gbot move 0 -${delta} 0 units box
+displace_atoms gbot move 0 -0.06 0 units box
+Displacing atoms ...
+minimize 1.0e-10 1.0e-10 500 5000
+Last active /omp style is pair_style eam/fs/omp
+Per MPI rank memory allocation (min/avg/max) = 12.44 | 12.44 | 12.44 Mbytes
+   Step         PotEng           Ly            Pyy      
+      1152  -6201.3824      82.607611     -108550.75    
+      1194  -6201.7007      82.607611     -108120.28    
+Loop time of 0.0176295 on 8 procs for 42 steps with 1534 atoms
+
+812.7% CPU use with 1 MPI tasks x 8 OpenMP threads
+
+Minimization stats:
+  Stopping criterion = energy tolerance
+  Energy initial, next-to-last, final = 
+      -6201.3824006372   -6201.7006708589  -6201.70067123779
+  Force two-norm initial, final = 1.278048 0.0020238254
+  Force max component initial, final = 0.18370132 0.00012120734
+  Final line search alpha, max atom move = 1 0.00012120734
+  Iterations, force evaluations = 42 84
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 0.014391   | 0.014391   | 0.014391   |   0.0 | 81.63
+Neigh   | 0          | 0          | 0          |   0.0 |  0.00
+Comm    | 0.0012239  | 0.0012239  | 0.0012239  |   0.0 |  6.94
+Output  | 0          | 0          | 0          |   0.0 |  0.00
+Modify  | 0.00091    | 0.00091    | 0.00091    |   0.0 |  5.16
+Other   |            | 0.001105   |            |       |  6.27
+
+Nlocal:           1534 ave        1534 max        1534 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Nghost:           4953 ave        4953 max        4953 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Neighs:          96532 ave       96532 max       96532 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+
+Total # of neighbors = 96532
+Ave neighs/atom = 62.928292
+Neighbor list builds = 0
+Dangerous builds = 0
+variable count equal $i
+variable count equal 34
+print "$(v_strain:%.5f),$(v_stress:%.5f)" append stress-fracture.csv screen no
+write_dump all custom fracture.dump id type x y z v_syy modify append yes
+next i
+jump SELF loop
+displace_atoms gtop move 0  ${delta} 0 units box
+displace_atoms gtop move 0  0.06 0 units box
+Displacing atoms ...
+displace_atoms gbot move 0 -${delta} 0 units box
+displace_atoms gbot move 0 -0.06 0 units box
+Displacing atoms ...
+minimize 1.0e-10 1.0e-10 500 5000
+Last active /omp style is pair_style eam/fs/omp
+Per MPI rank memory allocation (min/avg/max) = 12.44 | 12.44 | 12.44 Mbytes
+   Step         PotEng           Ly            Pyy      
+      1194  -6199.2779      82.727611     -109823.83    
+      1200  -6199.5633      82.727611     -109475.57    
+      1236  -6199.594       82.727611     -109428.92    
+Loop time of 0.0178087 on 8 procs for 42 steps with 1534 atoms
+
+805.4% CPU use with 1 MPI tasks x 8 OpenMP threads
+
+Minimization stats:
+  Stopping criterion = energy tolerance
+  Energy initial, next-to-last, final = 
+     -6199.27791997014  -6199.59402045709  -6199.59402090422
+  Force two-norm initial, final = 1.272138 0.0025567163
+  Force max component initial, final = 0.18238516 0.00015707235
+  Final line search alpha, max atom move = 1 0.00015707235
+  Iterations, force evaluations = 42 84
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 0.014533   | 0.014533   | 0.014533   |   0.0 | 81.61
+Neigh   | 0          | 0          | 0          |   0.0 |  0.00
+Comm    | 0.0012327  | 0.0012327  | 0.0012327  |   0.0 |  6.92
+Output  | 6.122e-06  | 6.122e-06  | 6.122e-06  |   0.0 |  0.03
+Modify  | 0.00092615 | 0.00092615 | 0.00092615 |   0.0 |  5.20
+Other   |            | 0.00111    |            |       |  6.23
+
+Nlocal:           1534 ave        1534 max        1534 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Nghost:           4953 ave        4953 max        4953 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Neighs:          96522 ave       96522 max       96522 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+
+Total # of neighbors = 96522
+Ave neighs/atom = 62.921773
+Neighbor list builds = 0
+Dangerous builds = 0
+variable count equal $i
+variable count equal 35
+print "$(v_strain:%.5f),$(v_stress:%.5f)" append stress-fracture.csv screen no
+write_dump all custom fracture.dump id type x y z v_syy modify append yes
+next i
+jump SELF loop
+displace_atoms gtop move 0  ${delta} 0 units box
+displace_atoms gtop move 0  0.06 0 units box
+Displacing atoms ...
+displace_atoms gbot move 0 -${delta} 0 units box
+displace_atoms gbot move 0 -0.06 0 units box
+Displacing atoms ...
+minimize 1.0e-10 1.0e-10 500 5000
+Last active /omp style is pair_style eam/fs/omp
+Per MPI rank memory allocation (min/avg/max) = 12.44 | 12.44 | 12.44 Mbytes
+   Step         PotEng           Ly            Pyy      
+      1236  -6197.1477      82.847611     -111134.59    
+      1250  -6197.4515      82.847611     -110748.44    
+      1277  -6197.4618      82.847611     -110793.2     
+Loop time of 0.017161 on 8 procs for 41 steps with 1534 atoms
+
+791.3% CPU use with 1 MPI tasks x 8 OpenMP threads
+
+Minimization stats:
+  Stopping criterion = energy tolerance
+  Energy initial, next-to-last, final = 
+     -6197.14768588399  -6197.46183311645  -6197.46183368968
+  Force two-norm initial, final = 1.2673859 0.0024347537
+  Force max component initial, final = 0.1811076 0.00017066692
+  Final line search alpha, max atom move = 1 0.00017066692
+  Iterations, force evaluations = 41 82
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 0.014009   | 0.014009   | 0.014009   |   0.0 | 81.63
+Neigh   | 0          | 0          | 0          |   0.0 |  0.00
+Comm    | 0.0011935  | 0.0011935  | 0.0011935  |   0.0 |  6.95
+Output  | 6.061e-06  | 6.061e-06  | 6.061e-06  |   0.0 |  0.04
+Modify  | 0.00087624 | 0.00087624 | 0.00087624 |   0.0 |  5.11
+Other   |            | 0.001076   |            |       |  6.27
+
+Nlocal:           1534 ave        1534 max        1534 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Nghost:           4953 ave        4953 max        4953 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Neighs:          96412 ave       96412 max       96412 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+
+Total # of neighbors = 96412
+Ave neighs/atom = 62.850065
+Neighbor list builds = 0
+Dangerous builds = 0
+variable count equal $i
+variable count equal 36
+print "$(v_strain:%.5f),$(v_stress:%.5f)" append stress-fracture.csv screen no
+write_dump all custom fracture.dump id type x y z v_syy modify append yes
+next i
+jump SELF loop
+displace_atoms gtop move 0  ${delta} 0 units box
+displace_atoms gtop move 0  0.06 0 units box
+Displacing atoms ...
+displace_atoms gbot move 0 -${delta} 0 units box
+displace_atoms gbot move 0 -0.06 0 units box
+Displacing atoms ...
+minimize 1.0e-10 1.0e-10 500 5000
+Last active /omp style is pair_style eam/fs/omp
+Per MPI rank memory allocation (min/avg/max) = 12.44 | 12.44 | 12.44 Mbytes
+   Step         PotEng           Ly            Pyy      
+      1277  -6194.9907      82.967611     -112502.7     
+      1300  -6195.3012      82.967611     -112146.62    
+      1317  -6195.303       82.967611     -112210.9     
+Loop time of 0.0203073 on 8 procs for 40 steps with 1534 atoms
+
+786.5% CPU use with 1 MPI tasks x 8 OpenMP threads
+
+Minimization stats:
+  Stopping criterion = energy tolerance
+  Energy initial, next-to-last, final = 
+     -6194.99071817827  -6195.30303412106  -6195.30303465322
+  Force two-norm initial, final = 1.2636043 0.0024049317
+  Force max component initial, final = 0.17986464 0.00017930784
+  Final line search alpha, max atom move = 1 0.00017930784
+  Iterations, force evaluations = 40 80
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 0.016784   | 0.016784   | 0.016784   |   0.0 | 82.65
+Neigh   | 0          | 0          | 0          |   0.0 |  0.00
+Comm    | 0.001306   | 0.001306   | 0.001306   |   0.0 |  6.43
+Output  | 6.082e-06  | 6.082e-06  | 6.082e-06  |   0.0 |  0.03
+Modify  | 0.00095796 | 0.00095796 | 0.00095796 |   0.0 |  4.72
+Other   |            | 0.001253   |            |       |  6.17
+
+Nlocal:           1534 ave        1534 max        1534 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Nghost:           4953 ave        4953 max        4953 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Neighs:          96412 ave       96412 max       96412 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+
+Total # of neighbors = 96412
+Ave neighs/atom = 62.850065
+Neighbor list builds = 0
+Dangerous builds = 0
+variable count equal $i
+variable count equal 37
+print "$(v_strain:%.5f),$(v_stress:%.5f)" append stress-fracture.csv screen no
+write_dump all custom fracture.dump id type x y z v_syy modify append yes
+next i
+jump SELF loop
+displace_atoms gtop move 0  ${delta} 0 units box
+displace_atoms gtop move 0  0.06 0 units box
+Displacing atoms ...
+displace_atoms gbot move 0 -${delta} 0 units box
+displace_atoms gbot move 0 -0.06 0 units box
+Displacing atoms ...
+minimize 1.0e-10 1.0e-10 500 5000
+Last active /omp style is pair_style eam/fs/omp
+Per MPI rank memory allocation (min/avg/max) = 12.44 | 12.44 | 12.44 Mbytes
+   Step         PotEng           Ly            Pyy      
+      1317  -6192.8055      83.087611     -113926.12    
+      1350  -6193.1165      83.087611     -113686.31    
+      1355  -6193.1165      83.087611     -113686.87    
+Loop time of 0.0167723 on 8 procs for 38 steps with 1534 atoms
+
+807.2% CPU use with 1 MPI tasks x 8 OpenMP threads
+
+Minimization stats:
+  Stopping criterion = energy tolerance
+  Energy initial, next-to-last, final = 
+     -6192.80546053106  -6193.11652455103  -6193.11652514459
+  Force two-norm initial, final = 1.2608539 0.0025895851
+  Force max component initial, final = 0.1786122 0.00016767014
+  Final line search alpha, max atom move = 1 0.00016767014
+  Iterations, force evaluations = 38 76
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 0.013729   | 0.013729   | 0.013729   |   0.0 | 81.86
+Neigh   | 0          | 0          | 0          |   0.0 |  0.00
+Comm    | 0.0011516  | 0.0011516  | 0.0011516  |   0.0 |  6.87
+Output  | 8.797e-06  | 8.797e-06  | 8.797e-06  |   0.0 |  0.05
+Modify  | 0.00083793 | 0.00083793 | 0.00083793 |   0.0 |  5.00
+Other   |            | 0.001045   |            |       |  6.23
+
+Nlocal:           1534 ave        1534 max        1534 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Nghost:           4953 ave        4953 max        4953 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Neighs:          96412 ave       96412 max       96412 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+
+Total # of neighbors = 96412
+Ave neighs/atom = 62.850065
+Neighbor list builds = 0
+Dangerous builds = 0
+variable count equal $i
+variable count equal 38
+print "$(v_strain:%.5f),$(v_stress:%.5f)" append stress-fracture.csv screen no
+write_dump all custom fracture.dump id type x y z v_syy modify append yes
+next i
+jump SELF loop
+displace_atoms gtop move 0  ${delta} 0 units box
+displace_atoms gtop move 0  0.06 0 units box
+Displacing atoms ...
+displace_atoms gbot move 0 -${delta} 0 units box
+displace_atoms gbot move 0 -0.06 0 units box
+Displacing atoms ...
+minimize 1.0e-10 1.0e-10 500 5000
+Last active /omp style is pair_style eam/fs/omp
+Per MPI rank memory allocation (min/avg/max) = 12.44 | 12.44 | 12.44 Mbytes
+   Step         PotEng           Ly            Pyy      
+      1355  -6190.5911      83.207611     -115409.93    
+      1392  -6190.9012      83.207611     -115220.22    
+Loop time of 0.0183394 on 8 procs for 37 steps with 1534 atoms
+
+822.5% CPU use with 1 MPI tasks x 8 OpenMP threads
+
+Minimization stats:
+  Stopping criterion = energy tolerance
+  Energy initial, next-to-last, final = 
+     -6190.59106913523  -6190.90117978294  -6190.90118027276
+  Force two-norm initial, final = 1.2592685 0.0023111038
+  Force max component initial, final = 0.1773805 0.00019532235
+  Final line search alpha, max atom move = 1 0.00019532235
+  Iterations, force evaluations = 37 74
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 0.015298   | 0.015298   | 0.015298   |   0.0 | 83.42
+Neigh   | 0          | 0          | 0          |   0.0 |  0.00
+Comm    | 0.0011624  | 0.0011624  | 0.0011624  |   0.0 |  6.34
+Output  | 0          | 0          | 0          |   0.0 |  0.00
+Modify  | 0.00082566 | 0.00082566 | 0.00082566 |   0.0 |  4.50
+Other   |            | 0.001053   |            |       |  5.74
+
+Nlocal:           1534 ave        1534 max        1534 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Nghost:           4953 ave        4953 max        4953 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Neighs:          96412 ave       96412 max       96412 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+
+Total # of neighbors = 96412
+Ave neighs/atom = 62.850065
+Neighbor list builds = 0
+Dangerous builds = 0
+variable count equal $i
+variable count equal 39
+print "$(v_strain:%.5f),$(v_stress:%.5f)" append stress-fracture.csv screen no
+write_dump all custom fracture.dump id type x y z v_syy modify append yes
+next i
+jump SELF loop
+displace_atoms gtop move 0  ${delta} 0 units box
+displace_atoms gtop move 0  0.06 0 units box
+Displacing atoms ...
+displace_atoms gbot move 0 -${delta} 0 units box
+displace_atoms gbot move 0 -0.06 0 units box
+Displacing atoms ...
+minimize 1.0e-10 1.0e-10 500 5000
+Last active /omp style is pair_style eam/fs/omp
+Per MPI rank memory allocation (min/avg/max) = 12.44 | 12.44 | 12.44 Mbytes
+   Step         PotEng           Ly            Pyy      
+      1392  -6188.3459      83.327611     -116953.98    
+      1400  -6188.6322      83.327611     -116791.64    
+      1431  -6188.6559      83.327611     -116809.63    
+Loop time of 0.0178369 on 8 procs for 39 steps with 1534 atoms
+
+798.6% CPU use with 1 MPI tasks x 8 OpenMP threads
+
+Minimization stats:
+  Stopping criterion = energy tolerance
+  Energy initial, next-to-last, final = 
+     -6188.34589547952  -6188.65589296322  -6188.65589352037
+  Force two-norm initial, final = 1.2594561 0.0026786798
+  Force max component initial, final = 0.17623056 0.00020485764
+  Final line search alpha, max atom move = 1 0.00020485764
+  Iterations, force evaluations = 39 78
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 0.014714   | 0.014714   | 0.014714   |   0.0 | 82.49
+Neigh   | 0          | 0          | 0          |   0.0 |  0.00
+Comm    | 0.0011886  | 0.0011886  | 0.0011886  |   0.0 |  6.66
+Output  | 8.937e-06  | 8.937e-06  | 8.937e-06  |   0.0 |  0.05
+Modify  | 0.00085026 | 0.00085026 | 0.00085026 |   0.0 |  4.77
+Other   |            | 0.001075   |            |       |  6.02
+
+Nlocal:           1534 ave        1534 max        1534 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Nghost:           4953 ave        4953 max        4953 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Neighs:          96412 ave       96412 max       96412 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+
+Total # of neighbors = 96412
+Ave neighs/atom = 62.850065
+Neighbor list builds = 0
+Dangerous builds = 0
+variable count equal $i
+variable count equal 40
+print "$(v_strain:%.5f),$(v_stress:%.5f)" append stress-fracture.csv screen no
+write_dump all custom fracture.dump id type x y z v_syy modify append yes
+next i
+jump SELF loop
+displace_atoms gtop move 0  ${delta} 0 units box
+displace_atoms gtop move 0  0.06 0 units box
+Displacing atoms ...
+displace_atoms gbot move 0 -${delta} 0 units box
+displace_atoms gbot move 0 -0.06 0 units box
+Displacing atoms ...
+minimize 1.0e-10 1.0e-10 500 5000
+Last active /omp style is pair_style eam/fs/omp
+Per MPI rank memory allocation (min/avg/max) = 12.44 | 12.44 | 12.44 Mbytes
+   Step         PotEng           Ly            Pyy      
+      1431  -6186.0687      83.447611     -118557.6     
+      1450  -6186.3757      83.447611     -118397.23    
+      1465  -6186.3796      83.447611     -118454.19    
+Loop time of 0.015239 on 8 procs for 34 steps with 1534 atoms
+
+787.1% CPU use with 1 MPI tasks x 8 OpenMP threads
+
+Minimization stats:
+  Stopping criterion = energy tolerance
+  Energy initial, next-to-last, final = 
+     -6186.06872221212  -6186.37957236475  -6186.37957293144
+  Force two-norm initial, final = 1.2614514 0.0025522922
+  Force max component initial, final = 0.17514771 0.00022398704
+  Final line search alpha, max atom move = 1 0.00022398704
+  Iterations, force evaluations = 34 68
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 0.012546   | 0.012546   | 0.012546   |   0.0 | 82.33
+Neigh   | 0          | 0          | 0          |   0.0 |  0.00
+Comm    | 0.001023   | 0.001023   | 0.001023   |   0.0 |  6.71
+Output  | 6.162e-06  | 6.162e-06  | 6.162e-06  |   0.0 |  0.04
+Modify  | 0.00073875 | 0.00073875 | 0.00073875 |   0.0 |  4.85
+Other   |            | 0.0009255  |            |       |  6.07
+
+Nlocal:           1534 ave        1534 max        1534 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Nghost:           4953 ave        4953 max        4953 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Neighs:          96412 ave       96412 max       96412 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+
+Total # of neighbors = 96412
+Ave neighs/atom = 62.850065
+Neighbor list builds = 0
+Dangerous builds = 0
+variable count equal $i
+variable count equal 41
+print "$(v_strain:%.5f),$(v_stress:%.5f)" append stress-fracture.csv screen no
+write_dump all custom fracture.dump id type x y z v_syy modify append yes
+next i
+jump SELF loop
+displace_atoms gtop move 0  ${delta} 0 units box
+displace_atoms gtop move 0  0.06 0 units box
+Displacing atoms ...
+displace_atoms gbot move 0 -${delta} 0 units box
+displace_atoms gbot move 0 -0.06 0 units box
+Displacing atoms ...
+minimize 1.0e-10 1.0e-10 500 5000
+Last active /omp style is pair_style eam/fs/omp
+Per MPI rank memory allocation (min/avg/max) = 12.44 | 12.44 | 12.44 Mbytes
+   Step         PotEng           Ly            Pyy      
+      1465  -6183.7592      83.567611     -120218.7     
+      1500  -6184.0711      83.567611     -120155.89    
+      1501  -6184.0711      83.567611     -120156.08    
+Loop time of 0.0160805 on 8 procs for 36 steps with 1534 atoms
+
+837.6% CPU use with 1 MPI tasks x 8 OpenMP threads
+
+Minimization stats:
+  Stopping criterion = energy tolerance
+  Energy initial, next-to-last, final = 
+     -6183.75924719492  -6184.07111545174  -6184.07111595887
+  Force two-norm initial, final = 1.264997 0.0026230758
+  Force max component initial, final = 0.17414506 0.00021518688
+  Final line search alpha, max atom move = 1 0.00021518688
+  Iterations, force evaluations = 36 72
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 0.013193   | 0.013193   | 0.013193   |   0.0 | 82.04
+Neigh   | 0          | 0          | 0          |   0.0 |  0.00
+Comm    | 0.0011159  | 0.0011159  | 0.0011159  |   0.0 |  6.94
+Output  | 9.678e-06  | 9.678e-06  | 9.678e-06  |   0.0 |  0.06
+Modify  | 0.00078662 | 0.00078662 | 0.00078662 |   0.0 |  4.89
+Other   |            | 0.0009752  |            |       |  6.06
+
+Nlocal:           1534 ave        1534 max        1534 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Nghost:           4953 ave        4953 max        4953 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Neighs:          96356 ave       96356 max       96356 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+
+Total # of neighbors = 96356
+Ave neighs/atom = 62.813559
+Neighbor list builds = 0
+Dangerous builds = 0
+variable count equal $i
+variable count equal 42
+print "$(v_strain:%.5f),$(v_stress:%.5f)" append stress-fracture.csv screen no
+write_dump all custom fracture.dump id type x y z v_syy modify append yes
+next i
+jump SELF loop
+displace_atoms gtop move 0  ${delta} 0 units box
+displace_atoms gtop move 0  0.06 0 units box
+Displacing atoms ...
+displace_atoms gbot move 0 -${delta} 0 units box
+displace_atoms gbot move 0 -0.06 0 units box
+Displacing atoms ...
+minimize 1.0e-10 1.0e-10 500 5000
+Last active /omp style is pair_style eam/fs/omp
+Per MPI rank memory allocation (min/avg/max) = 12.44 | 12.44 | 12.44 Mbytes
+   Step         PotEng           Ly            Pyy      
+      1501  -6181.4161      83.687611     -121937.55    
+      1538  -6181.7294      83.687611     -121913.7     
+Loop time of 0.0148181 on 8 procs for 37 steps with 1534 atoms
+
+759.4% CPU use with 1 MPI tasks x 8 OpenMP threads
+
+Minimization stats:
+  Stopping criterion = energy tolerance
+  Energy initial, next-to-last, final = 
+     -6181.41607973787  -6181.72943296507    -6181.729433497
+  Force two-norm initial, final = 1.2694804 0.0022031416
+  Force max component initial, final = 0.17330154 0.00024556783
+  Final line search alpha, max atom move = 1 0.00024556783
+  Iterations, force evaluations = 37 74
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 0.011995   | 0.011995   | 0.011995   |   0.0 | 80.95
+Neigh   | 0          | 0          | 0          |   0.0 |  0.00
+Comm    | 0.0010682  | 0.0010682  | 0.0010682  |   0.0 |  7.21
+Output  | 0          | 0          | 0          |   0.0 |  0.00
+Modify  | 0.00079298 | 0.00079298 | 0.00079298 |   0.0 |  5.35
+Other   |            | 0.0009619  |            |       |  6.49
+
+Nlocal:           1534 ave        1534 max        1534 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Nghost:           4953 ave        4953 max        4953 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Neighs:          96328 ave       96328 max       96328 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+
+Total # of neighbors = 96328
+Ave neighs/atom = 62.795306
+Neighbor list builds = 0
+Dangerous builds = 0
+variable count equal $i
+variable count equal 43
+print "$(v_strain:%.5f),$(v_stress:%.5f)" append stress-fracture.csv screen no
+write_dump all custom fracture.dump id type x y z v_syy modify append yes
+next i
+jump SELF loop
+displace_atoms gtop move 0  ${delta} 0 units box
+displace_atoms gtop move 0  0.06 0 units box
+Displacing atoms ...
+displace_atoms gbot move 0 -${delta} 0 units box
+displace_atoms gbot move 0 -0.06 0 units box
+Displacing atoms ...
+minimize 1.0e-10 1.0e-10 500 5000
+Last active /omp style is pair_style eam/fs/omp
+Per MPI rank memory allocation (min/avg/max) = 12.44 | 12.44 | 12.44 Mbytes
+   Step         PotEng           Ly            Pyy      
+      1538  -6179.0387      83.807611     -123712.07    
+      1550  -6179.3403      83.807611     -123687.66    
+      1575  -6179.3535      83.807611     -123726.03    
+Loop time of 0.0179302 on 8 procs for 37 steps with 1534 atoms
+
+799.6% CPU use with 1 MPI tasks x 8 OpenMP threads
+
+Minimization stats:
+  Stopping criterion = energy tolerance
+  Energy initial, next-to-last, final = 
+     -6179.03870777495  -6179.35345236579  -6179.35345290427
+  Force two-norm initial, final = 1.2745654 0.0023724782
+  Force max component initial, final = 0.17257876 0.00025157146
+  Final line search alpha, max atom move = 1 0.00025157146
+  Iterations, force evaluations = 37 74
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 0.014716   | 0.014716   | 0.014716   |   0.0 | 82.08
+Neigh   | 0          | 0          | 0          |   0.0 |  0.00
+Comm    | 0.001214   | 0.001214   | 0.001214   |   0.0 |  6.77
+Output  | 6.793e-06  | 6.793e-06  | 6.793e-06  |   0.0 |  0.04
+Modify  | 0.00086885 | 0.00086885 | 0.00086885 |   0.0 |  4.85
+Other   |            | 0.001124   |            |       |  6.27
+
+Nlocal:           1534 ave        1534 max        1534 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Nghost:           4953 ave        4953 max        4953 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Neighs:          96316 ave       96316 max       96316 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+
+Total # of neighbors = 96316
+Ave neighs/atom = 62.787484
+Neighbor list builds = 0
+Dangerous builds = 0
+variable count equal $i
+variable count equal 44
+print "$(v_strain:%.5f),$(v_stress:%.5f)" append stress-fracture.csv screen no
+write_dump all custom fracture.dump id type x y z v_syy modify append yes
+next i
+jump SELF loop
+displace_atoms gtop move 0  ${delta} 0 units box
+displace_atoms gtop move 0  0.06 0 units box
+Displacing atoms ...
+displace_atoms gbot move 0 -${delta} 0 units box
+displace_atoms gbot move 0 -0.06 0 units box
+Displacing atoms ...
+minimize 1.0e-10 1.0e-10 500 5000
+Last active /omp style is pair_style eam/fs/omp
+Per MPI rank memory allocation (min/avg/max) = 12.44 | 12.44 | 12.44 Mbytes
+   Step         PotEng           Ly            Pyy      
+      1575  -6176.6261      83.927611     -125540.98    
+      1600  -6176.9421      83.927611     -125591.47    
+      1612  -6176.9421      83.927611     -125592.28    
+Loop time of 0.0168384 on 8 procs for 37 steps with 1534 atoms
+
+804.4% CPU use with 1 MPI tasks x 8 OpenMP threads
+
+Minimization stats:
+  Stopping criterion = energy tolerance
+  Energy initial, next-to-last, final = 
+     -6176.62613378728    -6176.942117101  -6176.94211765593
+  Force two-norm initial, final = 1.2803577 0.0021765532
+  Force max component initial, final = 0.17204733 0.00023908886
+  Final line search alpha, max atom move = 1 0.00023908886
+  Iterations, force evaluations = 37 74
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 0.013945   | 0.013945   | 0.013945   |   0.0 | 82.82
+Neigh   | 0          | 0          | 0          |   0.0 |  0.00
+Comm    | 0.0010933  | 0.0010933  | 0.0010933  |   0.0 |  6.49
+Output  | 2.3905e-05 | 2.3905e-05 | 2.3905e-05 |   0.0 |  0.14
+Modify  | 0.00080559 | 0.00080559 | 0.00080559 |   0.0 |  4.78
+Other   |            | 0.0009704  |            |       |  5.76
+
+Nlocal:           1534 ave        1534 max        1534 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Nghost:           4953 ave        4953 max        4953 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Neighs:          96316 ave       96316 max       96316 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+
+Total # of neighbors = 96316
+Ave neighs/atom = 62.787484
+Neighbor list builds = 0
+Dangerous builds = 0
+variable count equal $i
+variable count equal 45
+print "$(v_strain:%.5f),$(v_stress:%.5f)" append stress-fracture.csv screen no
+write_dump all custom fracture.dump id type x y z v_syy modify append yes
+next i
+jump SELF loop
+displace_atoms gtop move 0  ${delta} 0 units box
+displace_atoms gtop move 0  0.06 0 units box
+Displacing atoms ...
+displace_atoms gbot move 0 -${delta} 0 units box
+displace_atoms gbot move 0 -0.06 0 units box
+Displacing atoms ...
+minimize 1.0e-10 1.0e-10 500 5000
+Last active /omp style is pair_style eam/fs/omp
+Per MPI rank memory allocation (min/avg/max) = 12.44 | 12.44 | 12.44 Mbytes
+   Step         PotEng           Ly            Pyy      
+      1612  -6174.1773      84.047611     -127423.6     
+      1648  -6174.4944      84.047611     -127511.22    
+Loop time of 0.0145776 on 8 procs for 36 steps with 1534 atoms
+
+770.1% CPU use with 1 MPI tasks x 8 OpenMP threads
+
+Minimization stats:
+  Stopping criterion = energy tolerance
+  Energy initial, next-to-last, final = 
+     -6174.17729431929  -6174.49439528212  -6174.49439588639
+  Force two-norm initial, final = 1.2868168 0.0023356655
+  Force max component initial, final = 0.17170694 0.00023330435
+  Final line search alpha, max atom move = 1 0.00023330435
+  Iterations, force evaluations = 36 72
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 0.011806   | 0.011806   | 0.011806   |   0.0 | 80.99
+Neigh   | 0          | 0          | 0          |   0.0 |  0.00
+Comm    | 0.0010434  | 0.0010434  | 0.0010434  |   0.0 |  7.16
+Output  | 0          | 0          | 0          |   0.0 |  0.00
+Modify  | 0.00078487 | 0.00078487 | 0.00078487 |   0.0 |  5.38
+Other   |            | 0.0009429  |            |       |  6.47
+
+Nlocal:           1534 ave        1534 max        1534 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Nghost:           4953 ave        4953 max        4953 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Neighs:          96220 ave       96220 max       96220 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+
+Total # of neighbors = 96220
+Ave neighs/atom = 62.724902
+Neighbor list builds = 0
+Dangerous builds = 0
+variable count equal $i
+variable count equal 46
+print "$(v_strain:%.5f),$(v_stress:%.5f)" append stress-fracture.csv screen no
+write_dump all custom fracture.dump id type x y z v_syy modify append yes
+next i
+jump SELF loop
+displace_atoms gtop move 0  ${delta} 0 units box
+displace_atoms gtop move 0  0.06 0 units box
+Displacing atoms ...
+displace_atoms gbot move 0 -${delta} 0 units box
+displace_atoms gbot move 0 -0.06 0 units box
+Displacing atoms ...
+minimize 1.0e-10 1.0e-10 500 5000
+Last active /omp style is pair_style eam/fs/omp
+Per MPI rank memory allocation (min/avg/max) = 12.44 | 12.44 | 12.44 Mbytes
+   Step         PotEng           Ly            Pyy      
+      1648  -6171.6913      84.167611     -129358.8     
+      1650  -6171.9126      84.167611     -129458.7     
+      1685  -6172.0093      84.167611     -129482.4     
+Loop time of 0.0169551 on 8 procs for 37 steps with 1534 atoms
+
+758.6% CPU use with 1 MPI tasks x 8 OpenMP threads
+
+Minimization stats:
+  Stopping criterion = energy tolerance
+  Energy initial, next-to-last, final = 
+     -6171.69126258258  -6172.00925985988  -6172.00926047075
+  Force two-norm initial, final = 1.2939736 0.0025285646
+  Force max component initial, final = 0.17155163 0.00016301733
+  Final line search alpha, max atom move = 1 0.00016301733
+  Iterations, force evaluations = 37 74
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 0.014009   | 0.014009   | 0.014009   |   0.0 | 82.63
+Neigh   | 0          | 0          | 0          |   0.0 |  0.00
+Comm    | 0.0011022  | 0.0011022  | 0.0011022  |   0.0 |  6.50
+Output  | 6.422e-06  | 6.422e-06  | 6.422e-06  |   0.0 |  0.04
+Modify  | 0.00081169 | 0.00081169 | 0.00081169 |   0.0 |  4.79
+Other   |            | 0.001025   |            |       |  6.05
+
+Nlocal:           1534 ave        1534 max        1534 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Nghost:           4953 ave        4953 max        4953 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Neighs:          96220 ave       96220 max       96220 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+
+Total # of neighbors = 96220
+Ave neighs/atom = 62.724902
+Neighbor list builds = 0
+Dangerous builds = 0
+variable count equal $i
+variable count equal 47
+print "$(v_strain:%.5f),$(v_stress:%.5f)" append stress-fracture.csv screen no
+write_dump all custom fracture.dump id type x y z v_syy modify append yes
+next i
+jump SELF loop
+displace_atoms gtop move 0  ${delta} 0 units box
+displace_atoms gtop move 0  0.06 0 units box
+Displacing atoms ...
+displace_atoms gbot move 0 -${delta} 0 units box
+displace_atoms gbot move 0 -0.06 0 units box
+Displacing atoms ...
+minimize 1.0e-10 1.0e-10 500 5000
+Last active /omp style is pair_style eam/fs/omp
+Per MPI rank memory allocation (min/avg/max) = 12.44 | 12.44 | 12.44 Mbytes
+   Step         PotEng           Ly            Pyy      
+      1685  -6169.1667      84.287611     -131346.38    
+      1700  -6169.4778      84.287611     -131472.01    
+      1718  -6169.4857      84.287611     -131503       
+Loop time of 0.0147356 on 8 procs for 33 steps with 1534 atoms
+
+810.3% CPU use with 1 MPI tasks x 8 OpenMP threads
+
+Minimization stats:
+  Stopping criterion = energy tolerance
+  Energy initial, next-to-last, final = 
+     -6169.16666317845  -6169.48572188661   -6169.4857224199
+  Force two-norm initial, final = 1.3022094 0.0024930745
+  Force max component initial, final = 0.17165802 0.00017642666
+  Final line search alpha, max atom move = 1 0.00017642666
+  Iterations, force evaluations = 33 66
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 0.012149   | 0.012149   | 0.012149   |   0.0 | 82.45
+Neigh   | 0          | 0          | 0          |   0.0 |  0.00
+Comm    | 0.00097512 | 0.00097512 | 0.00097512 |   0.0 |  6.62
+Output  | 5.861e-06  | 5.861e-06  | 5.861e-06  |   0.0 |  0.04
+Modify  | 0.00071156 | 0.00071156 | 0.00071156 |   0.0 |  4.83
+Other   |            | 0.0008939  |            |       |  6.07
+
+Nlocal:           1534 ave        1534 max        1534 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Nghost:           4953 ave        4953 max        4953 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Neighs:          96220 ave       96220 max       96220 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+
+Total # of neighbors = 96220
+Ave neighs/atom = 62.724902
+Neighbor list builds = 0
+Dangerous builds = 0
+variable count equal $i
+variable count equal 48
+print "$(v_strain:%.5f),$(v_stress:%.5f)" append stress-fracture.csv screen no
+write_dump all custom fracture.dump id type x y z v_syy modify append yes
+next i
+jump SELF loop
+displace_atoms gtop move 0  ${delta} 0 units box
+displace_atoms gtop move 0  0.06 0 units box
+Displacing atoms ...
+displace_atoms gbot move 0 -${delta} 0 units box
+displace_atoms gbot move 0 -0.06 0 units box
+Displacing atoms ...
+minimize 1.0e-10 1.0e-10 500 5000
+Last active /omp style is pair_style eam/fs/omp
+Per MPI rank memory allocation (min/avg/max) = 12.44 | 12.44 | 12.44 Mbytes
+   Step         PotEng           Ly            Pyy      
+      1718  -6166.603       84.407611     -133384.53    
+      1748  -6166.9228      84.407611     -133570.93    
+Loop time of 0.012551 on 8 procs for 30 steps with 1534 atoms
+
+767.5% CPU use with 1 MPI tasks x 8 OpenMP threads
+
+Minimization stats:
+  Stopping criterion = energy tolerance
+  Energy initial, next-to-last, final = 
+     -6166.60302436672  -6166.92284191154  -6166.92284244358
+  Force two-norm initial, final = 1.311098 0.0023400103
+  Force max component initial, final = 0.17197181 0.00020239789
+  Final line search alpha, max atom move = 1 0.00020239789
+  Iterations, force evaluations = 30 60
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 0.010235   | 0.010235   | 0.010235   |   0.0 | 81.55
+Neigh   | 0          | 0          | 0          |   0.0 |  0.00
+Comm    | 0.00087345 | 0.00087345 | 0.00087345 |   0.0 |  6.96
+Output  | 0          | 0          | 0          |   0.0 |  0.00
+Modify  | 0.0006558  | 0.0006558  | 0.0006558  |   0.0 |  5.23
+Other   |            | 0.000787   |            |       |  6.27
+
+Nlocal:           1534 ave        1534 max        1534 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Nghost:           4953 ave        4953 max        4953 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Neighs:          96124 ave       96124 max       96124 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+
+Total # of neighbors = 96124
+Ave neighs/atom = 62.662321
+Neighbor list builds = 0
+Dangerous builds = 0
+variable count equal $i
+variable count equal 49
+print "$(v_strain:%.5f),$(v_stress:%.5f)" append stress-fracture.csv screen no
+write_dump all custom fracture.dump id type x y z v_syy modify append yes
+next i
+jump SELF loop
+displace_atoms gtop move 0  ${delta} 0 units box
+displace_atoms gtop move 0  0.06 0 units box
+Displacing atoms ...
+displace_atoms gbot move 0 -${delta} 0 units box
+displace_atoms gbot move 0 -0.06 0 units box
+Displacing atoms ...
+minimize 1.0e-10 1.0e-10 500 5000
+Last active /omp style is pair_style eam/fs/omp
+Per MPI rank memory allocation (min/avg/max) = 12.44 | 12.44 | 12.44 Mbytes
+   Step         PotEng           Ly            Pyy      
+      1748  -6163.9983      84.527611     -135472.79    
+      1750  -6164.2206      84.527611     -135621.38    
+      1778  -6164.3197      84.527611     -135683.68    
+Loop time of 0.012594 on 8 procs for 30 steps with 1534 atoms
+
+820.6% CPU use with 1 MPI tasks x 8 OpenMP threads
+
+Minimization stats:
+  Stopping criterion = energy tolerance
+  Energy initial, next-to-last, final = 
+     -6163.99832248853  -6164.31973207072  -6164.31973260922
+  Force two-norm initial, final = 1.3219704 0.0025242578
+  Force max component initial, final = 0.17255464 0.00022970016
+  Final line search alpha, max atom move = 1 0.00022970016
+  Iterations, force evaluations = 30 60
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 0.010259   | 0.010259   | 0.010259   |   0.0 | 81.46
+Neigh   | 0          | 0          | 0          |   0.0 |  0.00
+Comm    | 0.00088404 | 0.00088404 | 0.00088404 |   0.0 |  7.02
+Output  | 5.892e-06  | 5.892e-06  | 5.892e-06  |   0.0 |  0.05
+Modify  | 0.00065421 | 0.00065421 | 0.00065421 |   0.0 |  5.19
+Other   |            | 0.0007904  |            |       |  6.28
+
+Nlocal:           1534 ave        1534 max        1534 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Nghost:           4953 ave        4953 max        4953 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Neighs:          96124 ave       96124 max       96124 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+
+Total # of neighbors = 96124
+Ave neighs/atom = 62.662321
+Neighbor list builds = 0
+Dangerous builds = 0
+variable count equal $i
+variable count equal 50
+print "$(v_strain:%.5f),$(v_stress:%.5f)" append stress-fracture.csv screen no
+write_dump all custom fracture.dump id type x y z v_syy modify append yes
+next i
+jump SELF loop
+displace_atoms gtop move 0  ${delta} 0 units box
+displace_atoms gtop move 0  0.06 0 units box
+Displacing atoms ...
+displace_atoms gbot move 0 -${delta} 0 units box
+displace_atoms gbot move 0 -0.06 0 units box
+Displacing atoms ...
+minimize 1.0e-10 1.0e-10 500 5000
+Last active /omp style is pair_style eam/fs/omp
+Per MPI rank memory allocation (min/avg/max) = 12.44 | 12.44 | 12.44 Mbytes
+   Step         PotEng           Ly            Pyy      
+      1778  -6161.3518      84.647611     -137608.92    
+      1800  -6161.6753      84.647611     -137841.76    
+      1808  -6161.6755      84.647611     -137839.86    
+Loop time of 0.0151044 on 8 procs for 30 steps with 1534 atoms
+
+792.4% CPU use with 1 MPI tasks x 8 OpenMP threads
+
+Minimization stats:
+  Stopping criterion = energy tolerance
+  Energy initial, next-to-last, final = 
+     -6161.35181615885  -6161.67553609103  -6161.67553657923
+  Force two-norm initial, final = 1.3345463 0.002590944
+  Force max component initial, final = 0.1734884 0.00020850396
+  Final line search alpha, max atom move = 1 0.00020850396
+  Iterations, force evaluations = 30 60
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 0.012497   | 0.012497   | 0.012497   |   0.0 | 82.74
+Neigh   | 0          | 0          | 0          |   0.0 |  0.00
+Comm    | 0.00099503 | 0.00099503 | 0.00099503 |   0.0 |  6.59
+Output  | 6.011e-06  | 6.011e-06  | 6.011e-06  |   0.0 |  0.04
+Modify  | 0.0007533  | 0.0007533  | 0.0007533  |   0.0 |  4.99
+Other   |            | 0.000853   |            |       |  5.65
+
+Nlocal:           1534 ave        1534 max        1534 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Nghost:           4953 ave        4953 max        4953 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Neighs:          96124 ave       96124 max       96124 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+
+Total # of neighbors = 96124
+Ave neighs/atom = 62.662321
+Neighbor list builds = 0
+Dangerous builds = 0
+variable count equal $i
+variable count equal 51
+print "$(v_strain:%.5f),$(v_stress:%.5f)" append stress-fracture.csv screen no
+write_dump all custom fracture.dump id type x y z v_syy modify append yes
+next i
+jump SELF loop
+displace_atoms gtop move 0  ${delta} 0 units box
+displace_atoms gtop move 0  0.06 0 units box
+Displacing atoms ...
+displace_atoms gbot move 0 -${delta} 0 units box
+displace_atoms gbot move 0 -0.06 0 units box
+Displacing atoms ...
+minimize 1.0e-10 1.0e-10 500 5000
+Last active /omp style is pair_style eam/fs/omp
+Per MPI rank memory allocation (min/avg/max) = 12.44 | 12.44 | 12.44 Mbytes
+   Step         PotEng           Ly            Pyy      
+      1808  -6158.6627      84.767611     -139791.28    
+      1837  -6158.9894      84.767611     -140039.08    
+Loop time of 0.0127954 on 8 procs for 29 steps with 1534 atoms
+
+809.1% CPU use with 1 MPI tasks x 8 OpenMP threads
+
+Minimization stats:
+  Stopping criterion = energy tolerance
+  Energy initial, next-to-last, final = 
+     -6158.66273292665   -6158.9894271277  -6158.98942768254
+  Force two-norm initial, final = 1.3487834 0.0023240994
+  Force max component initial, final = 0.17476259 0.00019427581
+  Final line search alpha, max atom move = 1 0.00019427581
+  Iterations, force evaluations = 29 58
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 0.010536   | 0.010536   | 0.010536   |   0.0 | 82.34
+Neigh   | 0          | 0          | 0          |   0.0 |  0.00
+Comm    | 0.00086293 | 0.00086293 | 0.00086293 |   0.0 |  6.74
+Output  | 0          | 0          | 0          |   0.0 |  0.00
+Modify  | 0.00061895 | 0.00061895 | 0.00061895 |   0.0 |  4.84
+Other   |            | 0.0007778  |            |       |  6.08
+
+Nlocal:           1534 ave        1534 max        1534 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Nghost:           4953 ave        4953 max        4953 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Neighs:          96124 ave       96124 max       96124 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+
+Total # of neighbors = 96124
+Ave neighs/atom = 62.662321
+Neighbor list builds = 0
+Dangerous builds = 0
+variable count equal $i
+variable count equal 52
+print "$(v_strain:%.5f),$(v_stress:%.5f)" append stress-fracture.csv screen no
+write_dump all custom fracture.dump id type x y z v_syy modify append yes
+next i
+jump SELF loop
+displace_atoms gtop move 0  ${delta} 0 units box
+displace_atoms gtop move 0  0.06 0 units box
+Displacing atoms ...
+displace_atoms gbot move 0 -${delta} 0 units box
+displace_atoms gbot move 0 -0.06 0 units box
+Displacing atoms ...
+minimize 1.0e-10 1.0e-10 500 5000
+Last active /omp style is pair_style eam/fs/omp
+Per MPI rank memory allocation (min/avg/max) = 12.44 | 12.44 | 12.44 Mbytes
+   Step         PotEng           Ly            Pyy      
+      1837  -6155.931       84.887611     -142015.64    
+      1850  -6156.2494      84.887611     -142262.57    
+      1866  -6156.2607      84.887611     -142269.07    
+Loop time of 0.0129674 on 8 procs for 29 steps with 1534 atoms
+
+799.5% CPU use with 1 MPI tasks x 8 OpenMP threads
+
+Minimization stats:
+  Stopping criterion = energy tolerance
+  Energy initial, next-to-last, final = 
+     -6155.93099035881  -6156.26066198037  -6156.26066235843
+  Force two-norm initial, final = 1.3622881 0.0019343131
+  Force max component initial, final = 0.17607383 0.00017197274
+  Final line search alpha, max atom move = 1 0.00017197274
+  Iterations, force evaluations = 29 58
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 0.010701   | 0.010701   | 0.010701   |   0.0 | 82.52
+Neigh   | 0          | 0          | 0          |   0.0 |  0.00
+Comm    | 0.00085971 | 0.00085971 | 0.00085971 |   0.0 |  6.63
+Output  | 6.332e-06  | 6.332e-06  | 6.332e-06  |   0.0 |  0.05
+Modify  | 0.00062761 | 0.00062761 | 0.00062761 |   0.0 |  4.84
+Other   |            | 0.0007729  |            |       |  5.96
+
+Nlocal:           1534 ave        1534 max        1534 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Nghost:           4953 ave        4953 max        4953 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Neighs:          96124 ave       96124 max       96124 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+
+Total # of neighbors = 96124
+Ave neighs/atom = 62.662321
+Neighbor list builds = 0
+Dangerous builds = 0
+variable count equal $i
+variable count equal 53
+print "$(v_strain:%.5f),$(v_stress:%.5f)" append stress-fracture.csv screen no
+write_dump all custom fracture.dump id type x y z v_syy modify append yes
+next i
+jump SELF loop
+displace_atoms gtop move 0  ${delta} 0 units box
+displace_atoms gtop move 0  0.06 0 units box
+Displacing atoms ...
+displace_atoms gbot move 0 -${delta} 0 units box
+displace_atoms gbot move 0 -0.06 0 units box
+Displacing atoms ...
+minimize 1.0e-10 1.0e-10 500 5000
+Last active /omp style is pair_style eam/fs/omp
+Per MPI rank memory allocation (min/avg/max) = 12.44 | 12.44 | 12.44 Mbytes
+   Step         PotEng           Ly            Pyy      
+      1866  -6153.1562      85.007611     -144268.94    
+      1895  -6153.489       85.007611     -144500.96    
+Loop time of 0.0123103 on 8 procs for 29 steps with 1534 atoms
+
+837.2% CPU use with 1 MPI tasks x 8 OpenMP threads
+
+Minimization stats:
+  Stopping criterion = energy tolerance
+  Energy initial, next-to-last, final = 
+     -6153.15620971378  -6153.48896984452  -6153.48897022728
+  Force two-norm initial, final = 1.3747329 0.0020338762
+  Force max component initial, final = 0.17739605 0.00016465905
+  Final line search alpha, max atom move = 1 0.00016465905
+  Iterations, force evaluations = 29 58
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 0.010056   | 0.010056   | 0.010056   |   0.0 | 81.69
+Neigh   | 0          | 0          | 0          |   0.0 |  0.00
+Comm    | 0.00085585 | 0.00085585 | 0.00085585 |   0.0 |  6.95
+Output  | 0          | 0          | 0          |   0.0 |  0.00
+Modify  | 0.0006224  | 0.0006224  | 0.0006224  |   0.0 |  5.06
+Other   |            | 0.0007759  |            |       |  6.30
+
+Nlocal:           1534 ave        1534 max        1534 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Nghost:           4953 ave        4953 max        4953 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Neighs:          96124 ave       96124 max       96124 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+
+Total # of neighbors = 96124
+Ave neighs/atom = 62.662321
+Neighbor list builds = 0
+Dangerous builds = 0
+variable count equal $i
+variable count equal 54
+print "$(v_strain:%.5f),$(v_stress:%.5f)" append stress-fracture.csv screen no
+write_dump all custom fracture.dump id type x y z v_syy modify append yes
+next i
+jump SELF loop
+displace_atoms gtop move 0  ${delta} 0 units box
+displace_atoms gtop move 0  0.06 0 units box
+Displacing atoms ...
+displace_atoms gbot move 0 -${delta} 0 units box
+displace_atoms gbot move 0 -0.06 0 units box
+Displacing atoms ...
+minimize 1.0e-10 1.0e-10 500 5000
+Last active /omp style is pair_style eam/fs/omp
+Per MPI rank memory allocation (min/avg/max) = 12.44 | 12.44 | 12.44 Mbytes
+   Step         PotEng           Ly            Pyy      
+      1895  -6150.3383      85.127611     -146522.04    
+      1900  -6150.6274      85.127611     -146687.46    
+      1924  -6150.6744      85.127611     -146729.26    
+Loop time of 0.0123467 on 8 procs for 29 steps with 1534 atoms
+
+778.5% CPU use with 1 MPI tasks x 8 OpenMP threads
+
+Minimization stats:
+  Stopping criterion = energy tolerance
+  Energy initial, next-to-last, final = 
+     -6150.33825938647  -6150.67441292159  -6150.67441340413
+  Force two-norm initial, final = 1.3859385 0.0021552532
+  Force max component initial, final = 0.17871161 0.00020348813
+  Final line search alpha, max atom move = 1 0.00020348813
+  Iterations, force evaluations = 29 58
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 0.010082   | 0.010082   | 0.010082   |   0.0 | 81.66
+Neigh   | 0          | 0          | 0          |   0.0 |  0.00
+Comm    | 0.0008536  | 0.0008536  | 0.0008536  |   0.0 |  6.91
+Output  | 6.422e-06  | 6.422e-06  | 6.422e-06  |   0.0 |  0.05
+Modify  | 0.00064295 | 0.00064295 | 0.00064295 |   0.0 |  5.21
+Other   |            | 0.0007616  |            |       |  6.17
+
+Nlocal:           1534 ave        1534 max        1534 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Nghost:           4953 ave        4953 max        4953 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Neighs:          96124 ave       96124 max       96124 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+
+Total # of neighbors = 96124
+Ave neighs/atom = 62.662321
+Neighbor list builds = 0
+Dangerous builds = 0
+variable count equal $i
+variable count equal 55
+print "$(v_strain:%.5f),$(v_stress:%.5f)" append stress-fracture.csv screen no
+write_dump all custom fracture.dump id type x y z v_syy modify append yes
+next i
+jump SELF loop
+displace_atoms gtop move 0  ${delta} 0 units box
+displace_atoms gtop move 0  0.06 0 units box
+Displacing atoms ...
+displace_atoms gbot move 0 -${delta} 0 units box
+displace_atoms gbot move 0 -0.06 0 units box
+Displacing atoms ...
+minimize 1.0e-10 1.0e-10 500 5000
+Last active /omp style is pair_style eam/fs/omp
+Per MPI rank memory allocation (min/avg/max) = 12.44 | 12.44 | 12.44 Mbytes
+   Step         PotEng           Ly            Pyy      
+      1924  -6147.4778      85.247611     -148769.35    
+      1950  -6147.8171      85.247611     -148951.94    
+      1953  -6147.8171      85.247611     -148951.74    
+Loop time of 0.0137273 on 8 procs for 29 steps with 1534 atoms
+
+760.7% CPU use with 1 MPI tasks x 8 OpenMP threads
+
+Minimization stats:
+  Stopping criterion = energy tolerance
+  Energy initial, next-to-last, final = 
+     -6147.47776445555  -6147.81710854786  -6147.81710905404
+  Force two-norm initial, final = 1.3956673 0.0023316935
+  Force max component initial, final = 0.17998838 0.00021981118
+  Final line search alpha, max atom move = 1 0.00021981118
+  Iterations, force evaluations = 29 58
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 0.01144    | 0.01144    | 0.01144    |   0.0 | 83.34
+Neigh   | 0          | 0          | 0          |   0.0 |  0.00
+Comm    | 0.00086503 | 0.00086503 | 0.00086503 |   0.0 |  6.30
+Output  | 1.0821e-05 | 1.0821e-05 | 1.0821e-05 |   0.0 |  0.08
+Modify  | 0.00063606 | 0.00063606 | 0.00063606 |   0.0 |  4.63
+Other   |            | 0.0007755  |            |       |  5.65
+
+Nlocal:           1534 ave        1534 max        1534 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Nghost:           4953 ave        4953 max        4953 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Neighs:          96124 ave       96124 max       96124 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+
+Total # of neighbors = 96124
+Ave neighs/atom = 62.662321
+Neighbor list builds = 0
+Dangerous builds = 0
+variable count equal $i
+variable count equal 56
+print "$(v_strain:%.5f),$(v_stress:%.5f)" append stress-fracture.csv screen no
+write_dump all custom fracture.dump id type x y z v_syy modify append yes
+next i
+jump SELF loop
+displace_atoms gtop move 0  ${delta} 0 units box
+displace_atoms gtop move 0  0.06 0 units box
+Displacing atoms ...
+displace_atoms gbot move 0 -${delta} 0 units box
+displace_atoms gbot move 0 -0.06 0 units box
+Displacing atoms ...
+minimize 1.0e-10 1.0e-10 500 5000
+Last active /omp style is pair_style eam/fs/omp
+Per MPI rank memory allocation (min/avg/max) = 12.44 | 12.44 | 12.44 Mbytes
+   Step         PotEng           Ly            Pyy      
+      1953  -6144.5749      85.367611     -151009.61    
+      1983  -6144.9172      85.367611     -151165.76    
+Loop time of 0.0133835 on 8 procs for 30 steps with 1534 atoms
+
+777.5% CPU use with 1 MPI tasks x 8 OpenMP threads
+
+Minimization stats:
+  Stopping criterion = energy tolerance
+  Energy initial, next-to-last, final = 
+     -6144.57485832681  -6144.91722033286  -6144.91722089938
+  Force two-norm initial, final = 1.4042507 0.0017952532
+  Force max component initial, final = 0.1812472 0.00021334539
+  Final line search alpha, max atom move = 1 0.00021334539
+  Iterations, force evaluations = 30 60
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 0.011067   | 0.011067   | 0.011067   |   0.0 | 82.69
+Neigh   | 0          | 0          | 0          |   0.0 |  0.00
+Comm    | 0.00087413 | 0.00087413 | 0.00087413 |   0.0 |  6.53
+Output  | 0          | 0          | 0          |   0.0 |  0.00
+Modify  | 0.00065597 | 0.00065597 | 0.00065597 |   0.0 |  4.90
+Other   |            | 0.0007867  |            |       |  5.88
+
+Nlocal:           1534 ave        1534 max        1534 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Nghost:           4953 ave        4953 max        4953 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Neighs:          96100 ave       96100 max       96100 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+
+Total # of neighbors = 96100
+Ave neighs/atom = 62.646675
+Neighbor list builds = 0
+Dangerous builds = 0
+variable count equal $i
+variable count equal 57
+print "$(v_strain:%.5f),$(v_stress:%.5f)" append stress-fracture.csv screen no
+write_dump all custom fracture.dump id type x y z v_syy modify append yes
+next i
+jump SELF loop
+displace_atoms gtop move 0  ${delta} 0 units box
+displace_atoms gtop move 0  0.06 0 units box
+Displacing atoms ...
+displace_atoms gbot move 0 -${delta} 0 units box
+displace_atoms gbot move 0 -0.06 0 units box
+Displacing atoms ...
+minimize 1.0e-10 1.0e-10 500 5000
+Last active /omp style is pair_style eam/fs/omp
+Per MPI rank memory allocation (min/avg/max) = 12.44 | 12.44 | 12.44 Mbytes
+   Step         PotEng           Ly            Pyy      
+      1983  -6141.6298      85.487611     -153240.29    
+      2000  -6141.9704      85.487611     -153408.94    
+      2013  -6141.9749      85.487611     -153370.36    
+Loop time of 0.0126643 on 8 procs for 30 steps with 1534 atoms
+
+816.4% CPU use with 1 MPI tasks x 8 OpenMP threads
+
+Minimization stats:
+  Stopping criterion = energy tolerance
+  Energy initial, next-to-last, final = 
+     -6141.62981669344  -6141.97494715365  -6141.97494765504
+  Force two-norm initial, final = 1.4116399 0.0020369812
+  Force max component initial, final = 0.18249005 0.00022134244
+  Final line search alpha, max atom move = 1 0.00022134244
+  Iterations, force evaluations = 30 60
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 0.010338   | 0.010338   | 0.010338   |   0.0 | 81.63
+Neigh   | 0          | 0          | 0          |   0.0 |  0.00
+Comm    | 0.00087945 | 0.00087945 | 0.00087945 |   0.0 |  6.94
+Output  | 5.931e-06  | 5.931e-06  | 5.931e-06  |   0.0 |  0.05
+Modify  | 0.00064368 | 0.00064368 | 0.00064368 |   0.0 |  5.08
+Other   |            | 0.000797   |            |       |  6.29
+
+Nlocal:           1534 ave        1534 max        1534 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Nghost:           4953 ave        4953 max        4953 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Neighs:          96088 ave       96088 max       96088 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+
+Total # of neighbors = 96088
+Ave neighs/atom = 62.638853
+Neighbor list builds = 0
+Dangerous builds = 0
+variable count equal $i
+variable count equal 58
+print "$(v_strain:%.5f),$(v_stress:%.5f)" append stress-fracture.csv screen no
+write_dump all custom fracture.dump id type x y z v_syy modify append yes
+next i
+jump SELF loop
+displace_atoms gtop move 0  ${delta} 0 units box
+displace_atoms gtop move 0  0.06 0 units box
+Displacing atoms ...
+displace_atoms gbot move 0 -${delta} 0 units box
+displace_atoms gbot move 0 -0.06 0 units box
+Displacing atoms ...
+minimize 1.0e-10 1.0e-10 500 5000
+Last active /omp style is pair_style eam/fs/omp
+Per MPI rank memory allocation (min/avg/max) = 12.44 | 12.44 | 12.44 Mbytes
+   Step         PotEng           Ly            Pyy      
+      2013  -6138.6428      85.607611     -155460.51    
+      2043  -6138.9905      85.607611     -155564.82    
+Loop time of 0.0122977 on 8 procs for 30 steps with 1534 atoms
+
+781.1% CPU use with 1 MPI tasks x 8 OpenMP threads
+
+Minimization stats:
+  Stopping criterion = energy tolerance
+  Energy initial, next-to-last, final = 
+     -6138.64279655231  -6138.99050442213  -6138.99050492701
+  Force two-norm initial, final = 1.4179294 0.002206193
+  Force max component initial, final = 0.18370314 0.00023393387
+  Final line search alpha, max atom move = 1 0.00023393387
+  Iterations, force evaluations = 30 60
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 0.0099691  | 0.0099691  | 0.0099691  |   0.0 | 81.06
+Neigh   | 0          | 0          | 0          |   0.0 |  0.00
+Comm    | 0.00087682 | 0.00087682 | 0.00087682 |   0.0 |  7.13
+Output  | 0          | 0          | 0          |   0.0 |  0.00
+Modify  | 0.00066252 | 0.00066252 | 0.00066252 |   0.0 |  5.39
+Other   |            | 0.0007893  |            |       |  6.42
+
+Nlocal:           1534 ave        1534 max        1534 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Nghost:           4953 ave        4953 max        4953 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Neighs:          96068 ave       96068 max       96068 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+
+Total # of neighbors = 96068
+Ave neighs/atom = 62.625815
+Neighbor list builds = 0
+Dangerous builds = 0
+variable count equal $i
+variable count equal 59
+print "$(v_strain:%.5f),$(v_stress:%.5f)" append stress-fracture.csv screen no
+write_dump all custom fracture.dump id type x y z v_syy modify append yes
+next i
+jump SELF loop
+displace_atoms gtop move 0  ${delta} 0 units box
+displace_atoms gtop move 0  0.06 0 units box
+Displacing atoms ...
+displace_atoms gbot move 0 -${delta} 0 units box
+displace_atoms gbot move 0 -0.06 0 units box
+Displacing atoms ...
+minimize 1.0e-10 1.0e-10 500 5000
+Last active /omp style is pair_style eam/fs/omp
+Per MPI rank memory allocation (min/avg/max) = 12.44 | 12.44 | 12.44 Mbytes
+   Step         PotEng           Ly            Pyy      
+      2043  -6135.6141      85.727611     -157669.71    
+      2050  -6135.9329      85.727611     -157790.81    
+      2074  -6135.9641      85.727611     -157747.08    
+Loop time of 0.0132904 on 8 procs for 31 steps with 1534 atoms
+
+782.8% CPU use with 1 MPI tasks x 8 OpenMP threads
+
+Minimization stats:
+  Stopping criterion = energy tolerance
+  Energy initial, next-to-last, final = 
+     -6135.61407063019    -6135.964128309  -6135.96412885509
+  Force two-norm initial, final = 1.4231942 0.0018850803
+  Force max component initial, final = 0.18489521 0.00019580587
+  Final line search alpha, max atom move = 1 0.00019580587
+  Iterations, force evaluations = 31 62
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 0.010894   | 0.010894   | 0.010894   |   0.0 | 81.97
+Neigh   | 0          | 0          | 0          |   0.0 |  0.00
+Comm    | 0.00090996 | 0.00090996 | 0.00090996 |   0.0 |  6.85
+Output  | 6.062e-06  | 6.062e-06  | 6.062e-06  |   0.0 |  0.05
+Modify  | 0.00066938 | 0.00066938 | 0.00066938 |   0.0 |  5.04
+Other   |            | 0.0008114  |            |       |  6.10
+
+Nlocal:           1534 ave        1534 max        1534 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Nghost:           4953 ave        4953 max        4953 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Neighs:          96040 ave       96040 max       96040 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+
+Total # of neighbors = 96040
+Ave neighs/atom = 62.607562
+Neighbor list builds = 0
+Dangerous builds = 0
+variable count equal $i
+variable count equal 60
+print "$(v_strain:%.5f),$(v_stress:%.5f)" append stress-fracture.csv screen no
+write_dump all custom fracture.dump id type x y z v_syy modify append yes
+next i
+jump SELF loop
+displace_atoms gtop move 0  ${delta} 0 units box
+displace_atoms gtop move 0  0.06 0 units box
+Displacing atoms ...
+displace_atoms gbot move 0 -${delta} 0 units box
+displace_atoms gbot move 0 -0.06 0 units box
+Displacing atoms ...
+minimize 1.0e-10 1.0e-10 500 5000
+Last active /omp style is pair_style eam/fs/omp
+Per MPI rank memory allocation (min/avg/max) = 12.44 | 12.44 | 12.44 Mbytes
+   Step         PotEng           Ly            Pyy      
+      2074  -6132.544       85.847611     -159865.86    
+      2100  -6132.8961      85.847611     -159917.39    
+      2105  -6132.8961      85.847611     -159916.07    
+Loop time of 0.0129129 on 8 procs for 31 steps with 1534 atoms
+
+802.7% CPU use with 1 MPI tasks x 8 OpenMP threads
+
+Minimization stats:
+  Stopping criterion = energy tolerance
+  Energy initial, next-to-last, final = 
+     -6132.54396474981  -6132.89608921267  -6132.89608976096
+  Force two-norm initial, final = 1.4275067 0.0021455177
+  Force max component initial, final = 0.18608697 0.00021321168
+  Final line search alpha, max atom move = 1 0.00021321168
+  Iterations, force evaluations = 31 62
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 0.01051    | 0.01051    | 0.01051    |   0.0 | 81.39
+Neigh   | 0          | 0          | 0          |   0.0 |  0.00
+Comm    | 0.00090266 | 0.00090266 | 0.00090266 |   0.0 |  6.99
+Output  | 6.112e-06  | 6.112e-06  | 6.112e-06  |   0.0 |  0.05
+Modify  | 0.00068084 | 0.00068084 | 0.00068084 |   0.0 |  5.27
+Other   |            | 0.0008138  |            |       |  6.30
+
+Nlocal:           1534 ave        1534 max        1534 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Nghost:           4953 ave        4953 max        4953 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Neighs:          96004 ave       96004 max       96004 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+
+Total # of neighbors = 96004
+Ave neighs/atom = 62.584094
+Neighbor list builds = 0
+Dangerous builds = 0
+variable count equal $i
+variable count equal 61
+print "$(v_strain:%.5f),$(v_stress:%.5f)" append stress-fracture.csv screen no
+write_dump all custom fracture.dump id type x y z v_syy modify append yes
+next i
+jump SELF loop
+displace_atoms gtop move 0  ${delta} 0 units box
+displace_atoms gtop move 0  0.06 0 units box
+Displacing atoms ...
+displace_atoms gbot move 0 -${delta} 0 units box
+displace_atoms gbot move 0 -0.06 0 units box
+Displacing atoms ...
+minimize 1.0e-10 1.0e-10 500 5000
+Last active /omp style is pair_style eam/fs/omp
+Per MPI rank memory allocation (min/avg/max) = 12.44 | 12.44 | 12.44 Mbytes
+   Step         PotEng           Ly            Pyy      
+      2105  -6129.4326      85.967611     -162048.01    
+      2137  -6129.7867      85.967611     -162067.42    
+Loop time of 0.019033 on 8 procs for 32 steps with 1534 atoms
+
+794.1% CPU use with 1 MPI tasks x 8 OpenMP threads
+
+Minimization stats:
+  Stopping criterion = energy tolerance
+  Energy initial, next-to-last, final = 
+      -6129.4326206764  -6129.78670982208  -6129.78671027989
+  Force two-norm initial, final = 1.4309115 0.0017758374
+  Force max component initial, final = 0.18726595 0.00014552964
+  Final line search alpha, max atom move = 1 0.00014552964
+  Iterations, force evaluations = 32 64
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 0.016068   | 0.016068   | 0.016068   |   0.0 | 84.42
+Neigh   | 0          | 0          | 0          |   0.0 |  0.00
+Comm    | 0.0011126  | 0.0011126  | 0.0011126  |   0.0 |  5.85
+Output  | 0          | 0          | 0          |   0.0 |  0.00
+Modify  | 0.00080888 | 0.00080888 | 0.00080888 |   0.0 |  4.25
+Other   |            | 0.001043   |            |       |  5.48
+
+Nlocal:           1534 ave        1534 max        1534 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Nghost:           4953 ave        4953 max        4953 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Neighs:          95988 ave       95988 max       95988 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+
+Total # of neighbors = 95988
+Ave neighs/atom = 62.573664
+Neighbor list builds = 0
+Dangerous builds = 0
+variable count equal $i
+variable count equal 62
+print "$(v_strain:%.5f),$(v_stress:%.5f)" append stress-fracture.csv screen no
+write_dump all custom fracture.dump id type x y z v_syy modify append yes
+next i
+jump SELF loop
+displace_atoms gtop move 0  ${delta} 0 units box
+displace_atoms gtop move 0  0.06 0 units box
+Displacing atoms ...
+displace_atoms gbot move 0 -${delta} 0 units box
+displace_atoms gbot move 0 -0.06 0 units box
+Displacing atoms ...
+minimize 1.0e-10 1.0e-10 500 5000
+Last active /omp style is pair_style eam/fs/omp
+Per MPI rank memory allocation (min/avg/max) = 12.44 | 12.44 | 12.44 Mbytes
+   Step         PotEng           Ly            Pyy      
+      2137  -6126.2806      86.087611     -164211.66    
+      2150  -6126.6247      86.087611     -164308.18    
+      2169  -6126.6364      86.087611     -164203.47    
+Loop time of 0.0141981 on 8 procs for 32 steps with 1534 atoms
+
+787.7% CPU use with 1 MPI tasks x 8 OpenMP threads
+
+Minimization stats:
+  Stopping criterion = energy tolerance
+  Energy initial, next-to-last, final = 
+     -6126.28060779793  -6126.63635606332  -6126.63635644898
+  Force two-norm initial, final = 1.4334592 0.0018281888
+  Force max component initial, final = 0.18841942 0.00015978018
+  Final line search alpha, max atom move = 1 0.00015978018
+  Iterations, force evaluations = 32 64
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 0.011688   | 0.011688   | 0.011688   |   0.0 | 82.32
+Neigh   | 0          | 0          | 0          |   0.0 |  0.00
+Comm    | 0.0009443  | 0.0009443  | 0.0009443  |   0.0 |  6.65
+Output  | 1.0159e-05 | 1.0159e-05 | 1.0159e-05 |   0.0 |  0.07
+Modify  | 0.00069965 | 0.00069965 | 0.00069965 |   0.0 |  4.93
+Other   |            | 0.0008563  |            |       |  6.03
+
+Nlocal:           1534 ave        1534 max        1534 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Nghost:           4953 ave        4953 max        4953 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Neighs:          95968 ave       95968 max       95968 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+
+Total # of neighbors = 95968
+Ave neighs/atom = 62.560626
+Neighbor list builds = 0
+Dangerous builds = 0
+variable count equal $i
+variable count equal 63
+print "$(v_strain:%.5f),$(v_stress:%.5f)" append stress-fracture.csv screen no
+write_dump all custom fracture.dump id type x y z v_syy modify append yes
+next i
+jump SELF loop
+displace_atoms gtop move 0  ${delta} 0 units box
+displace_atoms gtop move 0  0.06 0 units box
+Displacing atoms ...
+displace_atoms gbot move 0 -${delta} 0 units box
+displace_atoms gbot move 0 -0.06 0 units box
+Displacing atoms ...
+minimize 1.0e-10 1.0e-10 500 5000
+Last active /omp style is pair_style eam/fs/omp
+Per MPI rank memory allocation (min/avg/max) = 12.44 | 12.44 | 12.44 Mbytes
+   Step         PotEng           Ly            Pyy      
+      2169  -6123.0881      86.207611     -166359.41    
+      2200  -6123.4452      86.207611     -166333.04    
+      2201  -6123.4452      86.207611     -166332.98    
+Loop time of 0.0150237 on 8 procs for 32 steps with 1534 atoms
+
+796.5% CPU use with 1 MPI tasks x 8 OpenMP threads
+
+Minimization stats:
+  Stopping criterion = energy tolerance
+  Energy initial, next-to-last, final = 
+     -6123.08811899027  -6123.44524907536  -6123.44524945855
+  Force two-norm initial, final = 1.4352416 0.001850226
+  Force max component initial, final = 0.18957028 0.00015456452
+  Final line search alpha, max atom move = 1 0.00015456452
+  Iterations, force evaluations = 32 64
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 0.012446   | 0.012446   | 0.012446   |   0.0 | 82.84
+Neigh   | 0          | 0          | 0          |   0.0 |  0.00
+Comm    | 0.00098719 | 0.00098719 | 0.00098719 |   0.0 |  6.57
+Output  | 1.4167e-05 | 1.4167e-05 | 1.4167e-05 |   0.0 |  0.09
+Modify  | 0.00070809 | 0.00070809 | 0.00070809 |   0.0 |  4.71
+Other   |            | 0.0008682  |            |       |  5.78
+
+Nlocal:           1534 ave        1534 max        1534 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Nghost:           4953 ave        4953 max        4953 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Neighs:          95928 ave       95928 max       95928 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+
+Total # of neighbors = 95928
+Ave neighs/atom = 62.53455
+Neighbor list builds = 0
+Dangerous builds = 0
+variable count equal $i
+variable count equal 64
+print "$(v_strain:%.5f),$(v_stress:%.5f)" append stress-fracture.csv screen no
+write_dump all custom fracture.dump id type x y z v_syy modify append yes
+next i
+jump SELF loop
+displace_atoms gtop move 0  ${delta} 0 units box
+displace_atoms gtop move 0  0.06 0 units box
+Displacing atoms ...
+displace_atoms gbot move 0 -${delta} 0 units box
+displace_atoms gbot move 0 -0.06 0 units box
+Displacing atoms ...
+minimize 1.0e-10 1.0e-10 500 5000
+Last active /omp style is pair_style eam/fs/omp
+Per MPI rank memory allocation (min/avg/max) = 12.44 | 12.44 | 12.44 Mbytes
+   Step         PotEng           Ly            Pyy      
+      2201  -6119.8552      86.327611     -168499.99    
+      2233  -6120.2135      86.327611     -168456.83    
+Loop time of 0.0133436 on 8 procs for 32 steps with 1534 atoms
+
+832.2% CPU use with 1 MPI tasks x 8 OpenMP threads
+
+Minimization stats:
+  Stopping criterion = energy tolerance
+  Energy initial, next-to-last, final = 
+     -6119.85520064396  -6120.21352156172  -6120.21352200911
+  Force two-norm initial, final = 1.4363344 0.0020390499
+  Force max component initial, final = 0.19071326 0.0001794092
+  Final line search alpha, max atom move = 1 0.0001794092
+  Iterations, force evaluations = 32 64
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 0.010862   | 0.010862   | 0.010862   |   0.0 | 81.41
+Neigh   | 0          | 0          | 0          |   0.0 |  0.00
+Comm    | 0.00093381 | 0.00093381 | 0.00093381 |   0.0 |  7.00
+Output  | 0          | 0          | 0          |   0.0 |  0.00
+Modify  | 0.0006965  | 0.0006965  | 0.0006965  |   0.0 |  5.22
+Other   |            | 0.0008509  |            |       |  6.38
+
+Nlocal:           1534 ave        1534 max        1534 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Nghost:           4953 ave        4953 max        4953 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Neighs:          95906 ave       95906 max       95906 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+
+Total # of neighbors = 95906
+Ave neighs/atom = 62.520209
+Neighbor list builds = 0
+Dangerous builds = 0
+variable count equal $i
+variable count equal 65
+print "$(v_strain:%.5f),$(v_stress:%.5f)" append stress-fracture.csv screen no
+write_dump all custom fracture.dump id type x y z v_syy modify append yes
+next i
+jump SELF loop
+displace_atoms gtop move 0  ${delta} 0 units box
+displace_atoms gtop move 0  0.06 0 units box
+Displacing atoms ...
+displace_atoms gbot move 0 -${delta} 0 units box
+displace_atoms gbot move 0 -0.06 0 units box
+Displacing atoms ...
+minimize 1.0e-10 1.0e-10 500 5000
+Last active /omp style is pair_style eam/fs/omp
+Per MPI rank memory allocation (min/avg/max) = 12.44 | 12.44 | 12.44 Mbytes
+   Step         PotEng           Ly            Pyy      
+      2233  -6116.582       86.447611     -170634.23    
+      2250  -6116.9359      86.447611     -170700.06    
+      2265  -6116.9413      86.447611     -170574.94    
+Loop time of 0.0140115 on 8 procs for 32 steps with 1534 atoms
+
+790.2% CPU use with 1 MPI tasks x 8 OpenMP threads
+
+Minimization stats:
+  Stopping criterion = energy tolerance
+  Energy initial, next-to-last, final = 
+     -6116.58204826367  -6116.94130410473   -6116.9413046421
+  Force two-norm initial, final = 1.436674 0.0023540777
+  Force max component initial, final = 0.19182527 0.00019444047
+  Final line search alpha, max atom move = 1 0.00019444047
+  Iterations, force evaluations = 32 64
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 0.011515   | 0.011515   | 0.011515   |   0.0 | 82.18
+Neigh   | 0          | 0          | 0          |   0.0 |  0.00
+Comm    | 0.00093594 | 0.00093594 | 0.00093594 |   0.0 |  6.68
+Output  | 8.516e-06  | 8.516e-06  | 8.516e-06  |   0.0 |  0.06
+Modify  | 0.00070829 | 0.00070829 | 0.00070829 |   0.0 |  5.06
+Other   |            | 0.0008437  |            |       |  6.02
+
+Nlocal:           1534 ave        1534 max        1534 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Nghost:           4953 ave        4953 max        4953 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Neighs:          95888 ave       95888 max       95888 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+
+Total # of neighbors = 95888
+Ave neighs/atom = 62.508475
+Neighbor list builds = 0
+Dangerous builds = 0
+variable count equal $i
+variable count equal 66
+print "$(v_strain:%.5f),$(v_stress:%.5f)" append stress-fracture.csv screen no
+write_dump all custom fracture.dump id type x y z v_syy modify append yes
+next i
+jump SELF loop
+displace_atoms gtop move 0  ${delta} 0 units box
+displace_atoms gtop move 0  0.06 0 units box
+Displacing atoms ...
+displace_atoms gbot move 0 -${delta} 0 units box
+displace_atoms gbot move 0 -0.06 0 units box
+Displacing atoms ...
+minimize 1.0e-10 1.0e-10 500 5000
+Last active /omp style is pair_style eam/fs/omp
+Per MPI rank memory allocation (min/avg/max) = 12.44 | 12.44 | 12.44 Mbytes
+   Step         PotEng           Ly            Pyy      
+      2265  -6113.2687      86.567611     -172761.52    
+      2299  -6113.6287      86.567611     -172685.66    
+Loop time of 0.0143993 on 8 procs for 34 steps with 1534 atoms
+
+827.0% CPU use with 1 MPI tasks x 8 OpenMP threads
+
+Minimization stats:
+  Stopping criterion = energy tolerance
+  Energy initial, next-to-last, final = 
+     -6113.26873008414    -6113.628737552  -6113.62873803602
+  Force two-norm initial, final = 1.4360592 0.0019667968
+  Force max component initial, final = 0.19285476 0.00018575602
+  Final line search alpha, max atom move = 1 0.00018575602
+  Iterations, force evaluations = 34 68
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 0.011769   | 0.011769   | 0.011769   |   0.0 | 81.73
+Neigh   | 0          | 0          | 0          |   0.0 |  0.00
+Comm    | 0.00099698 | 0.00099698 | 0.00099698 |   0.0 |  6.92
+Output  | 0          | 0          | 0          |   0.0 |  0.00
+Modify  | 0.00073619 | 0.00073619 | 0.00073619 |   0.0 |  5.11
+Other   |            | 0.0008973  |            |       |  6.23
+
+Nlocal:           1534 ave        1534 max        1534 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Nghost:           4953 ave        4953 max        4953 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Neighs:          95854 ave       95854 max       95854 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+
+Total # of neighbors = 95854
+Ave neighs/atom = 62.48631
+Neighbor list builds = 0
+Dangerous builds = 0
+variable count equal $i
+variable count equal 67
+print "$(v_strain:%.5f),$(v_stress:%.5f)" append stress-fracture.csv screen no
+write_dump all custom fracture.dump id type x y z v_syy modify append yes
+next i
+jump SELF loop
+displace_atoms gtop move 0  ${delta} 0 units box
+displace_atoms gtop move 0  0.06 0 units box
+Displacing atoms ...
+displace_atoms gbot move 0 -${delta} 0 units box
+displace_atoms gbot move 0 -0.06 0 units box
+Displacing atoms ...
+minimize 1.0e-10 1.0e-10 500 5000
+Last active /omp style is pair_style eam/fs/omp
+Per MPI rank memory allocation (min/avg/max) = 12.44 | 12.44 | 12.44 Mbytes
+   Step         PotEng           Ly            Pyy      
+      2299  -6109.9156      86.687611     -174879.93    
+      2300  -6110.1068      86.687611     -174918.06    
+      2333  -6110.276       86.687611     -174783.68    
+Loop time of 0.0145478 on 8 procs for 34 steps with 1534 atoms
+
+812.8% CPU use with 1 MPI tasks x 8 OpenMP threads
+
+Minimization stats:
+  Stopping criterion = energy tolerance
+  Energy initial, next-to-last, final = 
+     -6109.91556477153  -6110.27602354879  -6110.27602414134
+  Force two-norm initial, final = 1.4346337 0.0022853587
+  Force max component initial, final = 0.19379037 0.00021000007
+  Final line search alpha, max atom move = 1 0.00021000007
+  Iterations, force evaluations = 34 68
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 0.011942   | 0.011942   | 0.011942   |   0.0 | 82.09
+Neigh   | 0          | 0          | 0          |   0.0 |  0.00
+Comm    | 0.00097818 | 0.00097818 | 0.00097818 |   0.0 |  6.72
+Output  | 5.912e-06  | 5.912e-06  | 5.912e-06  |   0.0 |  0.04
+Modify  | 0.00073041 | 0.00073041 | 0.00073041 |   0.0 |  5.02
+Other   |            | 0.0008916  |            |       |  6.13
+
+Nlocal:           1534 ave        1534 max        1534 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Nghost:           4953 ave        4953 max        4953 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Neighs:          95796 ave       95796 max       95796 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+
+Total # of neighbors = 95796
+Ave neighs/atom = 62.448501
+Neighbor list builds = 0
+Dangerous builds = 0
+variable count equal $i
+variable count equal 68
+print "$(v_strain:%.5f),$(v_stress:%.5f)" append stress-fracture.csv screen no
+write_dump all custom fracture.dump id type x y z v_syy modify append yes
+next i
+jump SELF loop
+displace_atoms gtop move 0  ${delta} 0 units box
+displace_atoms gtop move 0  0.06 0 units box
+Displacing atoms ...
+displace_atoms gbot move 0 -${delta} 0 units box
+displace_atoms gbot move 0 -0.06 0 units box
+Displacing atoms ...
+minimize 1.0e-10 1.0e-10 500 5000
+Last active /omp style is pair_style eam/fs/omp
+Per MPI rank memory allocation (min/avg/max) = 12.44 | 12.44 | 12.44 Mbytes
+   Step         PotEng           Ly            Pyy      
+      2333  -6106.5226      86.807611     -176984.99    
+      2350  -6106.8778      86.807611     -177026.05    
+      2369  -6106.8835      86.807611     -176858.87    
+Loop time of 0.0149421 on 8 procs for 36 steps with 1534 atoms
+
+800.6% CPU use with 1 MPI tasks x 8 OpenMP threads
+
+Minimization stats:
+  Stopping criterion = energy tolerance
+  Energy initial, next-to-last, final = 
+     -6106.52257053592  -6106.88351283467  -6106.88351321904
+  Force two-norm initial, final = 1.4329792 0.00182603
+  Force max component initial, final = 0.19466697 0.00014008704
+  Final line search alpha, max atom move = 1 0.00014008704
+  Iterations, force evaluations = 36 72
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 0.012216   | 0.012216   | 0.012216   |   0.0 | 81.76
+Neigh   | 0          | 0          | 0          |   0.0 |  0.00
+Comm    | 0.0010231  | 0.0010231  | 0.0010231  |   0.0 |  6.85
+Output  | 6.602e-06  | 6.602e-06  | 6.602e-06  |   0.0 |  0.04
+Modify  | 0.00076634 | 0.00076634 | 0.00076634 |   0.0 |  5.13
+Other   |            | 0.0009301  |            |       |  6.22
+
+Nlocal:           1534 ave        1534 max        1534 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Nghost:           4953 ave        4953 max        4953 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Neighs:          95772 ave       95772 max       95772 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+
+Total # of neighbors = 95772
+Ave neighs/atom = 62.432855
+Neighbor list builds = 0
+Dangerous builds = 0
+variable count equal $i
+variable count equal 69
+print "$(v_strain:%.5f),$(v_stress:%.5f)" append stress-fracture.csv screen no
+write_dump all custom fracture.dump id type x y z v_syy modify append yes
+next i
+jump SELF loop
+displace_atoms gtop move 0  ${delta} 0 units box
+displace_atoms gtop move 0  0.06 0 units box
+Displacing atoms ...
+displace_atoms gbot move 0 -${delta} 0 units box
+displace_atoms gbot move 0 -0.06 0 units box
+Displacing atoms ...
+minimize 1.0e-10 1.0e-10 500 5000
+Last active /omp style is pair_style eam/fs/omp
+Per MPI rank memory allocation (min/avg/max) = 12.44 | 12.44 | 12.44 Mbytes
+   Step         PotEng           Ly            Pyy      
+      2369  -6103.0902      86.927611     -179066.59    
+      2400  -6103.4519      86.927611     -178887.75    
+      2406  -6103.4519      86.927611     -178885.54    
+Loop time of 0.0184777 on 8 procs for 37 steps with 1534 atoms
+
+778.3% CPU use with 1 MPI tasks x 8 OpenMP threads
+
+Minimization stats:
+  Stopping criterion = energy tolerance
+  Energy initial, next-to-last, final = 
+     -6103.09024956465  -6103.45187108115  -6103.45187162151
+  Force two-norm initial, final = 1.4310964 0.0019084435
+  Force max component initial, final = 0.19545027 0.00015915642
+  Final line search alpha, max atom move = 1 0.00015915642
+  Iterations, force evaluations = 37 74
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 0.015535   | 0.015535   | 0.015535   |   0.0 | 84.07
+Neigh   | 0          | 0          | 0          |   0.0 |  0.00
+Comm    | 0.0011022  | 0.0011022  | 0.0011022  |   0.0 |  5.97
+Output  | 1.4789e-05 | 1.4789e-05 | 1.4789e-05 |   0.0 |  0.08
+Modify  | 0.0008261  | 0.0008261  | 0.0008261  |   0.0 |  4.47
+Other   |            | 0.0009998  |            |       |  5.41
+
+Nlocal:           1534 ave        1534 max        1534 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Nghost:           4953 ave        4953 max        4953 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Neighs:          95768 ave       95768 max       95768 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+
+Total # of neighbors = 95768
+Ave neighs/atom = 62.430248
+Neighbor list builds = 0
+Dangerous builds = 0
+variable count equal $i
+variable count equal 70
+print "$(v_strain:%.5f),$(v_stress:%.5f)" append stress-fracture.csv screen no
+write_dump all custom fracture.dump id type x y z v_syy modify append yes
+next i
+jump SELF loop
+displace_atoms gtop move 0  ${delta} 0 units box
+displace_atoms gtop move 0  0.06 0 units box
+Displacing atoms ...
+displace_atoms gbot move 0 -${delta} 0 units box
+displace_atoms gbot move 0 -0.06 0 units box
+Displacing atoms ...
+minimize 1.0e-10 1.0e-10 500 5000
+Last active /omp style is pair_style eam/fs/omp
+Per MPI rank memory allocation (min/avg/max) = 12.44 | 12.44 | 12.44 Mbytes
+   Step         PotEng           Ly            Pyy      
+      2406  -6099.6198      87.047611     -181098.89    
+      2450  -6100.4493      87.047611     -177176.83    
+      2491  -6100.4778      87.047611     -176637.22    
+Loop time of 0.0368174 on 8 procs for 85 steps with 1534 atoms
+
+801.3% CPU use with 1 MPI tasks x 8 OpenMP threads
+
+Minimization stats:
+  Stopping criterion = energy tolerance
+  Energy initial, next-to-last, final = 
+     -6099.61978364147  -6100.47783560726  -6100.47783612118
+  Force two-norm initial, final = 1.4289988 0.0021254811
+  Force max component initial, final = 0.19614687 0.00024360174
+  Final line search alpha, max atom move = 1 0.00024360174
+  Iterations, force evaluations = 85 170
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 0.030265   | 0.030265   | 0.030265   |   0.0 | 82.20
+Neigh   | 0          | 0          | 0          |   0.0 |  0.00
+Comm    | 0.0024749  | 0.0024749  | 0.0024749  |   0.0 |  6.72
+Output  | 1.0219e-05 | 1.0219e-05 | 1.0219e-05 |   0.0 |  0.03
+Modify  | 0.0018206  | 0.0018206  | 0.0018206  |   0.0 |  4.95
+Other   |            | 0.002246   |            |       |  6.10
+
+Nlocal:           1534 ave        1534 max        1534 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Nghost:           4953 ave        4953 max        4953 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Neighs:          95762 ave       95762 max       95762 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+
+Total # of neighbors = 95762
+Ave neighs/atom = 62.426336
+Neighbor list builds = 0
+Dangerous builds = 0
+variable count equal $i
+variable count equal 71
+print "$(v_strain:%.5f),$(v_stress:%.5f)" append stress-fracture.csv screen no
+write_dump all custom fracture.dump id type x y z v_syy modify append yes
+next i
+jump SELF loop
+displace_atoms gtop move 0  ${delta} 0 units box
+displace_atoms gtop move 0  0.06 0 units box
+Displacing atoms ...
+displace_atoms gbot move 0 -${delta} 0 units box
+displace_atoms gbot move 0 -0.06 0 units box
+Displacing atoms ...
+minimize 1.0e-10 1.0e-10 500 5000
+Last active /omp style is pair_style eam/fs/omp
+Per MPI rank memory allocation (min/avg/max) = 12.44 | 12.44 | 12.44 Mbytes
+   Step         PotEng           Ly            Pyy      
+      2491  -6096.69        87.167611     -178837.51    
+      2500  -6097.0276      87.167611     -178869.91    
+      2527  -6097.0522      87.167611     -178625.25    
+Loop time of 0.0172419 on 8 procs for 36 steps with 1534 atoms
+
+787.0% CPU use with 1 MPI tasks x 8 OpenMP threads
+
+Minimization stats:
+  Stopping criterion = energy tolerance
+  Energy initial, next-to-last, final = 
+     -6096.68996626697  -6097.05224540556  -6097.05224593412
+  Force two-norm initial, final = 1.4313121 0.0020911445
+  Force max component initial, final = 0.19536895 0.00030954279
+  Final line search alpha, max atom move = 1 0.00030954279
+  Iterations, force evaluations = 36 72
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 0.01409    | 0.01409    | 0.01409    |   0.0 | 81.72
+Neigh   | 0          | 0          | 0          |   0.0 |  0.00
+Comm    | 0.0012245  | 0.0012245  | 0.0012245  |   0.0 |  7.10
+Output  | 5.992e-06  | 5.992e-06  | 5.992e-06  |   0.0 |  0.03
+Modify  | 0.00086725 | 0.00086725 | 0.00086725 |   0.0 |  5.03
+Other   |            | 0.001054   |            |       |  6.11
+
+Nlocal:           1534 ave        1534 max        1534 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Nghost:           4951 ave        4951 max        4951 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Neighs:          95603 ave       95603 max       95603 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+
+Total # of neighbors = 95603
+Ave neighs/atom = 62.322686
+Neighbor list builds = 0
+Dangerous builds = 0
+variable count equal $i
+variable count equal 72
+print "$(v_strain:%.5f),$(v_stress:%.5f)" append stress-fracture.csv screen no
+write_dump all custom fracture.dump id type x y z v_syy modify append yes
+next i
+jump SELF loop
+displace_atoms gtop move 0  ${delta} 0 units box
+displace_atoms gtop move 0  0.06 0 units box
+Displacing atoms ...
+displace_atoms gbot move 0 -${delta} 0 units box
+displace_atoms gbot move 0 -0.06 0 units box
+Displacing atoms ...
+minimize 1.0e-10 1.0e-10 500 5000
+Last active /omp style is pair_style eam/fs/omp
+Per MPI rank memory allocation (min/avg/max) = 12.44 | 12.44 | 12.44 Mbytes
+   Step         PotEng           Ly            Pyy      
+      2527  -6093.2266      87.287611     -180831       
+      2550  -6093.5887      87.287611     -180623.57    
+      2563  -6093.5891      87.287611     -180587.63    
+Loop time of 0.0152095 on 8 procs for 36 steps with 1534 atoms
+
+788.4% CPU use with 1 MPI tasks x 8 OpenMP threads
+
+Minimization stats:
+  Stopping criterion = energy tolerance
+  Energy initial, next-to-last, final = 
+     -6093.22660297152  -6093.58905248825  -6093.58905301749
+  Force two-norm initial, final = 1.4293646 0.0021854565
+  Force max component initial, final = 0.19604946 0.00028594274
+  Final line search alpha, max atom move = 1 0.00028594274
+  Iterations, force evaluations = 36 72
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 0.012404   | 0.012404   | 0.012404   |   0.0 | 81.56
+Neigh   | 0          | 0          | 0          |   0.0 |  0.00
+Comm    | 0.0010643  | 0.0010643  | 0.0010643  |   0.0 |  7.00
+Output  | 6.282e-06  | 6.282e-06  | 6.282e-06  |   0.0 |  0.04
+Modify  | 0.00078081 | 0.00078081 | 0.00078081 |   0.0 |  5.13
+Other   |            | 0.0009537  |            |       |  6.27
+
+Nlocal:           1534 ave        1534 max        1534 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Nghost:           4951 ave        4951 max        4951 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Neighs:          95571 ave       95571 max       95571 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+
+Total # of neighbors = 95571
+Ave neighs/atom = 62.301825
+Neighbor list builds = 0
+Dangerous builds = 0
+variable count equal $i
+variable count equal 73
+print "$(v_strain:%.5f),$(v_stress:%.5f)" append stress-fracture.csv screen no
+write_dump all custom fracture.dump id type x y z v_syy modify append yes
+next i
+jump SELF loop
+displace_atoms gtop move 0  ${delta} 0 units box
+displace_atoms gtop move 0  0.06 0 units box
+Displacing atoms ...
+displace_atoms gbot move 0 -${delta} 0 units box
+displace_atoms gbot move 0 -0.06 0 units box
+Displacing atoms ...
+minimize 1.0e-10 1.0e-10 500 5000
+Last active /omp style is pair_style eam/fs/omp
+Per MPI rank memory allocation (min/avg/max) = 12.44 | 12.44 | 12.44 Mbytes
+   Step         PotEng           Ly            Pyy      
+      2563  -6089.7259      87.407611     -182798.37    
+      2600  -6090.0889      87.407611     -182503.53    
+      2650  -6093.0946      87.407611     -174924.66    
+      2700  -6094.2554      87.407611     -172497.42    
+      2712  -6094.2554      87.407611     -172493.44    
+Loop time of 0.0585363 on 8 procs for 149 steps with 1534 atoms
+
+802.9% CPU use with 1 MPI tasks x 8 OpenMP threads
+
+Minimization stats:
+  Stopping criterion = energy tolerance
+  Energy initial, next-to-last, final = 
+      -6089.7259059515  -6094.25541407237  -6094.25541465337
+  Force two-norm initial, final = 1.4271916 0.0023399081
+  Force max component initial, final = 0.19668559 0.00018843343
+  Final line search alpha, max atom move = 1 0.00018843343
+  Iterations, force evaluations = 149 268
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 0.047429   | 0.047429   | 0.047429   |   0.0 | 81.02
+Neigh   | 0          | 0          | 0          |   0.0 |  0.00
+Comm    | 0.0040841  | 0.0040841  | 0.0040841  |   0.0 |  6.98
+Output  | 2.9666e-05 | 2.9666e-05 | 2.9666e-05 |   0.0 |  0.05
+Modify  | 0.0029682  | 0.0029682  | 0.0029682  |   0.0 |  5.07
+Other   |            | 0.004025   |            |       |  6.88
+
+Nlocal:           1534 ave        1534 max        1534 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Nghost:           4951 ave        4951 max        4951 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Neighs:          95557 ave       95557 max       95557 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+
+Total # of neighbors = 95557
+Ave neighs/atom = 62.292699
+Neighbor list builds = 0
+Dangerous builds = 0
+variable count equal $i
+variable count equal 74
+print "$(v_strain:%.5f),$(v_stress:%.5f)" append stress-fracture.csv screen no
+write_dump all custom fracture.dump id type x y z v_syy modify append yes
+next i
+jump SELF loop
+displace_atoms gtop move 0  ${delta} 0 units box
+displace_atoms gtop move 0  0.06 0 units box
+Displacing atoms ...
+displace_atoms gbot move 0 -${delta} 0 units box
+displace_atoms gbot move 0 -0.06 0 units box
+Displacing atoms ...
+minimize 1.0e-10 1.0e-10 500 5000
+Last active /omp style is pair_style eam/fs/omp
+Per MPI rank memory allocation (min/avg/max) = 12.44 | 12.44 | 12.44 Mbytes
+   Step         PotEng           Ly            Pyy      
+      2712  -6090.5504      87.527611     -174664.24    
+      2750  -6098.8609      87.527611     -158152.32    
+      2800  -6169.3223      87.527611     -86255.45     
+      2850  -6210.819       87.527611     -5888.3957    
+      2900  -6210.9492      87.527611     -71.086238    
+      2914  -6210.9492      87.527611     -16.218357    
+Loop time of 0.0755028 on 8 procs for 202 steps with 1534 atoms
+
+802.2% CPU use with 1 MPI tasks x 8 OpenMP threads
+
+Minimization stats:
+  Stopping criterion = energy tolerance
+  Energy initial, next-to-last, final = 
+     -6090.55043349199  -6210.94922025396  -6210.94922082997
+  Force two-norm initial, final = 1.4348488 0.0029102596
+  Force max component initial, final = 0.1936784 0.00022239862
+  Final line search alpha, max atom move = 1 0.00022239862
+  Iterations, force evaluations = 202 332
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 0.059669   | 0.059669   | 0.059669   |   0.0 | 79.03
+Neigh   | 0.001401   | 0.001401   | 0.001401   |   0.0 |  1.86
+Comm    | 0.0052882  | 0.0052882  | 0.0052882  |   0.0 |  7.00
+Output  | 6.3402e-05 | 6.3402e-05 | 6.3402e-05 |   0.0 |  0.08
+Modify  | 0.0037317  | 0.0037317  | 0.0037317  |   0.0 |  4.94
+Other   |            | 0.005349   |            |       |  7.08
+
+Nlocal:           1534 ave        1534 max        1534 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Nghost:           4953 ave        4953 max        4953 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Neighs:          97158 ave       97158 max       97158 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+
+Total # of neighbors = 97158
+Ave neighs/atom = 63.336375
+Neighbor list builds = 5
+Dangerous builds = 0
+variable count equal $i
+variable count equal 75
+print "$(v_strain:%.5f),$(v_stress:%.5f)" append stress-fracture.csv screen no
+write_dump all custom fracture.dump id type x y z v_syy modify append yes
+next i
+jump SELF loop
+displace_atoms gtop move 0  ${delta} 0 units box
+displace_atoms gtop move 0  0.06 0 units box
+Displacing atoms ...
+displace_atoms gbot move 0 -${delta} 0 units box
+displace_atoms gbot move 0 -0.06 0 units box
+Displacing atoms ...
+minimize 1.0e-10 1.0e-10 500 5000
+Last active /omp style is pair_style eam/fs/omp
+Per MPI rank memory allocation (min/avg/max) = 12.44 | 12.44 | 12.44 Mbytes
+   Step         PotEng           Ly            Pyy      
+      2914  -6210.2141      87.647611     -4347.555     
+      2950  -6210.9492      87.647611     -30.895445    
+      2960  -6210.9492      87.647611     -3.6705511    
+Loop time of 0.0199526 on 8 procs for 46 steps with 1534 atoms
+
+799.6% CPU use with 1 MPI tasks x 8 OpenMP threads
+
+Minimization stats:
+  Stopping criterion = energy tolerance
+  Energy initial, next-to-last, final = 
+     -6210.21408521195  -6210.94922773397  -6210.94922823808
+  Force two-norm initial, final = 2.4573654 0.0022681609
+  Force max component initial, final = 0.29410329 0.00015949203
+  Final line search alpha, max atom move = 1 0.00015949203
+  Iterations, force evaluations = 46 92
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 0.016318   | 0.016318   | 0.016318   |   0.0 | 81.79
+Neigh   | 0          | 0          | 0          |   0.0 |  0.00
+Comm    | 0.0013601  | 0.0013601  | 0.0013601  |   0.0 |  6.82
+Output  | 9.899e-06  | 9.899e-06  | 9.899e-06  |   0.0 |  0.05
+Modify  | 0.0010204  | 0.0010204  | 0.0010204  |   0.0 |  5.11
+Other   |            | 0.001244   |            |       |  6.23
+
+Nlocal:           1534 ave        1534 max        1534 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Nghost:           4953 ave        4953 max        4953 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Neighs:          97158 ave       97158 max       97158 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+
+Total # of neighbors = 97158
+Ave neighs/atom = 63.336375
+Neighbor list builds = 0
+Dangerous builds = 0
+variable count equal $i
+variable count equal 76
+print "$(v_strain:%.5f),$(v_stress:%.5f)" append stress-fracture.csv screen no
+write_dump all custom fracture.dump id type x y z v_syy modify append yes
+next i
+jump SELF loop
+displace_atoms gtop move 0  ${delta} 0 units box
+displace_atoms gtop move 0  0.06 0 units box
+Displacing atoms ...
+displace_atoms gbot move 0 -${delta} 0 units box
+displace_atoms gbot move 0 -0.06 0 units box
+Displacing atoms ...
+minimize 1.0e-10 1.0e-10 500 5000
+Last active /omp style is pair_style eam/fs/omp
+Per MPI rank memory allocation (min/avg/max) = 12.44 | 12.44 | 12.44 Mbytes
+   Step         PotEng           Ly            Pyy      
+      2960  -6210.2146      87.767611     -4329.4031    
+      3000  -6210.9492      87.767611     -17.513167    
+      3006  -6210.9492      87.767611     -6.8222162    
+Loop time of 0.0202528 on 8 procs for 46 steps with 1534 atoms
+
+788.8% CPU use with 1 MPI tasks x 8 OpenMP threads
+
+Minimization stats:
+  Stopping criterion = energy tolerance
+  Energy initial, next-to-last, final = 
+     -6210.21455173692  -6210.94922916824  -6210.94922969604
+  Force two-norm initial, final = 2.4574353 0.0023286086
+  Force max component initial, final = 0.29404413 0.00018097071
+  Final line search alpha, max atom move = 1 0.00018097071
+  Iterations, force evaluations = 46 92
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 0.016529   | 0.016529   | 0.016529   |   0.0 | 81.61
+Neigh   | 0          | 0          | 0          |   0.0 |  0.00
+Comm    | 0.0014269  | 0.0014269  | 0.0014269  |   0.0 |  7.05
+Output  | 1.2314e-05 | 1.2314e-05 | 1.2314e-05 |   0.0 |  0.06
+Modify  | 0.0010172  | 0.0010172  | 0.0010172  |   0.0 |  5.02
+Other   |            | 0.001267   |            |       |  6.26
+
+Nlocal:           1534 ave        1534 max        1534 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Nghost:           4953 ave        4953 max        4953 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Neighs:          97158 ave       97158 max       97158 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+
+Total # of neighbors = 97158
+Ave neighs/atom = 63.336375
+Neighbor list builds = 0
+Dangerous builds = 0
+variable count equal $i
+variable count equal 77
+print "$(v_strain:%.5f),$(v_stress:%.5f)" append stress-fracture.csv screen no
+write_dump all custom fracture.dump id type x y z v_syy modify append yes
+next i
+jump SELF loop
+displace_atoms gtop move 0  ${delta} 0 units box
+displace_atoms gtop move 0  0.06 0 units box
+Displacing atoms ...
+displace_atoms gbot move 0 -${delta} 0 units box
+displace_atoms gbot move 0 -0.06 0 units box
+Displacing atoms ...
+minimize 1.0e-10 1.0e-10 500 5000
+Last active /omp style is pair_style eam/fs/omp
+Per MPI rank memory allocation (min/avg/max) = 12.44 | 12.44 | 12.44 Mbytes
+   Step         PotEng           Ly            Pyy      
+      3006  -6210.2145      87.887611     -4326.6217    
+      3050  -6210.9492      87.887611     -11.186014    
+      3052  -6210.9492      87.887611     -7.2371579    
+Loop time of 0.0186613 on 8 procs for 46 steps with 1534 atoms
+
+810.5% CPU use with 1 MPI tasks x 8 OpenMP threads
+
+Minimization stats:
+  Stopping criterion = energy tolerance
+  Energy initial, next-to-last, final = 
+     -6210.21452003887  -6210.94922970385  -6210.94923021903
+  Force two-norm initial, final = 2.4574379 0.002275216
+  Force max component initial, final = 0.29403835 0.00016983288
+  Final line search alpha, max atom move = 1 0.00016983288
+  Iterations, force evaluations = 46 92
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 0.015079   | 0.015079   | 0.015079   |   0.0 | 80.80
+Neigh   | 0          | 0          | 0          |   0.0 |  0.00
+Comm    | 0.0013474  | 0.0013474  | 0.0013474  |   0.0 |  7.22
+Output  | 6.472e-06  | 6.472e-06  | 6.472e-06  |   0.0 |  0.03
+Modify  | 0.0010122  | 0.0010122  | 0.0010122  |   0.0 |  5.42
+Other   |            | 0.001216   |            |       |  6.52
+
+Nlocal:           1534 ave        1534 max        1534 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Nghost:           4953 ave        4953 max        4953 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Neighs:          97158 ave       97158 max       97158 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+
+Total # of neighbors = 97158
+Ave neighs/atom = 63.336375
+Neighbor list builds = 0
+Dangerous builds = 0
+variable count equal $i
+variable count equal 78
+print "$(v_strain:%.5f),$(v_stress:%.5f)" append stress-fracture.csv screen no
+write_dump all custom fracture.dump id type x y z v_syy modify append yes
+next i
+jump SELF loop
+displace_atoms gtop move 0  ${delta} 0 units box
+displace_atoms gtop move 0  0.06 0 units box
+Displacing atoms ...
+displace_atoms gbot move 0 -${delta} 0 units box
+displace_atoms gbot move 0 -0.06 0 units box
+Displacing atoms ...
+minimize 1.0e-10 1.0e-10 500 5000
+Last active /omp style is pair_style eam/fs/omp
+Per MPI rank memory allocation (min/avg/max) = 12.44 | 12.44 | 12.44 Mbytes
+   Step         PotEng           Ly            Pyy      
+      3052  -6210.2145      88.007611     -4321.1343    
+      3098  -6210.9492      88.007611     -7.1929568    
+Loop time of 0.0209928 on 8 procs for 46 steps with 1534 atoms
+
+797.6% CPU use with 1 MPI tasks x 8 OpenMP threads
+
+Minimization stats:
+  Stopping criterion = energy tolerance
+  Energy initial, next-to-last, final = 
+     -6210.21450335493  -6210.94922989441  -6210.94923039309
+  Force two-norm initial, final = 2.4574179 0.0022704359
+  Force max component initial, final = 0.29404257 0.00018097356
+  Final line search alpha, max atom move = 1 0.00018097356
+  Iterations, force evaluations = 46 92
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 0.017057   | 0.017057   | 0.017057   |   0.0 | 81.25
+Neigh   | 0          | 0          | 0          |   0.0 |  0.00
+Comm    | 0.0014874  | 0.0014874  | 0.0014874  |   0.0 |  7.09
+Output  | 0          | 0          | 0          |   0.0 |  0.00
+Modify  | 0.0010593  | 0.0010593  | 0.0010593  |   0.0 |  5.05
+Other   |            | 0.001389   |            |       |  6.62
+
+Nlocal:           1534 ave        1534 max        1534 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Nghost:           4953 ave        4953 max        4953 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Neighs:          97158 ave       97158 max       97158 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+
+Total # of neighbors = 97158
+Ave neighs/atom = 63.336375
+Neighbor list builds = 0
+Dangerous builds = 0
+variable count equal $i
+variable count equal 79
+print "$(v_strain:%.5f),$(v_stress:%.5f)" append stress-fracture.csv screen no
+write_dump all custom fracture.dump id type x y z v_syy modify append yes
+next i
+jump SELF loop
+displace_atoms gtop move 0  ${delta} 0 units box
+displace_atoms gtop move 0  0.06 0 units box
+Displacing atoms ...
+displace_atoms gbot move 0 -${delta} 0 units box
+displace_atoms gbot move 0 -0.06 0 units box
+Displacing atoms ...
+minimize 1.0e-10 1.0e-10 500 5000
+Last active /omp style is pair_style eam/fs/omp
+Per MPI rank memory allocation (min/avg/max) = 12.44 | 12.44 | 12.44 Mbytes
+   Step         PotEng           Ly            Pyy      
+      3098  -6210.2145      88.127611     -4315.2149    
+      3100  -6210.7029      88.127611     -4530.8651    
+      3144  -6210.9492      88.127611     -7.3249198    
+Loop time of 0.020724 on 8 procs for 46 steps with 1534 atoms
+
+806.9% CPU use with 1 MPI tasks x 8 OpenMP threads
+
+Minimization stats:
+  Stopping criterion = energy tolerance
+  Energy initial, next-to-last, final = 
+     -6210.21450144565  -6210.94922992719   -6210.9492304312
+  Force two-norm initial, final = 2.4574203 0.0022641658
+  Force max component initial, final = 0.29403811 0.00016790367
+  Final line search alpha, max atom move = 1 0.00016790367
+  Iterations, force evaluations = 46 92
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 0.017014   | 0.017014   | 0.017014   |   0.0 | 82.10
+Neigh   | 0          | 0          | 0          |   0.0 |  0.00
+Comm    | 0.0014102  | 0.0014102  | 0.0014102  |   0.0 |  6.80
+Output  | 6.763e-06  | 6.763e-06  | 6.763e-06  |   0.0 |  0.03
+Modify  | 0.0010193  | 0.0010193  | 0.0010193  |   0.0 |  4.92
+Other   |            | 0.001274   |            |       |  6.15
+
+Nlocal:           1534 ave        1534 max        1534 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Nghost:           4953 ave        4953 max        4953 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Neighs:          97158 ave       97158 max       97158 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+
+Total # of neighbors = 97158
+Ave neighs/atom = 63.336375
+Neighbor list builds = 0
+Dangerous builds = 0
+variable count equal $i
+variable count equal 80
+print "$(v_strain:%.5f),$(v_stress:%.5f)" append stress-fracture.csv screen no
+write_dump all custom fracture.dump id type x y z v_syy modify append yes
+next i
+jump SELF loop
+
+print "Fracture run complete: ${nsteps} increments, max strain $(v_strain:%.4f)."
+Fracture run complete: 80 increments, max strain 0.1443.
+Total wall time: 0:00:01

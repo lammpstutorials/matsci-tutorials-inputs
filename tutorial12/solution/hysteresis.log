@@ -1,0 +1,213 @@
+LAMMPS (30 Mar 2026 - Development - patch_30Mar2026-1121-g91d4111a9)
+  using 8 OpenMP thread(s) per MPI task
+package omp 0
+using multi-threaded neighbor list subroutines
+# LAMMPS Input File
+# Licensed under CC BY 4.0
+# A Set of Materials-Science Tutorials for the LAMMPS Simulation Package
+# Modernized recreation of the MSU/CAVS tutorials by Mark A. Tschopp
+# Tutorial 12, part 1: bracket the melting point of aluminum from the
+# heating/cooling hysteresis of a single-phase crystal.
+#
+# A bulk fcc crystal is heated through melting and then the melt is cooled
+# back down, both at constant pressure.  The volume jumps at melting and
+# freezing, but a defect-free crystal SUPERHEATS before it melts and the melt
+# SUPERCOOLS before it freezes, so the two branches form a hysteresis loop.
+# The true melting point lies inside the loop -- which is why part 2 uses the
+# two-phase method to pin it down.
+
+units metal
+atom_style atomic
+boundary p p p
+lattice fcc 4.05
+Lattice spacing in x,y,z = 4.05 4.05 4.05
+region box block 0 8 0 8 0 8
+create_box 1 box
+Created orthogonal box = (0 0 0) to (32.4 32.4 32.4)
+  1 by 1 by 1 MPI processor grid
+create_atoms 1 box
+Created 2048 atoms
+  using lattice units in orthogonal box = (0 0 0) to (32.4 32.4 32.4)
+  create_atoms CPU = 0.001 seconds
+mass 1 26.98
+pair_style eam/fs
+pair_coeff * * Al_mm.eam.fs Al
+Reading eam/fs potential file Al_mm.eam.fs with DATE: 2007-06-11
+velocity all create 300.0 12345 mom yes rot yes
+timestep 0.002
+thermo 5000
+
+variable temp equal temp
+variable vat  equal vol/atoms
+
+# equilibrate the solid at 300 K and constant (zero) pressure
+fix relax all npt temp 300.0 300.0 0.2 iso 0.0 0.0 2.0
+run 10000
+Last active /omp style is pair_style eam/fs/omp
+Neighbor list info ...
+  update: every = 1 steps, delay = 0 steps, check = yes
+  max neighbors/atom: 2000, page size: 100000
+  master list distance cutoff = 8.5
+  ghost atom cutoff = 8.5
+  binsize = 4.25, bins = 8 8 8
+  1 neighbor lists, perpetual/occasional/extra = 1 0 0
+  (1) pair eam/fs/omp, perpetual
+      attributes: half, newton on, omp
+      pair build: half/bin/atomonly/newton/omp
+      stencil: half/bin/3d
+      bin: standard
+Per MPI rank memory allocation (min/avg/max) = 9.758 | 9.758 | 9.758 Mbytes
+   Step          Temp          E_pair         E_mol          TotEng         Press          Volume    
+         0   300           -6984.9253      0             -6905.5466     -191.66037      34012.224    
+      5000   291.88502     -6905.6482      0             -6828.4167     -1658.8398      34667.57     
+     10000   307.25699     -6906.1569      0             -6824.858       736.61984      34572.324    
+Loop time of 7.23066 on 8 procs for 10000 steps with 2048 atoms
+
+Performance: 238.982 ns/day, 0.100 hours/ns, 1383.000 timesteps/s, 2.832 Matom-step/s
+780.2% CPU use with 1 MPI tasks x 8 OpenMP threads
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 6.0579     | 6.0579     | 6.0579     |   0.0 | 83.78
+Neigh   | 0          | 0          | 0          |   0.0 |  0.00
+Comm    | 0.28762    | 0.28762    | 0.28762    |   0.0 |  3.98
+Output  | 7.0035e-05 | 7.0035e-05 | 7.0035e-05 |   0.0 |  0.00
+Modify  | 0.84562    | 0.84562    | 0.84562    |   0.0 | 11.69
+Other   |            | 0.03949    |            |       |  0.55
+
+Nlocal:           2048 ave        2048 max        2048 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Nghost:           5765 ave        5765 max        5765 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Neighs:         143360 ave      143360 max      143360 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+
+Total # of neighbors = 143360
+Ave neighs/atom = 70
+Neighbor list builds = 0
+Dangerous builds = 0
+
+# 1) heat 300 -> 1500 K; record temperature and volume per atom
+unfix relax
+fix hot all npt temp 300.0 1500.0 0.2 iso 0.0 0.0 2.0
+fix rec all ave/time 50 20 1000 v_temp v_vat file heat.dat
+run 120000
+Last active /omp style is pair_style eam/fs/omp
+Per MPI rank memory allocation (min/avg/max) = 9.758 | 9.758 | 9.758 Mbytes
+   Step          Temp          E_pair         E_mol          TotEng         Press          Volume    
+     10000   307.25699     -6906.1569      0             -6824.858       736.61984      34572.324    
+     15000   343.04424     -6893.8262      0             -6803.0583     -821.87093      34735.421    
+     20000   398.83539     -6875.6682      0             -6770.1381     -966.64584      34873.326    
+     25000   455.29721     -6863.171       0             -6742.7014      1373.6022      34878.367    
+     30000   485.7505      -6850.0681      0             -6721.5407     -171.99747      35041.038    
+     35000   546.87179     -6830.8101      0             -6686.1103      1036.9128      35129.885    
+     40000   602.49773     -6813.4947      0             -6654.0765      943.06577      35262.46     
+     45000   660.44089     -6789.7489      0             -6614.9992      1373.5289      35411.622    
+     50000   705.63621     -6778.0428      0             -6591.3346      703.68282      35545.392    
+     55000   730.96807     -6760.3342      0             -6566.9234     -836.5556       35733.175    
+     60000   781.68137     -6737.621       0             -6530.7916     -512.09515      35874.029    
+     65000   850.02216     -6721.7749      0             -6496.8628      852.94932      35962.244    
+     70000   866.13299     -6695.0203      0             -6465.8454     -875.67361      36216.96     
+     75000   950.01637     -6667.8749      0             -6416.5048      831.10463      36386.63     
+     80000   1000.9939     -6636.9984      0             -6372.1399      1786.7531      36568.049    
+     85000   1021.7852     -6636.3012      0             -6365.9414     -1442.1008      36693.358    
+     90000   1112.565      -6580.3938      0             -6286.0141     -273.70824      37136.811    
+     95000   1120.6896     -6457.5275      0             -6160.998      -1317.644       38291.59     
+    100000   1182.0613     -6341.0976      0             -6028.3295     -1852.2837      39561.382    
+    105000   1299.6588     -6334.8614      0             -5990.9775      1121.4278      39431.5      
+    110000   1253.4586     -6294.8947      0             -5963.2352     -775.48572      40028.02     
+    115000   1316.7693     -6287.7292      0             -5939.3179     -5280.1374      40499.202    
+    120000   1398.9771     -6270.8293      0             -5900.6663      48.984925      40384.913    
+    125000   1402.1887     -6261.3094      0             -5890.2966      1063.9365      40407.012    
+    130000   1471.7853     -6226.0107      0             -5836.5829      589.16936      40876.194    
+Loop time of 93.8012 on 8 procs for 120000 steps with 2048 atoms
+
+Performance: 221.063 ns/day, 0.109 hours/ns, 1279.302 timesteps/s, 2.620 Matom-step/s
+777.0% CPU use with 1 MPI tasks x 8 OpenMP threads
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 75.922     | 75.922     | 75.922     |   0.0 | 80.94
+Neigh   | 2.4417     | 2.4417     | 2.4417     |   0.0 |  2.60
+Comm    | 3.6951     | 3.6951     | 3.6951     |   0.0 |  3.94
+Output  | 0.00038466 | 0.00038466 | 0.00038466 |   0.0 |  0.00
+Modify  | 11.241     | 11.241     | 11.241     |   0.0 | 11.98
+Other   |            | 0.5012     |            |       |  0.53
+
+Nlocal:           2048 ave        2048 max        2048 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Nghost:           4763 ave        4763 max        4763 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Neighs:         131489 ave      131489 max      131489 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+
+Total # of neighbors = 131489
+Ave neighs/atom = 64.203613
+Neighbor list builds = 4161
+Dangerous builds = 0
+unfix rec
+unfix hot
+
+# 2) cool 1500 -> 300 K from the melt
+fix cold all npt temp 1500.0 300.0 0.2 iso 0.0 0.0 2.0
+fix rec all ave/time 50 20 1000 v_temp v_vat file cool.dat
+run 120000
+Last active /omp style is pair_style eam/fs/omp
+Per MPI rank memory allocation (min/avg/max) = 9.765 | 9.765 | 9.765 Mbytes
+   Step          Temp          E_pair         E_mol          TotEng         Press          Volume    
+    130000   1471.7853     -6226.0107      0             -5836.5829      589.16936      40876.194    
+    135000   1434.5208     -6251.2012      0             -5871.6334     -2293.8712      40696.557    
+    140000   1406.6646     -6273.7302      0             -5901.5331      2813.6347      40209.824    
+    145000   1353.5508     -6296.0686      0             -5937.9252     -2164.4527      40197.237    
+    150000   1323.244      -6299.2232      0             -5949.0988     -3357.0759      40247.645    
+    155000   1271.4118     -6328.9071      0             -5992.4972      379.77351      39627.028    
+    160000   1220.8664     -6349.3814      0             -6026.3457     -767.85657      39379.729    
+    165000   1139.8905     -6366.9888      0             -6065.3789     -1357.7573      39228.418    
+    170000   1101.1584     -6390.0698      0             -6098.7082     -626.91089      38936.321    
+    175000   1078.5575     -6405.3289      0             -6119.9474      2179.0292      38639.471    
+    180000   994.21811     -6421.3558      0             -6158.2901     -1100.1545      38644.053    
+    185000   944.49809     -6441.9691      0             -6192.0591     -1137.6456      38480.137    
+    190000   901.38454     -6465.2942      0             -6226.7919     -2817.8148      38355.491    
+    195000   859.66077     -6483.1394      0             -6255.677       8.233093       38004.183    
+    200000   806.61417     -6500.552       0             -6287.1255     -458.84554      37842.117    
+    205000   746.11232     -6533.0009      0             -6335.5829      92.29695       37550.55     
+    210000   708.91844     -6549.5238      0             -6361.9471     -1218.4493      37494.219    
+    215000   626.16917     -6576.5428      0             -6410.8612     -755.14599      37263.879    
+    220000   600.36201     -6592.0312      0             -6433.1781      1548.3619      36975.32     
+    225000   550.32934     -6617.1971      0             -6471.5825      647.20605      36874.88     
+    230000   492.18148     -6644.9204      0             -6514.6914     -1028.632       36716.816    
+    235000   454.92583     -6666.1539      0             -6545.7826      505.82491      36482.474    
+    240000   400.03825     -6685.5701      0             -6579.7218      141.75886      36347.129    
+    245000   346.10478     -6713.3404      0             -6621.7626      368.9419       36160.83     
+    250000   297.14237     -6728.9303      0             -6650.3078     -1468.4413      36132.483    
+Loop time of 51.12 on 8 procs for 120000 steps with 2048 atoms
+
+Performance: 405.634 ns/day, 0.059 hours/ns, 2347.418 timesteps/s, 4.808 Matom-step/s
+793.8% CPU use with 1 MPI tasks x 8 OpenMP threads
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 40.419     | 40.419     | 40.419     |   0.0 | 79.07
+Neigh   | 2.1435     | 2.1435     | 2.1435     |   0.0 |  4.19
+Comm    | 2.9326     | 2.9326     | 2.9326     |   0.0 |  5.74
+Output  | 0.00034512 | 0.00034512 | 0.00034512 |   0.0 |  0.00
+Modify  | 5.3207     | 5.3207     | 5.3207     |   0.0 | 10.41
+Other   |            | 0.3034     |            |       |  0.59
+
+Nlocal:           2048 ave        2048 max        2048 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Nghost:           5035 ave        5035 max        5035 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Neighs:         149391 ave      149391 max      149391 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+
+Total # of neighbors = 149391
+Ave neighs/atom = 72.944824
+Neighbor list builds = 4715
+Dangerous builds = 0
+print "Heating/cooling hysteresis complete; see heat.dat and cool.dat"
+Heating/cooling hysteresis complete; see heat.dat and cool.dat
+Total wall time: 0:02:32

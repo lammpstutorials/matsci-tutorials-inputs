@@ -1,0 +1,838 @@
+LAMMPS (30 Mar 2026 - Development - patch_30Mar2026-316-gee93998fe5-modified)
+  using 1 OpenMP thread(s) per MPI task
+# LAMMPS Input File
+# Licensed under CC BY 4.0
+# A Set of Materials-Science Tutorials for the LAMMPS Simulation Package
+# Appendix (HPC offload): lattice thermal conductivity of crystalline germanium
+# by reverse non-equilibrium MD (Mueller-Plathe momentum swap), for a classical
+# (Tersoff) and a machine-learned (SNAP) potential.
+#
+# This is the same method as Tutorial 8 (silicon) but set up for a more powerful
+# machine: larger cells, longer runs, and an MPI domain decomposition along the
+# long (z) axis.  The SNAP runs are ~100x more expensive than Tersoff and are
+# meant to be run on many cores.  NOT an interactive tutorial input.
+#
+# Parameters are passed on the command line, e.g.
+#   mpirun -np 256 lmp -in kappa_ge.lmp -v tag tersoff -v pot pot_ge_tersoff.mod \
+#                      -v a0 5.658 -v ncross 6 -v nz 40 80 120 160 200
+#   mpirun -np 512 lmp -in kappa_ge.lmp -v tag snap    -v pot pot_ge_snap.mod \
+#                      -v a0 5.760 -v ncross 6 -v nz 20 40 60 80
+# Each length writes one record to kappa_${tag}.yaml and a temperature profile
+# profile_${tag}_${nz}.dat; analyze both potentials together with plot_ge.py.
+
+variable swap  equal 100                 # momentum swap every 100 steps (0.1 ps)
+
+print "# finite-size RNEMD thermal conductivity of germanium (${tag})"     file kappa_${tag}.yaml screen no
+print "# finite-size RNEMD thermal conductivity of germanium (${tag})"     file kappa_snap.yaml screen no
+print "# records: ncells length_A edelta_eV time_ps area_A2 (heat along z, 20 slabs)"     append kappa_${tag}.yaml screen no
+print "# records: ncells length_A edelta_eV time_ps area_A2 (heat along z, 20 slabs)"     append kappa_snap.yaml screen no
+
+label loop
+clear
+  using 1 OpenMP thread(s) per MPI task
+units metal
+atom_style atomic
+boundary p p p
+lattice diamond ${a0}
+lattice diamond 5.760
+Lattice spacing in x,y,z = 5.76 5.76 5.76
+region box block 0 ${ncross} 0 ${ncross} 0 ${nz}
+region box block 0 6 0 ${ncross} 0 ${nz}
+region box block 0 6 0 6 0 ${nz}
+region box block 0 6 0 6 0 20
+create_box 1 box
+Created orthogonal box = (0 0 0) to (34.56 34.56 115.2)
+  2 by 4 by 8 MPI processor grid
+create_atoms 1 box
+Created 5760 atoms
+  using lattice units in orthogonal box = (0 0 0) to (34.56 34.56 115.2)
+  create_atoms CPU = 0.061 seconds
+mass 1 72.63
+include ${pot}
+include pot_ge_snap.mod
+pair_style snap
+pair_coeff * * Ge_Zuo_JPCA2020.snapcoeff Ge_Zuo_JPCA2020.snapparam Ge
+Reading potential file Ge_Zuo_JPCA2020.snapcoeff with DATE: 2020-01-31
+SNAP Element = Ge, Radius 0.5, Weight 1
+Reading potential file Ge_Zuo_JPCA2020.snapparam with DATE: 2020-01-31
+SNAP keyword rcutfac 5.5
+SNAP keyword twojmax 8
+SNAP keyword rfac0 0.99363
+SNAP keyword rmin0 0
+SNAP keyword quadraticflag 0
+SNAP keyword bzeroflag 0
+velocity all create 300.0 4928459 mom yes rot yes dist gaussian
+timestep 0.001
+
+# 1) relax the box to its 300 K equilibrium size (each potential has its own a0)
+fix npt all npt temp 300.0 300.0 0.1 iso 0.0 0.0 1.0
+thermo 20000
+run 30000
+Neighbor list info ...
+  update: every = 1 steps, delay = 0 steps, check = yes
+  max neighbors/atom: 2000, page size: 100000
+  master list distance cutoff = 7.5
+  ghost atom cutoff = 7.5
+  binsize = 3.75, bins = 10 10 31
+  1 neighbor lists, perpetual/occasional/extra = 1 0 0
+  (1) pair snap, perpetual
+      attributes: full, newton on
+      pair build: full/bin/atomonly
+      stencil: full/bin/3d
+      bin: standard
+Per MPI rank memory allocation (min/avg/max) = 3.727 | 3.739 | 3.752 Mbytes
+   Step          Temp          E_pair         E_mol          TotEng         Press          Volume    
+         0   300           -25876.956      0             -25653.633      6013.5039      137594.14    
+     20000   306.50753     -25642.169      0             -25414.002     -264.83272      140551.57    
+     30000   297.95108     -25638.342      0             -25416.544     -389.83224      140612.78    
+Loop time of 577.444 on 64 procs for 30000 steps with 5760 atoms
+
+Performance: 4.489 ns/day, 5.347 hours/ns, 51.953 timesteps/s, 299.250 katom-step/s
+97.8% CPU use with 64 MPI tasks x 1 OpenMP threads
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 469.57     | 517.18     | 573.35     | 104.7 | 89.56
+Neigh   | 0.00016744 | 0.00018522 | 0.00023595 |   0.0 |  0.00
+Comm    | 1.6069     | 48.287     | 95.964     | 349.9 |  8.36
+Output  | 6.4159e-05 | 6.5488e-05 | 8.5462e-05 |   0.0 |  0.00
+Modify  | 0.92489    | 11.865     | 37.999     | 324.5 |  2.05
+Other   |            | 0.1125     |            |       |  0.02
+
+Nlocal:             90 ave         100 max          82 min
+Histogram: 2 7 10 14 2 11 9 5 2 2
+Nghost:            944 ave         952 max         934 min
+Histogram: 2 2 5 9 7 6 14 10 7 2
+Neighs:              0 ave           0 max           0 min
+Histogram: 64 0 0 0 0 0 0 0 0 0
+FullNghs:      6807.25 ave        7608 max        6160 min
+Histogram: 3 6 10 11 7 11 7 5 1 3
+
+Total # of neighbors = 435664
+Ave neighs/atom = 75.636111
+Neighbor list builds = 1
+Dangerous builds = 0
+unfix npt
+velocity all scale 300.0
+
+# 2) NVE + reverse-NEMD: build the steady-state temperature gradient
+fix nve all nve
+fix swap all thermal/conductivity ${swap} z 20
+fix swap all thermal/conductivity 100 z 20
+run 100000
+Per MPI rank memory allocation (min/avg/max) = 3.736 | 3.744 | 3.752 Mbytes
+   Step          Temp          E_pair         E_mol          TotEng         Press     
+     30000   300           -25638.342      0             -25415.019     -378.24629    
+     40000   302.93469     -25640.526      0             -25415.019     -468.69703    
+     60000   299.91943     -25638.281      0             -25415.018     -338.15051    
+     80000   302.89496     -25640.498      0             -25415.02      -433.84981    
+    100000   300.77753     -25638.92       0             -25415.019     -381.9951     
+    120000   303.32695     -25640.819      0             -25415.019     -435.42482    
+    130000   300.05332     -25638.381      0             -25415.018     -369.68002    
+Loop time of 1925.13 on 64 procs for 100000 steps with 5760 atoms
+
+Performance: 4.488 ns/day, 5.348 hours/ns, 51.945 timesteps/s, 299.200 katom-step/s
+98.0% CPU use with 64 MPI tasks x 1 OpenMP threads
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 1579.5     | 1742.9     | 1918.4     | 214.0 | 90.53
+Neigh   | 0          | 0          | 0          |   0.0 |  0.00
+Comm    | 4.7162     | 145.15     | 337.23     | 768.1 |  7.54
+Output  | 0.00018177 | 0.00018336 | 0.00022931 |   0.0 |  0.00
+Modify  | 0.10102    | 0.46229    | 0.82641    |  35.7 |  0.02
+Other   |            | 36.61      |            |       |  1.90
+
+Nlocal:             90 ave         100 max          81 min
+Histogram: 4 4 8 9 10 7 10 9 2 1
+Nghost:        942.859 ave         952 max         934 min
+Histogram: 2 5 11 10 2 9 12 5 3 5
+Neighs:              0 ave           0 max           0 min
+Histogram: 64 0 0 0 0 0 0 0 0 0
+FullNghs:      6829.47 ave        7626 max        6137 min
+Histogram: 5 6 6 9 9 7 10 9 2 1
+
+Total # of neighbors = 437086
+Ave neighs/atom = 75.882986
+Neighbor list builds = 0
+Dangerous builds = 0
+
+# 3) production: reset the swap accumulator and average the temperature profile
+unfix swap
+compute ke all ke/atom
+variable temp atom c_ke/(1.5*8.617333e-5)
+compute layers all chunk/atom bin/1d z lower 0.05 units reduced
+fix prof all ave/chunk 200 500 400000 layers v_temp file profile_${tag}_${nz}.dat
+fix prof all ave/chunk 200 500 400000 layers v_temp file profile_snap_${nz}.dat
+fix prof all ave/chunk 200 500 400000 layers v_temp file profile_snap_20.dat
+fix swap all thermal/conductivity ${swap} z 20
+fix swap all thermal/conductivity 100 z 20
+variable t0 equal $(time)
+variable t0 equal 130
+run 400000
+Per MPI rank memory allocation (min/avg/max) = 3.863 | 3.87 | 3.877 Mbytes
+   Step          Temp          E_pair         E_mol          TotEng         Press     
+    130000   300.05332     -25638.381      0             -25415.018     -369.68002    
+    140000   303.46374     -25640.92       0             -25415.019     -456.81766    
+    160000   303.5035      -25640.95       0             -25415.019     -395.68705    
+    180000   301.11702     -25639.173      0             -25415.018     -461.16368    
+    200000   301.67581     -25639.589      0             -25415.019     -505.71391    
+    220000   303.84877     -25641.207      0             -25415.019     -341.57311    
+    240000   301.96942     -25639.807      0             -25415.018     -343.37535    
+    260000   300.34727     -25638.599      0             -25415.018     -368.22168    
+    280000   298.7607      -25637.418      0             -25415.017     -343.92095    
+    300000   299.7548      -25638.158      0             -25415.017     -374.93332    
+    320000   300.92184     -25639.027      0             -25415.018     -464.43134    
+    340000   303.56962     -25640.999      0             -25415.019     -452.59528    
+    360000   306.24006     -25642.987      0             -25415.019     -513.02268    
+    380000   297.56379     -25636.527      0             -25415.018     -362.28822    
+    400000   302.20129     -25639.979      0             -25415.017     -390.78871    
+    420000   306.20437     -25642.96       0             -25415.019     -461.53207    
+    440000   302.04684     -25639.865      0             -25415.019     -405.71112    
+    460000   303.25951     -25640.768      0             -25415.019     -374.75763    
+    480000   301.3627      -25639.355      0             -25415.018     -398.89481    
+    500000   295.33233     -25634.865      0             -25415.017     -298.40437    
+    520000   297.20677     -25636.26       0             -25415.017     -346.04723    
+    530000   300.56329     -25638.759      0             -25415.017     -345.5173     
+Loop time of 7623.41 on 64 procs for 400000 steps with 5760 atoms
+
+Performance: 4.533 ns/day, 5.294 hours/ns, 52.470 timesteps/s, 302.227 katom-step/s
+98.1% CPU use with 64 MPI tasks x 1 OpenMP threads
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 6224       | 6977.5     | 7590       | 386.9 | 91.53
+Neigh   | 0          | 0          | 0          |   0.0 |  0.00
+Comm    | 20.554     | 526.92     | 1268.2     |1441.8 |  6.91
+Output  | 0.00063559 | 0.00064072 | 0.00080661 |   0.0 |  0.00
+Modify  | 0.45994    | 1.6223     | 3.332      |  84.9 |  0.02
+Other   |            | 117.4      |            |       |  1.54
+
+Nlocal:             90 ave          97 max          80 min
+Histogram: 1 4 7 5 4 9 5 15 11 3
+Nghost:        943.156 ave         954 max         937 min
+Histogram: 7 16 10 5 7 6 4 6 2 1
+Neighs:              0 ave           0 max           0 min
+Histogram: 64 0 0 0 0 0 0 0 0 0
+FullNghs:      6827.09 ave        7376 max        6012 min
+Histogram: 1 3 6 7 5 7 9 11 11 4
+
+Total # of neighbors = 436934
+Ave neighs/atom = 75.856597
+Neighbor list builds = 0
+Dangerous builds = 0
+
+print "- {ncells: ${nz}, length_A: $(lz:%.3f), edelta_eV: $(f_swap:%.6f),     time_ps: $(time-v_t0:%.3f), area_A2: $(lx*ly:%.4f)}"     append kappa_${tag}.yaml screen no
+print "- {ncells: ${nz}, length_A: $(lz:%.3f), edelta_eV: $(f_swap:%.6f),     time_ps: $(time-v_t0:%.3f), area_A2: $(lx*ly:%.4f)}"     append kappa_snap.yaml screen no
+next nz
+jump SELF loop
+clear
+  using 1 OpenMP thread(s) per MPI task
+units metal
+atom_style atomic
+boundary p p p
+lattice diamond ${a0}
+lattice diamond 5.760
+Lattice spacing in x,y,z = 5.76 5.76 5.76
+region box block 0 ${ncross} 0 ${ncross} 0 ${nz}
+region box block 0 6 0 ${ncross} 0 ${nz}
+region box block 0 6 0 6 0 ${nz}
+region box block 0 6 0 6 0 40
+create_box 1 box
+Created orthogonal box = (0 0 0) to (34.56 34.56 230.4)
+  2 by 2 by 16 MPI processor grid
+create_atoms 1 box
+Created 11520 atoms
+  using lattice units in orthogonal box = (0 0 0) to (34.56 34.56 230.4)
+  create_atoms CPU = 0.001 seconds
+mass 1 72.63
+include ${pot}
+include pot_ge_snap.mod
+pair_style snap
+pair_coeff * * Ge_Zuo_JPCA2020.snapcoeff Ge_Zuo_JPCA2020.snapparam Ge
+Reading potential file Ge_Zuo_JPCA2020.snapcoeff with DATE: 2020-01-31
+SNAP Element = Ge, Radius 0.5, Weight 1
+Reading potential file Ge_Zuo_JPCA2020.snapparam with DATE: 2020-01-31
+SNAP keyword rcutfac 5.5
+SNAP keyword twojmax 8
+SNAP keyword rfac0 0.99363
+SNAP keyword rmin0 0
+SNAP keyword quadraticflag 0
+SNAP keyword bzeroflag 0
+velocity all create 300.0 4928459 mom yes rot yes dist gaussian
+timestep 0.001
+
+# 1) relax the box to its 300 K equilibrium size (each potential has its own a0)
+fix npt all npt temp 300.0 300.0 0.1 iso 0.0 0.0 1.0
+thermo 20000
+run 30000
+Neighbor list info ...
+  update: every = 1 steps, delay = 0 steps, check = yes
+  max neighbors/atom: 2000, page size: 100000
+  master list distance cutoff = 7.5
+  ghost atom cutoff = 7.5
+  binsize = 3.75, bins = 10 10 62
+  1 neighbor lists, perpetual/occasional/extra = 1 0 0
+  (1) pair snap, perpetual
+      attributes: full, newton on
+      pair build: full/bin/atomonly
+      stencil: full/bin/3d
+      bin: standard
+Per MPI rank memory allocation (min/avg/max) = 3.833 | 3.833 | 3.833 Mbytes
+   Step          Temp          E_pair         E_mol          TotEng         Press          Volume    
+         0   300           -51753.912      0             -51307.227      6013.6544      275188.29    
+     20000   301.6843      -51280.338      0             -50831.146     -308.35637      281149.95    
+     30000   298.46172     -51284.377      0             -50839.983      44.609307      280937.17    
+Loop time of 1128.26 on 64 procs for 30000 steps with 11520 atoms
+
+Performance: 2.297 ns/day, 10.447 hours/ns, 26.590 timesteps/s, 306.312 katom-step/s
+98.2% CPU use with 64 MPI tasks x 1 OpenMP threads
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 952.61     | 1049.1     | 1122       | 116.3 | 92.99
+Neigh   | 0.00070246 | 0.00076326 | 0.000801   |   0.0 |  0.00
+Comm    | 1.9846     | 58.773     | 172.12     | 507.8 |  5.21
+Output  | 5.9972e-05 | 6.1439e-05 | 7.9754e-05 |   0.0 |  0.00
+Modify  | 2.7182     | 20.225     | 40.469     | 256.5 |  1.79
+Other   |            | 0.1281     |            |       |  0.01
+
+Nlocal:            180 ave         193 max         168 min
+Histogram: 3 3 5 11 10 8 16 5 2 1
+Nghost:        1216.88 ave        1229 max        1204 min
+Histogram: 1 0 8 8 15 6 15 4 4 3
+Neighs:              0 ave           0 max           0 min
+Histogram: 64 0 0 0 0 0 0 0 0 0
+FullNghs:      13720.8 ave       14870 max       12737 min
+Histogram: 3 5 5 15 5 15 9 5 1 1
+
+Total # of neighbors = 878128
+Ave neighs/atom = 76.226389
+Neighbor list builds = 2
+Dangerous builds = 0
+unfix npt
+velocity all scale 300.0
+
+# 2) NVE + reverse-NEMD: build the steady-state temperature gradient
+fix nve all nve
+fix swap all thermal/conductivity ${swap} z 20
+fix swap all thermal/conductivity 100 z 20
+run 100000
+Per MPI rank memory allocation (min/avg/max) = 3.833 | 3.836 | 3.844 Mbytes
+   Step          Temp          E_pair         E_mol          TotEng         Press     
+     30000   300           -51284.377      0             -50837.693      53.317439    
+     40000   299.9178      -51284.255      0             -50837.693      31.725131    
+     60000   296.52234     -51279.197      0             -50837.69       98.263047    
+     80000   301.23818     -51286.222      0             -50837.694      55.933581    
+    100000   294.30871     -51275.9        0             -50837.69       215.73149    
+    120000   299.5933      -51283.771      0             -50837.692      86.359111    
+    130000   301.27268     -51286.273      0             -50837.693      15.619063    
+Loop time of 3702.16 on 64 procs for 100000 steps with 11520 atoms
+
+Performance: 2.334 ns/day, 10.284 hours/ns, 27.011 timesteps/s, 311.169 katom-step/s
+98.3% CPU use with 64 MPI tasks x 1 OpenMP threads
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 3304.1     | 3495.8     | 3689.7     | 164.3 | 94.43
+Neigh   | 0          | 0          | 0          |   0.0 |  0.00
+Comm    | 5.3269     | 169        | 355.32     | 748.9 |  4.56
+Output  | 0.00019089 | 0.00020082 | 0.00024899 |   0.0 |  0.00
+Modify  | 0.22031    | 0.54792    | 1.0696     |  28.5 |  0.01
+Other   |            | 36.83      |            |       |  0.99
+
+Nlocal:            180 ave         188 max         170 min
+Histogram: 1 3 4 10 9 9 8 7 9 4
+Nghost:        1215.91 ave        1226 max        1208 min
+Histogram: 2 12 6 8 5 12 11 4 2 2
+Neighs:              0 ave           0 max           0 min
+Histogram: 64 0 0 0 0 0 0 0 0 0
+FullNghs:      13677.2 ave       14357 max       12867 min
+Histogram: 1 3 4 10 13 9 5 6 9 4
+
+Total # of neighbors = 875344
+Ave neighs/atom = 75.984722
+Neighbor list builds = 0
+Dangerous builds = 0
+
+# 3) production: reset the swap accumulator and average the temperature profile
+unfix swap
+compute ke all ke/atom
+variable temp atom c_ke/(1.5*8.617333e-5)
+compute layers all chunk/atom bin/1d z lower 0.05 units reduced
+fix prof all ave/chunk 200 500 400000 layers v_temp file profile_${tag}_${nz}.dat
+fix prof all ave/chunk 200 500 400000 layers v_temp file profile_snap_${nz}.dat
+fix prof all ave/chunk 200 500 400000 layers v_temp file profile_snap_40.dat
+fix swap all thermal/conductivity ${swap} z 20
+fix swap all thermal/conductivity 100 z 20
+variable t0 equal $(time)
+variable t0 equal 130
+run 400000
+Per MPI rank memory allocation (min/avg/max) = 3.958 | 3.962 | 3.971 Mbytes
+   Step          Temp          E_pair         E_mol          TotEng         Press     
+    130000   301.27268     -51286.273      0             -50837.693      15.619063    
+    140000   300.56412     -51285.217      0             -50837.693      56.204473    
+    160000   300.30407     -51284.83       0             -50837.693      60.878104    
+    180000   299.81367     -51284.099      0             -50837.692      112.86774    
+    200000   298.34995     -51281.919      0             -50837.691      113.1941     
+    220000   297.66306     -51280.896      0             -50837.691      59.588287    
+    240000   299.26142     -51283.277      0             -50837.692      96.836321    
+    260000   301.31733     -51286.338      0             -50837.692      65.613496    
+    280000   298.17317     -51281.656      0             -50837.692      47.802133    
+    300000   298.03102     -51281.444      0             -50837.691      128.72862    
+    320000   299.11125     -51283.054      0             -50837.693      102.1719     
+    340000   297.1427      -51280.121      0             -50837.691      62.85681     
+    360000   298.41396     -51282.015      0             -50837.692      72.992516    
+    380000   300.24762     -51284.746      0             -50837.693      80.863284    
+    400000   301.53422     -51286.661      0             -50837.693      38.236116    
+    420000   299.12149     -51283.068      0             -50837.692      84.846178    
+    440000   300.71865     -51285.446      0             -50837.692      112.31655    
+    460000   300.04172     -51284.439      0             -50837.693      25.954248    
+    480000   300.52041     -51285.152      0             -50837.693      82.911841    
+    500000   299.99252     -51284.366      0             -50837.692      72.391783    
+    520000   299.8929      -51284.216      0             -50837.691      67.250732    
+    530000   300.62795     -51285.312      0             -50837.693      65.215442    
+Loop time of 15389.9 on 64 procs for 400000 steps with 11520 atoms
+
+Performance: 2.246 ns/day, 10.687 hours/ns, 25.991 timesteps/s, 299.417 katom-step/s
+98.1% CPU use with 64 MPI tasks x 1 OpenMP threads
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 12999      | 13994      | 15351      | 382.6 | 90.93
+Neigh   | 0          | 0          | 0          |   0.0 |  0.00
+Comm    | 21.078     | 945.12     | 2163.4     |1716.3 |  6.14
+Output  | 0.00066321 | 0.00067498 | 0.00084319 |   0.0 |  0.00
+Modify  | 0.67971    | 5.2483     | 10.563     | 158.2 |  0.03
+Other   |            | 445.4      |            |       |  2.89
+
+Nlocal:            180 ave         195 max         167 min
+Histogram: 1 3 8 16 10 9 11 2 2 2
+Nghost:        1216.06 ave        1230 max        1201 min
+Histogram: 2 1 4 8 13 13 15 5 2 1
+Neighs:              0 ave           0 max           0 min
+Histogram: 64 0 0 0 0 0 0 0 0 0
+FullNghs:      13682.6 ave       14951 max       12575 min
+Histogram: 1 3 6 14 14 12 8 2 2 2
+
+Total # of neighbors = 875684
+Ave neighs/atom = 76.014236
+Neighbor list builds = 0
+Dangerous builds = 0
+
+print "- {ncells: ${nz}, length_A: $(lz:%.3f), edelta_eV: $(f_swap:%.6f),     time_ps: $(time-v_t0:%.3f), area_A2: $(lx*ly:%.4f)}"     append kappa_${tag}.yaml screen no
+print "- {ncells: ${nz}, length_A: $(lz:%.3f), edelta_eV: $(f_swap:%.6f),     time_ps: $(time-v_t0:%.3f), area_A2: $(lx*ly:%.4f)}"     append kappa_snap.yaml screen no
+next nz
+jump SELF loop
+clear
+  using 1 OpenMP thread(s) per MPI task
+units metal
+atom_style atomic
+boundary p p p
+lattice diamond ${a0}
+lattice diamond 5.760
+Lattice spacing in x,y,z = 5.76 5.76 5.76
+region box block 0 ${ncross} 0 ${ncross} 0 ${nz}
+region box block 0 6 0 ${ncross} 0 ${nz}
+region box block 0 6 0 6 0 ${nz}
+region box block 0 6 0 6 0 60
+create_box 1 box
+Created orthogonal box = (0 0 0) to (34.56 34.56 345.6)
+  2 by 2 by 16 MPI processor grid
+create_atoms 1 box
+Created 17280 atoms
+  using lattice units in orthogonal box = (0 0 0) to (34.56 34.56 345.6)
+  create_atoms CPU = 0.000 seconds
+mass 1 72.63
+include ${pot}
+include pot_ge_snap.mod
+pair_style snap
+pair_coeff * * Ge_Zuo_JPCA2020.snapcoeff Ge_Zuo_JPCA2020.snapparam Ge
+Reading potential file Ge_Zuo_JPCA2020.snapcoeff with DATE: 2020-01-31
+SNAP Element = Ge, Radius 0.5, Weight 1
+Reading potential file Ge_Zuo_JPCA2020.snapparam with DATE: 2020-01-31
+SNAP keyword rcutfac 5.5
+SNAP keyword twojmax 8
+SNAP keyword rfac0 0.99363
+SNAP keyword rmin0 0
+SNAP keyword quadraticflag 0
+SNAP keyword bzeroflag 0
+velocity all create 300.0 4928459 mom yes rot yes dist gaussian
+timestep 0.001
+
+# 1) relax the box to its 300 K equilibrium size (each potential has its own a0)
+fix npt all npt temp 300.0 300.0 0.1 iso 0.0 0.0 1.0
+thermo 20000
+run 30000
+Neighbor list info ...
+  update: every = 1 steps, delay = 0 steps, check = yes
+  max neighbors/atom: 2000, page size: 100000
+  master list distance cutoff = 7.5
+  ghost atom cutoff = 7.5
+  binsize = 3.75, bins = 10 10 93
+  1 neighbor lists, perpetual/occasional/extra = 1 0 0
+  (1) pair snap, perpetual
+      attributes: full, newton on
+      pair build: full/bin/atomonly
+      stencil: full/bin/3d
+      bin: standard
+Per MPI rank memory allocation (min/avg/max) = 3.912 | 3.912 | 3.912 Mbytes
+   Step          Temp          E_pair         E_mol          TotEng         Press          Volume    
+         0   300           -77630.867      0             -76960.822      6013.7046      412782.43    
+     20000   297.71397     -76922.475      0             -76257.535      181.90892      421326.68    
+     30000   303.1928      -76921.122      0             -76243.945     -102.95571      421528.52    
+Loop time of 1681.86 on 64 procs for 30000 steps with 17280 atoms
+
+Performance: 1.541 ns/day, 15.573 hours/ns, 17.837 timesteps/s, 308.231 katom-step/s
+98.3% CPU use with 64 MPI tasks x 1 OpenMP threads
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 1478.8     | 1574.7     | 1676.5     | 109.4 | 93.63
+Neigh   | 0.0016072  | 0.0017161  | 0.0018149  |   0.1 |  0.00
+Comm    | 2.3022     | 75.471     | 199.99     | 508.5 |  4.49
+Output  | 7.7941e-05 | 7.8787e-05 | 9.5828e-05 |   0.0 |  0.00
+Modify  | 1.8763     | 31.506     | 51.469     | 283.2 |  1.87
+Other   |            | 0.1465     |            |       |  0.01
+
+Nlocal:            270 ave         285 max         253 min
+Histogram: 2 3 3 7 14 13 8 6 4 4
+Nghost:        1451.38 ave        1468 max        1437 min
+Histogram: 5 3 6 9 12 11 11 3 2 2
+Neighs:              0 ave           0 max           0 min
+Histogram: 64 0 0 0 0 0 0 0 0 0
+FullNghs:      20503.8 ave       21705 max       19016 min
+Histogram: 1 3 1 8 16 10 9 5 7 4
+
+Total # of neighbors = 1312240
+Ave neighs/atom = 75.939815
+Neighbor list builds = 3
+Dangerous builds = 0
+unfix npt
+velocity all scale 300.0
+
+# 2) NVE + reverse-NEMD: build the steady-state temperature gradient
+fix nve all nve
+fix swap all thermal/conductivity ${swap} z 20
+fix swap all thermal/conductivity 100 z 20
+run 100000
+Per MPI rank memory allocation (min/avg/max) = 3.912 | 3.917 | 3.925 Mbytes
+   Step          Temp          E_pair         E_mol          TotEng         Press     
+     30000   300           -76921.122      0             -76251.077     -121.02527    
+     40000   302.65794     -76927.06       0             -76251.078     -155.51809    
+     60000   300.65842     -76922.593      0             -76251.077     -90.340846    
+     80000   299.53423     -76920.083      0             -76251.077     -79.279191    
+    100000   300.47156     -76922.176      0             -76251.077     -41.516947    
+    120000   302.29087     -76926.239      0             -76251.077     -73.373843    
+    130000   303.00511     -76927.835      0             -76251.078     -46.072316    
+Loop time of 5562.52 on 64 procs for 100000 steps with 17280 atoms
+
+Performance: 1.553 ns/day, 15.451 hours/ns, 17.977 timesteps/s, 310.651 katom-step/s
+98.4% CPU use with 64 MPI tasks x 1 OpenMP threads
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 4972.1     | 5256.7     | 5546.9     | 180.6 | 94.50
+Neigh   | 0          | 0          | 0          |   0.0 |  0.00
+Comm    | 7.0254     | 209.2      | 489.58     | 883.0 |  3.76
+Output  | 0.00018837 | 0.00019046 | 0.00024063 |   0.0 |  0.00
+Modify  | 0.28502    | 1.188      | 2.3804     |  61.2 |  0.02
+Other   |            | 95.45      |            |       |  1.72
+
+Nlocal:            270 ave         281 max         257 min
+Histogram: 3 1 5 8 7 17 4 11 5 3
+Nghost:        1446.06 ave        1460 max        1433 min
+Histogram: 4 3 8 7 10 15 4 8 3 2
+Neighs:              0 ave           0 max           0 min
+Histogram: 64 0 0 0 0 0 0 0 0 0
+FullNghs:      20515.6 ave       21418 max       19452 min
+Histogram: 3 3 3 9 9 12 6 6 10 3
+
+Total # of neighbors = 1312996
+Ave neighs/atom = 75.983565
+Neighbor list builds = 0
+Dangerous builds = 0
+
+# 3) production: reset the swap accumulator and average the temperature profile
+unfix swap
+compute ke all ke/atom
+variable temp atom c_ke/(1.5*8.617333e-5)
+compute layers all chunk/atom bin/1d z lower 0.05 units reduced
+fix prof all ave/chunk 200 500 400000 layers v_temp file profile_${tag}_${nz}.dat
+fix prof all ave/chunk 200 500 400000 layers v_temp file profile_snap_${nz}.dat
+fix prof all ave/chunk 200 500 400000 layers v_temp file profile_snap_60.dat
+fix swap all thermal/conductivity ${swap} z 20
+fix swap all thermal/conductivity 100 z 20
+variable t0 equal $(time)
+variable t0 equal 130
+run 400000
+Per MPI rank memory allocation (min/avg/max) = 4.037 | 4.042 | 4.05 Mbytes
+   Step          Temp          E_pair         E_mol          TotEng         Press     
+    130000   303.00511     -76927.835      0             -76251.078     -46.072316    
+    140000   299.17339     -76919.276      0             -76251.076     -13.482369    
+    160000   298.12506     -76916.932      0             -76251.074      22.449747    
+    180000   299.56972     -76920.161      0             -76251.076     -64.192182    
+    200000   302.70051     -76927.154      0             -76251.077     -76.115522    
+    220000   300.96513     -76923.277      0             -76251.075     -35.656794    
+    240000   299.71593     -76920.487      0             -76251.075     -33.669554    
+    260000   300.83534     -76922.988      0             -76251.076     -31.704699    
+    280000   299.10326     -76919.118      0             -76251.075     -53.359572    
+    300000   299.85524     -76920.797      0             -76251.075     -53.371825    
+    320000   300.47082     -76922.173      0             -76251.076     -76.390665    
+    340000   300.23258     -76921.641      0             -76251.075     -55.727212    
+    360000   301.83927     -76925.231      0             -76251.077     -81.534163    
+    380000   301.29764     -76924.02       0             -76251.076     -76.988554    
+    400000   301.75745     -76925.047      0             -76251.076     -54.222234    
+    420000   300.37323     -76921.954      0             -76251.075     -57.808818    
+    440000   298.82864     -76918.504      0             -76251.074      10.088828    
+    460000   300.98775     -76923.329      0             -76251.077     -36.040791    
+    480000   302.30914     -76926.28       0             -76251.077     -49.220026    
+    500000   300.3091      -76921.813      0             -76251.077     -19.44188     
+    520000   300.7609      -76922.822      0             -76251.077     -53.38426     
+    530000   299.43958     -76919.869      0             -76251.075     -9.4486095    
+Loop time of 22203 on 64 procs for 400000 steps with 17280 atoms
+
+Performance: 1.557 ns/day, 15.419 hours/ns, 18.016 timesteps/s, 311.310 katom-step/s
+98.5% CPU use with 64 MPI tasks x 1 OpenMP threads
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 20101      | 21075      | 22056      | 345.1 | 94.92
+Neigh   | 0          | 0          | 0          |   0.0 |  0.00
+Comm    | 29.608     | 811.18     | 1907.9     |1771.8 |  3.65
+Output  | 0.00064409 | 0.00065053 | 0.00080528 |   0.0 |  0.00
+Modify  | 1.5011     | 4.071      | 10.939     | 124.6 |  0.02
+Other   |            | 312.8      |            |       |  1.41
+
+Nlocal:            270 ave         281 max         258 min
+Histogram: 3 2 4 11 10 11 11 4 6 2
+Nghost:        1447.23 ave        1459 max        1433 min
+Histogram: 2 2 4 10 10 9 10 8 5 4
+Neighs:              0 ave           0 max           0 min
+Histogram: 64 0 0 0 0 0 0 0 0 0
+FullNghs:      20508.4 ave       21457 max       19436 min
+Histogram: 2 2 6 5 16 8 11 4 8 2
+
+Total # of neighbors = 1312536
+Ave neighs/atom = 75.956944
+Neighbor list builds = 0
+Dangerous builds = 0
+
+print "- {ncells: ${nz}, length_A: $(lz:%.3f), edelta_eV: $(f_swap:%.6f),     time_ps: $(time-v_t0:%.3f), area_A2: $(lx*ly:%.4f)}"     append kappa_${tag}.yaml screen no
+print "- {ncells: ${nz}, length_A: $(lz:%.3f), edelta_eV: $(f_swap:%.6f),     time_ps: $(time-v_t0:%.3f), area_A2: $(lx*ly:%.4f)}"     append kappa_snap.yaml screen no
+next nz
+jump SELF loop
+clear
+  using 1 OpenMP thread(s) per MPI task
+units metal
+atom_style atomic
+boundary p p p
+lattice diamond ${a0}
+lattice diamond 5.760
+Lattice spacing in x,y,z = 5.76 5.76 5.76
+region box block 0 ${ncross} 0 ${ncross} 0 ${nz}
+region box block 0 6 0 ${ncross} 0 ${nz}
+region box block 0 6 0 6 0 ${nz}
+region box block 0 6 0 6 0 80
+create_box 1 box
+Created orthogonal box = (0 0 0) to (34.56 34.56 460.8)
+  2 by 2 by 16 MPI processor grid
+create_atoms 1 box
+Created 23040 atoms
+  using lattice units in orthogonal box = (0 0 0) to (34.56 34.56 460.8)
+  create_atoms CPU = 0.000 seconds
+mass 1 72.63
+include ${pot}
+include pot_ge_snap.mod
+pair_style snap
+pair_coeff * * Ge_Zuo_JPCA2020.snapcoeff Ge_Zuo_JPCA2020.snapparam Ge
+Reading potential file Ge_Zuo_JPCA2020.snapcoeff with DATE: 2020-01-31
+SNAP Element = Ge, Radius 0.5, Weight 1
+Reading potential file Ge_Zuo_JPCA2020.snapparam with DATE: 2020-01-31
+SNAP keyword rcutfac 5.5
+SNAP keyword twojmax 8
+SNAP keyword rfac0 0.99363
+SNAP keyword rmin0 0
+SNAP keyword quadraticflag 0
+SNAP keyword bzeroflag 0
+velocity all create 300.0 4928459 mom yes rot yes dist gaussian
+timestep 0.001
+
+# 1) relax the box to its 300 K equilibrium size (each potential has its own a0)
+fix npt all npt temp 300.0 300.0 0.1 iso 0.0 0.0 1.0
+thermo 20000
+run 30000
+Neighbor list info ...
+  update: every = 1 steps, delay = 0 steps, check = yes
+  max neighbors/atom: 2000, page size: 100000
+  master list distance cutoff = 7.5
+  ghost atom cutoff = 7.5
+  binsize = 3.75, bins = 10 10 123
+  1 neighbor lists, perpetual/occasional/extra = 1 0 0
+  (1) pair snap, perpetual
+      attributes: full, newton on
+      pair build: full/bin/atomonly
+      stencil: full/bin/3d
+      bin: standard
+Per MPI rank memory allocation (min/avg/max) = 3.983 | 3.984 | 3.984 Mbytes
+   Step          Temp          E_pair         E_mol          TotEng         Press          Volume    
+         0   300           -103507.82      0             -102614.42      6013.7297      550376.57    
+     20000   303.25606     -102563.73      0             -101660.62     -206.86328      562164.54    
+     30000   298.40046     -102564.46      0             -101675.82     -124.84806      562133.45    
+Loop time of 2209.8 on 64 procs for 30000 steps with 23040 atoms
+
+Performance: 1.173 ns/day, 20.461 hours/ns, 13.576 timesteps/s, 312.788 katom-step/s
+98.5% CPU use with 64 MPI tasks x 1 OpenMP threads
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 2018.7     | 2103.8     | 2200.7     |  88.5 | 95.20
+Neigh   | 0.0043494  | 0.0045986  | 0.0048066  |   0.1 |  0.00
+Comm    | 2.5025     | 69.381     | 164.28     | 467.6 |  3.14
+Output  | 6.3077e-05 | 6.4286e-05 | 8.39e-05   |   0.0 |  0.00
+Modify  | 5.5143     | 36.471     | 81.101     | 398.4 |  1.65
+Other   |            | 0.1609     |            |       |  0.01
+
+Nlocal:            360 ave         370 max         347 min
+Histogram: 1 1 4 9 8 12 17 3 4 5
+Nghost:        1697.62 ave        1711 max        1685 min
+Histogram: 3 0 7 10 10 19 7 4 3 1
+Neighs:              0 ave           0 max           0 min
+Histogram: 64 0 0 0 0 0 0 0 0 0
+FullNghs:      27347.7 ave       28212 max       26261 min
+Histogram: 1 1 4 7 12 14 13 5 3 4
+
+Total # of neighbors = 1750250
+Ave neighs/atom = 75.965712
+Neighbor list builds = 6
+Dangerous builds = 0
+unfix npt
+velocity all scale 300.0
+
+# 2) NVE + reverse-NEMD: build the steady-state temperature gradient
+fix nve all nve
+fix swap all thermal/conductivity ${swap} z 20
+fix swap all thermal/conductivity 100 z 20
+run 100000
+Per MPI rank memory allocation (min/avg/max) = 3.984 | 3.99 | 4.001 Mbytes
+   Step          Temp          E_pair         E_mol          TotEng         Press     
+     30000   300           -102564.46      0             -101671.06     -115.7969     
+     40000   300.38448     -102565.61      0             -101671.06     -142.09521    
+     60000   298.8857      -102561.14      0             -101671.05     -148.2673     
+     80000   302.94474     -102573.24      0             -101671.06     -216.34161    
+    100000   300.61369     -102566.29      0             -101671.06     -149.86595    
+    120000   298.09241     -102558.78      0             -101671.05     -112.18917    
+    130000   300.16888     -102564.97      0             -101671.06     -165.28252    
+Loop time of 7489.35 on 64 procs for 100000 steps with 23040 atoms
+
+Performance: 1.154 ns/day, 20.804 hours/ns, 13.352 timesteps/s, 307.637 katom-step/s
+98.4% CPU use with 64 MPI tasks x 1 OpenMP threads
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 6644.1     | 7010.7     | 7391.4     | 182.6 | 93.61
+Neigh   | 0          | 0          | 0          |   0.0 |  0.00
+Comm    | 11.736     | 314.27     | 675.04     | 964.2 |  4.20
+Output  | 0.00021249 | 0.00021448 | 0.00026655 |   0.0 |  0.00
+Modify  | 1.1258     | 1.9327     | 3.1234     |  50.4 |  0.03
+Other   |            | 162.5      |            |       |  2.17
+
+Nlocal:            360 ave         374 max         344 min
+Histogram: 1 1 3 11 18 6 6 9 5 4
+Nghost:        1698.28 ave        1715 max        1684 min
+Histogram: 5 3 7 10 9 12 11 4 2 1
+Neighs:              0 ave           0 max           0 min
+Histogram: 64 0 0 0 0 0 0 0 0 0
+FullNghs:      27349.4 ave       28487 max       25936 min
+Histogram: 1 0 4 12 12 11 7 6 6 5
+
+Total # of neighbors = 1750364
+Ave neighs/atom = 75.97066
+Neighbor list builds = 0
+Dangerous builds = 0
+
+# 3) production: reset the swap accumulator and average the temperature profile
+unfix swap
+compute ke all ke/atom
+variable temp atom c_ke/(1.5*8.617333e-5)
+compute layers all chunk/atom bin/1d z lower 0.05 units reduced
+fix prof all ave/chunk 200 500 400000 layers v_temp file profile_${tag}_${nz}.dat
+fix prof all ave/chunk 200 500 400000 layers v_temp file profile_snap_${nz}.dat
+fix prof all ave/chunk 200 500 400000 layers v_temp file profile_snap_80.dat
+fix swap all thermal/conductivity ${swap} z 20
+fix swap all thermal/conductivity 100 z 20
+variable t0 equal $(time)
+variable t0 equal 130
+run 400000
+Per MPI rank memory allocation (min/avg/max) = 4.109 | 4.116 | 4.126 Mbytes
+   Step          Temp          E_pair         E_mol          TotEng         Press     
+    130000   300.16888     -102564.97      0             -101671.06     -165.28252    
+    140000   300.20923     -102565.09      0             -101671.06     -158.20499    
+    160000   299.16925     -102561.99      0             -101671.06     -209.28325    
+    180000   299.76843     -102563.77      0             -101671.06     -134.21879    
+    200000   299.30958     -102562.41      0             -101671.06     -124.88992    
+    220000   300.80576     -102566.86      0             -101671.06     -129.4996     
+    240000   299.24299     -102562.21      0             -101671.05     -103.0854     
+    260000   300.82972     -102566.93      0             -101671.06     -170.36734    
+    280000   301.32549     -102568.41      0             -101671.06     -207.0097     
+    300000   298.48616     -102559.95      0             -101671.05     -141.28178    
+    320000   297.90064     -102558.21      0             -101671.05     -119.11084    
+    340000   298.30546     -102559.42      0             -101671.05     -161.67957    
+    360000   299.84448     -102564         0             -101671.06     -155.30115    
+    380000   300.8134      -102566.89      0             -101671.06     -142.70858    
+    400000   299.6739      -102563.49      0             -101671.06     -157.53128    
+    420000   301.93106     -102570.22      0             -101671.06     -187.21732    
+    440000   299.9727      -102564.38      0             -101671.05     -143.10461    
+    460000   300.23851     -102565.17      0             -101671.06     -144.06872    
+    480000   300.99774     -102567.44      0             -101671.06     -193.86571    
+    500000   300.68349     -102566.5       0             -101671.06     -205.16844    
+    520000   298.74064     -102560.71      0             -101671.05     -149.88323    
+    530000   299.65537     -102563.44      0             -101671.06     -193.85916    
+Loop time of 29891.4 on 64 procs for 400000 steps with 23040 atoms
+
+Performance: 1.156 ns/day, 20.758 hours/ns, 13.382 timesteps/s, 308.316 katom-step/s
+98.4% CPU use with 64 MPI tasks x 1 OpenMP threads
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 26437      | 28125      | 29579      | 326.6 | 94.09
+Neigh   | 0          | 0          | 0          |   0.0 |  0.00
+Comm    | 96.034     | 1038.8     | 2541.4     |1840.5 |  3.48
+Output  | 0.00067406 | 0.00068025 | 0.00082539 |   0.0 |  0.00
+Modify  | 2.2273     | 8.6616     | 15.204     | 133.2 |  0.03
+Other   |            | 719.4      |            |       |  2.41
+
+Nlocal:            360 ave         375 max         344 min
+Histogram: 2 2 4 9 12 15 8 8 2 2
+Nghost:        1694.41 ave        1715 max        1676 min
+Histogram: 4 2 7 9 10 13 13 3 2 1
+Neighs:              0 ave           0 max           0 min
+Histogram: 64 0 0 0 0 0 0 0 0 0
+FullNghs:      27332.7 ave       28585 max       26041 min
+Histogram: 2 2 4 10 15 11 8 8 2 2
+
+Total # of neighbors = 1749292
+Ave neighs/atom = 75.924132
+Neighbor list builds = 0
+Dangerous builds = 0
+
+print "- {ncells: ${nz}, length_A: $(lz:%.3f), edelta_eV: $(f_swap:%.6f),     time_ps: $(time-v_t0:%.3f), area_A2: $(lx*ly:%.4f)}"     append kappa_${tag}.yaml screen no
+print "- {ncells: ${nz}, length_A: $(lz:%.3f), edelta_eV: $(f_swap:%.6f),     time_ps: $(time-v_t0:%.3f), area_A2: $(lx*ly:%.4f)}"     append kappa_snap.yaml screen no
+next nz
+jump SELF loop
+
+print "Germanium RNEMD scan (${tag}) complete: kappa_${tag}.yaml + profile_${tag}_*.dat"
+Germanium RNEMD scan (snap) complete: kappa_snap.yaml + profile_snap_*.dat
+Total wall time: 27:36:25

@@ -1,0 +1,97 @@
+                ____  _   _    __    _  _    __   
+               (  _ \( )_( )  /__\  ( \( )  /__\  
+                )___/ ) _ (  /(__)\  )  (  /(__)\ 
+               (__)  (_) (_)(__)(__)(_)\_)(__)(__)
+
+PHonon ANAlyzer for Fix-Phonon, version 2.48, compiled on Jun  8 2026.
+Reference: https://doi.org/10.1016/j.cpc.2011.04.019
+
+================================================================================
+Dynamical matrix is read from file: Cu.bin.3030000
+The system size in three dimension: 8 x 8 x 8
+Number of atoms per unit cell     : 1
+System dimension                  : 3
+Boltzmann constant in used units  : 8.61734e-05
+================================================================================
+
+================================================================================
+Basis vectors of the unit cell in real space:
+     A1:   2.5681   0.0000   0.0000 
+     A2:   1.2840   2.2240   0.0000 
+     A3:   1.2840   0.7413   2.0968 
+Basis vectors of the corresponding reciprocal cell:
+     B1:   2.4467  -1.4126  -0.9988 
+     B2:   0.0000   2.8252  -0.9988 
+     B3:   0.0000   0.0000   2.9965 
+================================================================================
+
+================================================================================
+Eigenvalues of Phi at gamma before enforcing ASR:
+-7648.07 -3568.67 8316.16 
+
+Please input the # of iterations to enforce ASR [1]: Eigenvalues of Phi at gamma after enforcing ASR:
+0 0 0 
+================================================================================
+
+
+================================================================================
+Which interpolation method would you like to use?
+  1. Tricubic;
+  2. Trilinear;
+Your choice [1]: Your  selection: 1
+================================================================================
+
+
+===================================== Menu =====================================
+  1. Phonon DOS evaluation;
+  2. Phonon dispersion curves;
+  3. Dynamical matrix at arbitrary q;
+  4. Vibrational frequencies at arbitrary q;
+  5. Dispersion-like curve for dynamical matrix;
+  6. Vibrational thermodynamical properties;
+  7. Local phonon DOS from eigenvectors;
+  8. Local phonon DOS by RSGF method;
+  9. Freqs and eigenvectors at arbitrary q;
+ 10. Show information related to the unit cell;
+ 11. Write input files for working with phonopy;
+ -1. Reset the interpolation method;
+  0. Exit.
+Your choice [0]: 
+Your  selection: 2
+================================================================================
+
+================================================================================
+Please select your method to generate the phonon dispersion:
+  1. Manual, should always work;
+  2. Automatic, works only for 3D crystals (CMS49-299).
+Your choice [2]: Your  selection: 1
+
+Please input the filename to output the dispersion data [pdisp.dat]:
+Please input the start q-point in unit of B1->B3, q to exit [0 0 0]: Please input the end q-point in unit of B1->B3: Please input the # of points along the line [5]: 
+Please input the start q-point in unit of B1->B3, q to exit [0.5 0 0.5]: Please input the end q-point in unit of B1->B3: Please input the # of points along the line [20]: 
+Please input the start q-point in unit of B1->B3, q to exit [0.5 0.25 0.75]: Please input the end q-point in unit of B1->B3: Please input the # of points along the line [10]: 
+Please input the start q-point in unit of B1->B3, q to exit [0.5 0 0.5]: Please input the end q-point in unit of B1->B3: Please input the # of points along the line [10]: 
+Please input the start q-point in unit of B1->B3, q to exit [0 0 0]: Please input the end q-point in unit of B1->B3: Please input the # of points along the line [30]: 
+Please input the start q-point in unit of B1->B3, q to exit [0.5 0.5 0.5]: 
+Phonon dispersion data are written to: disp.dat, you can visualize the results
+by invoking: `gnuplot pdisp.gnuplot; gv pdisp.eps`
+================================================================================
+
+===================================== Menu =====================================
+  1. Phonon DOS evaluation;
+  2. Phonon dispersion curves;
+  3. Dynamical matrix at arbitrary q;
+  4. Vibrational frequencies at arbitrary q;
+  5. Dispersion-like curve for dynamical matrix;
+  6. Vibrational thermodynamical properties;
+  7. Local phonon DOS from eigenvectors;
+  8. Local phonon DOS by RSGF method;
+  9. Freqs and eigenvectors at arbitrary q;
+ 10. Show information related to the unit cell;
+ 11. Write input files for working with phonopy;
+ -1. Reset the interpolation method;
+  0. Exit.
+Your choice [0]: 
+Your  selection: 0
+================================================================================
+

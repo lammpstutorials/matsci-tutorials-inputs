@@ -1,0 +1,288 @@
+LAMMPS (30 Mar 2026 - Development - patch_30Mar2026-316-gee93998fe5-modified)
+  using 1 OpenMP thread(s) per MPI task
+# LAMMPS Input File  (figure: two-phase coexistence, grown solid)
+# Licensed under CC BY 4.0
+# A Set of Materials-Science Tutorials for the LAMMPS Simulation Package
+# Modernized recreation of the MSU/CAVS tutorials by Mark A. Tschopp
+# Tutorial 12, part 2 (step 1 of 2): build a solid-liquid two-phase cell of
+# fcc aluminum.  A pre-existing interface removes the nucleation barrier that
+# made the one-phase estimate of part 1 so uncertain.  The companion script
+# velocity.lmp then reads the cell back and measures the melting point from
+# the direction the interface moves.
+#
+# This uses the Mendelev et al. aluminum potential, which is fitted for
+# liquid structure and solid-liquid coexistence and reproduces the melting
+# point well.
+
+units metal
+atom_style atomic
+boundary p p p
+lattice fcc 4.05
+Lattice spacing in x,y,z = 4.05 4.05 4.05
+region box block 0 5 0 5 0 20            # square cross-section, elongated along z
+create_box 1 box
+Created orthogonal box = (0 0 0) to (20.25 20.25 81)
+  2 by 2 by 16 MPI processor grid
+create_atoms 1 box
+Created 2000 atoms
+  using lattice units in orthogonal box = (0 0 0) to (20.25 20.25 81)
+  create_atoms CPU = 0.026 seconds
+mass 1 26.98
+pair_style eam/fs
+pair_coeff * * ../Al_mm.eam.fs Al
+Reading eam/fs potential file ../Al_mm.eam.fs with DATE: 2007-06-11
+velocity all create 800.0 7654 mom yes rot yes
+timestep 0.002
+thermo 5000
+
+# 1) equilibrate the whole crystal well BELOW the melting point so it stays
+#    solid.  The barostat keeps the square cross-section that the cubic
+#    crystal wants (x and y coupled, so they relax together) while the long
+#    z axis relaxes on its own:
+fix eq all npt temp 800.0 800.0 0.2 x 0.0 0.0 2.0 y 0.0 0.0 2.0 z 0.0 0.0 2.0 couple xy
+run 10000
+Neighbor list info ...
+  update: every = 1 steps, delay = 0 steps, check = yes
+  max neighbors/atom: 2000, page size: 100000
+  master list distance cutoff = 8.5
+  ghost atom cutoff = 8.5
+  binsize = 4.25, bins = 5 5 20
+  1 neighbor lists, perpetual/occasional/extra = 1 0 0
+  (1) pair eam/fs, perpetual
+      attributes: half, newton on
+      pair build: half/bin/atomonly/newton
+      stencil: half/bin/3d
+      bin: standard
+Per MPI rank memory allocation (min/avg/max) = 3.342 | 3.342 | 3.343 Mbytes
+   Step          Temp          E_pair         E_mol          TotEng         Press          Volume    
+         0   800           -6821.2161      0             -6614.5033      3962.9319      33215.062    
+      5000   783.7631      -6579.2424      0             -6376.725       1045.0682      34982.671    
+     10000   792.57241     -6575.4011      0             -6370.6075     -3239.4144      35186.555    
+Loop time of 1.64902 on 64 procs for 10000 steps with 2000 atoms
+
+Performance: 1047.894 ns/day, 0.023 hours/ns, 6064.202 timesteps/s, 12.128 Matom-step/s
+94.8% CPU use with 64 MPI tasks x 1 OpenMP threads
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 0.68462    | 0.71894    | 0.80202    |   2.9 | 43.60
+Neigh   | 0.01929    | 0.020796   | 0.023285   |   0.7 |  1.26
+Comm    | 0.5729     | 0.63149    | 0.68338    |   3.9 | 38.29
+Output  | 4.7153e-05 | 4.8045e-05 | 6.1875e-05 |   0.0 |  0.00
+Modify  | 0.19627    | 0.24001    | 0.2928     |   6.7 | 14.55
+Other   |            | 0.03773    |            |       |  2.29
+
+Nlocal:          31.25 ave          37 max          25 min
+Histogram: 4 5 1 7 8 14 11 8 3 3
+Nghost:        995.688 ave        1012 max         973 min
+Histogram: 1 3 5 5 11 8 11 8 6 6
+Neighs:        2257.22 ave        2767 max        1769 min
+Histogram: 4 3 5 12 10 8 10 7 3 2
+
+Total # of neighbors = 144462
+Ave neighs/atom = 72.231
+Neighbor list builds = 366
+Dangerous builds = 0
+unfix eq
+
+# 2) split the cell into a lower half (kept solid) and an upper half (to be
+#    melted) and create the interface: drive the upper half hot with a local
+#    Langevin thermostat while a second one holds the lower half cold and
+#    crystalline.  Now barostat ONLY z, so the less-dense liquid can expand
+#    along the interface normal without straining the solid cross-section
+#    (an x-y barostat here would let the liquid pull the lattice apart):
+variable zmid equal zlo+(zhi-zlo)/2.0
+region rtop block INF INF INF INF ${zmid} INF units box
+region rtop block INF INF INF INF 40.4999999999996 INF units box
+group top region rtop
+1000 atoms in group top
+group bot subtract all top
+1000 atoms in group bot
+fix baro all nph z 0.0 0.0 2.0
+fix hot  top langevin 1400.0 1400.0 0.1 11111   # melt the upper half
+fix cold bot langevin  800.0  800.0 0.1 22222   # keep the lower half solid
+run 12000
+Per MPI rank memory allocation (min/avg/max) = 3.342 | 3.342 | 3.343 Mbytes
+   Step          Temp          E_pair         E_mol          TotEng         Press          Volume    
+     10000   792.57241     -6575.4011      0             -6370.6075     -3239.4144      35186.555    
+     15000   1084.4953     -6328.9324      0             -6048.7086      832.27164      37336.384    
+     20000   1109.9125     -6319.0062      0             -6032.2148      112.31295      37465.955    
+     22000   1104.0286     -6325.2842      0             -6040.0131     -939.01043      37392.15     
+Loop time of 1.64887 on 64 procs for 12000 steps with 2000 atoms
+
+Performance: 1257.586 ns/day, 0.019 hours/ns, 7277.698 timesteps/s, 14.555 Matom-step/s
+95.8% CPU use with 64 MPI tasks x 1 OpenMP threads
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 0.64441    | 0.70905    | 0.81       |   4.8 | 43.00
+Neigh   | 0.025397   | 0.028752   | 0.036241   |   1.6 |  1.74
+Comm    | 0.52767    | 0.58825    | 0.6522     |   3.6 | 35.68
+Output  | 5.6598e-05 | 5.7604e-05 | 6.8576e-05 |   0.0 |  0.00
+Modify  | 0.20153    | 0.28772    | 0.38297    |  10.8 | 17.45
+Other   |            | 0.03505    |            |       |  2.13
+
+Nlocal:          31.25 ave          40 max          23 min
+Histogram: 4 3 11 8 10 9 4 5 6 4
+Nghost:            885 ave         980 max         803 min
+Histogram: 15 10 3 1 4 5 5 5 5 11
+Neighs:        2144.56 ave        3005 max        1592 min
+Histogram: 6 10 15 8 5 4 4 7 3 2
+
+Total # of neighbors = 137252
+Ave neighs/atom = 68.626
+Neighbor list builds = 564
+Dangerous builds = 0
+unfix hot
+unfix cold
+
+# 3) directional growth: the upper half is now a supercooled liquid (below Tm)
+#    and freezes onto the cold solid interface -- the front advances upward
+
+unfix baro
+fix baro all nph x 0 0 2 y 0 0 2 z 0 0 2 couple xy
+fix th all langevin 890 890 0.1 4321
+run 15000
+Per MPI rank memory allocation (min/avg/max) = 3.342 | 3.342 | 3.343 Mbytes
+   Step          Temp          E_pair         E_mol          TotEng         Press          Volume    
+     22000   1104.0286     -6325.2842      0             -6040.0131     -939.01043      37392.15     
+     25000   906.72619     -6416.968       0             -6182.6781      311.23529      36351.067    
+     30000   874.5357      -6430.3936      0             -6204.4214      1787.0447      36134.533    
+     35000   877.21245     -6464.0759      0             -6237.4121     -1999.7917      36050.16     
+     37000   864.00541     -6466.9778      0             -6243.7266      1700.8006      35881.694    
+Loop time of 2.05997 on 64 procs for 15000 steps with 2000 atoms
+
+Performance: 1258.269 ns/day, 0.019 hours/ns, 7281.651 timesteps/s, 14.563 Matom-step/s
+95.6% CPU use with 64 MPI tasks x 1 OpenMP threads
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 0.83106    | 0.894      | 1.0085     |   4.6 | 43.40
+Neigh   | 0.025014   | 0.029402   | 0.035398   |   1.6 |  1.43
+Comm    | 0.68935    | 0.75092    | 0.86063    |   4.4 | 36.45
+Output  | 6.8936e-05 | 7.0236e-05 | 8.1765e-05 |   0.0 |  0.00
+Modify  | 0.25366    | 0.34251    | 0.42762    |   9.9 | 16.63
+Other   |            | 0.04307    |            |       |  2.09
+
+Nlocal:          31.25 ave          39 max          24 min
+Histogram: 5 6 6 5 13 7 4 5 10 3
+Nghost:        913.484 ave         970 max         854 min
+Histogram: 3 9 2 9 5 12 2 13 5 4
+Neighs:        2233.36 ave        2943 max        1734 min
+Histogram: 6 11 9 12 5 5 4 6 3 3
+
+Total # of neighbors = 142935
+Ave neighs/atom = 71.4675
+Neighbor list builds = 561
+Dangerous builds = 0
+unfix th
+unfix baro
+
+# 4) inherent structure: minimize so CNA cleanly separates solid from liquid
+minimize 1.0e-6 1.0e-6 2000 20000
+Per MPI rank memory allocation (min/avg/max) = 4.467 | 4.467 | 4.468 Mbytes
+   Step          Temp          E_pair         E_mol          TotEng         Press     
+     37000   864.00541     -6466.9778      0             -6243.7266      1700.8006    
+     37351   864.00541     -6743.6391      0             -6520.3879     -36744.005    
+Loop time of 0.0640415 on 64 procs for 351 steps with 2000 atoms
+
+96.7% CPU use with 64 MPI tasks x 1 OpenMP threads
+
+Minimization stats:
+  Stopping criterion = energy tolerance
+  Energy initial, next-to-last, final = 
+     -6466.97783925606  -6743.63259404154  -6743.63912876951
+  Force two-norm initial, final = 39.515106 0.16700854
+  Force max component initial, final = 2.1806947 0.053128206
+  Final line search alpha, max atom move = 1 0.053128206
+  Iterations, force evaluations = 351 528
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 0.031573   | 0.032326   | 0.033956   |   0.3 | 50.48
+Neigh   | 0.00047427 | 0.00080249 | 0.0010414  |   0.0 |  1.25
+Comm    | 0.021652   | 0.023024   | 0.02417    |   0.5 | 35.95
+Output  | 0          | 0          | 0          |   0.0 |  0.00
+Modify  | 0          | 0          | 0          |   0.0 |  0.00
+Other   |            | 0.007889   |            |       | 12.32
+
+Nlocal:          31.25 ave          38 max          22 min
+Histogram: 1 19 2 6 1 3 5 0 3 24
+Nghost:        919.797 ave         976 max         857 min
+Histogram: 6 4 12 8 4 1 3 4 18 4
+Neighs:        2163.48 ave        2805 max        1502 min
+Histogram: 1 13 12 4 5 1 1 14 6 7
+
+Total # of neighbors = 138463
+Ave neighs/atom = 69.2315
+Neighbor list builds = 22
+Dangerous builds = 0
+compute cna all cna/atom 3.5
+variable isfcc atom "c_cna==1"
+compute nfcc all reduce sum v_isfcc
+thermo_style custom step pe c_nfcc
+run 0
+WARNING: No fixes with time integration, atoms won't move
+For more information see https://docs.lammps.org/err0028 (src/verlet.cpp:60)
+Neighbor list info ...
+  update: every = 1 steps, delay = 0 steps, check = yes
+  max neighbors/atom: 2000, page size: 100000
+  master list distance cutoff = 8.5
+  ghost atom cutoff = 8.5
+  binsize = 4.25, bins = 5 5 20
+  2 neighbor lists, perpetual/occasional/extra = 1 1 0
+  (1) pair eam/fs, perpetual
+      attributes: half, newton on
+      pair build: half/bin/atomonly/newton
+      stencil: half/bin/3d
+      bin: standard
+  (2) compute cna/atom, occasional
+      attributes: full, newton on
+      pair build: full/bin/atomonly
+      stencil: full/bin/3d
+      bin: standard
+Per MPI rank memory allocation (min/avg/max) = 3.972 | 3.973 | 3.973 Mbytes
+   Step         PotEng         c_nfcc    
+     37351  -6743.6391      1556         
+Loop time of 5.91669e-06 on 64 procs for 0 steps with 2000 atoms
+
+104.6% CPU use with 64 MPI tasks x 1 OpenMP threads
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 0          | 0          | 0          |   0.0 |  0.00
+Neigh   | 0          | 0          | 0          |   0.0 |  0.00
+Comm    | 0          | 0          | 0          |   0.0 |  0.00
+Output  | 0          | 0          | 0          |   0.0 |  0.00
+Modify  | 0          | 0          | 0          |   0.0 |  0.00
+Other   |            | 5.917e-06  |            |       |100.00
+
+Nlocal:          31.25 ave          38 max          22 min
+Histogram: 1 18 4 4 3 4 2 1 5 22
+Nghost:        913.062 ave         976 max         843 min
+Histogram: 4 5 9 13 5 2 2 3 7 14
+Neighs:        2163.53 ave        2805 max        1502 min
+Histogram: 1 13 9 10 2 1 0 15 7 6
+FullNghs:      4327.06 ave        5320 max        2945 min
+Histogram: 1 0 22 5 2 5 1 2 4 22
+
+Total # of neighbors = 276932
+Ave neighs/atom = 138.466
+Neighbor list builds = 0
+Dangerous builds = 0
+print "fcc-coordinated atoms after minimization: $(c_nfcc) of 2000"
+fcc-coordinated atoms after minimization: 1556 of 2000
+
+# pale-red plane at the (current) box center marks the original interface
+
+region divide block INF INF INF INF $(zlo+(zhi-zlo)/2.0-0.01) $(zlo+(zhi-zlo)/2.0+0.01) units box
+region divide block INF INF INF INF 40.490000000000037517 $(zlo+(zhi-zlo)/2.0+0.01) units box
+region divide block INF INF INF INF 40.490000000000037517 40.510000000000033538 units box
+
+write_dump all image coexist-grown.png c_cna type adiam 3.0     view 80 15 up 0 1 0 zoom 4.0 size 800 800 shiny 0.15 fsaa yes ssao yes 7123 0.6     box yes 0.02     region divide lightcoral frame 0.5     modify backcolor white boxcolor midnightblue     amap 1 5 sa 1.0 5 steelblue purple green red gray     lights 0.2 0.9 0.5 0.9
+Total wall time: 0:00:06

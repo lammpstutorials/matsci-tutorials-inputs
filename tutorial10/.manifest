@@ -1,0 +1,25 @@
+# LAMMPS Tutorial manifest file. This file determines what is downloaded when.
+# comments start with a # as the first character.
+# comments and empty lines are ignored
+##############################################################################
+# Tutorial 10: Zone-center phonons from the dynamical matrix (silicon)
+#
+# 1) input file templates
+# the first file will be automatically loaded
+dynmat.lmp
+phonon-gamma.py
+
+# 2) support files
+Si.sw
+
+# 3) solution files
+# only downloaded on request
+solution/dynmat.log
+solution/Si.sw
+solution/dynmat.lmp
+solution/phonon-gamma.py
+solution/dynmat.dat
+solution/gamma-output.txt
+solution/gamma-levels.png
+solution/structviz.lmp
+solution/si-diamond.png

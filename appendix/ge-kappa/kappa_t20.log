@@ -1,0 +1,237 @@
+LAMMPS (30 Mar 2026 - Development - patch_30Mar2026-1178-g5f8b8984a-modified)
+  using 8 OpenMP thread(s) per MPI task
+package omp 0
+using multi-threaded neighbor list subroutines
+# LAMMPS Input File
+# Licensed under CC BY 4.0
+# A Set of Materials-Science Tutorials for the LAMMPS Simulation Package
+# Appendix (HPC offload): lattice thermal conductivity of crystalline germanium
+# by reverse non-equilibrium MD (Mueller-Plathe momentum swap), for a classical
+# (Tersoff) and a machine-learned (SNAP) potential.
+#
+# This is the same method as Tutorial 8 (silicon) but set up for a more powerful
+# machine: larger cells, longer runs, and an MPI domain decomposition along the
+# long (z) axis.  The SNAP runs are ~100x more expensive than Tersoff and are
+# meant to be run on many cores.  NOT an interactive tutorial input.
+#
+# Parameters are passed on the command line, e.g.
+#   mpirun -np 256 lmp -in kappa_ge.lmp -v tag tersoff -v pot pot_ge_tersoff.mod \
+#                      -v a0 5.658 -v ncross 6 -v nz 40 80 120 160 200
+#   mpirun -np 512 lmp -in kappa_ge.lmp -v tag snap    -v pot pot_ge_snap.mod \
+#                      -v a0 5.760 -v ncross 6 -v nz 20 40 60 80
+# Each length writes one record to kappa_${tag}.yaml and a temperature profile
+# profile_${tag}_${nz}.dat; analyze both potentials together with plot_ge.py.
+
+variable swap  equal 100                 # momentum swap every 100 steps (0.1 ps)
+
+print "# finite-size RNEMD thermal conductivity of germanium (${tag})"     file kappa_${tag}.yaml screen no
+print "# finite-size RNEMD thermal conductivity of germanium (${tag})"     file kappa_tersoff.yaml screen no
+print "# records: ncells length_A edelta_eV time_ps area_A2 (heat along z, 20 slabs)"     append kappa_${tag}.yaml screen no
+print "# records: ncells length_A edelta_eV time_ps area_A2 (heat along z, 20 slabs)"     append kappa_tersoff.yaml screen no
+
+label loop
+clear
+  using 8 OpenMP thread(s) per MPI task
+package omp 0
+using multi-threaded neighbor list subroutines
+units metal
+atom_style atomic
+boundary p p p
+lattice diamond ${a0}
+lattice diamond 5.658
+Lattice spacing in x,y,z = 5.658 5.658 5.658
+region box block 0 ${ncross} 0 ${ncross} 0 ${nz}
+region box block 0 6 0 ${ncross} 0 ${nz}
+region box block 0 6 0 6 0 ${nz}
+region box block 0 6 0 6 0 20
+create_box 1 box
+Created orthogonal box = (0 0 0) to (33.948 33.948 113.16)
+  1 by 1 by 1 MPI processor grid
+create_atoms 1 box
+Created 5760 atoms
+  using lattice units in orthogonal box = (0 0 0) to (33.948 33.948 113.16)
+  create_atoms CPU = 0.001 seconds
+mass 1 72.63
+include ${pot}
+include pot_ge_tersoff.mod
+pair_style tersoff
+pair_coeff * * Ge.tersoff Ge
+Reading tersoff potential file Ge.tersoff with DATE: 2016-12-21
+velocity all create 300.0 4928459 mom yes rot yes dist gaussian
+timestep 0.001
+
+# 1) relax the box to its 300 K equilibrium size (each potential has its own a0)
+fix npt all npt temp 300.0 300.0 0.1 iso 0.0 0.0 1.0
+thermo 20000
+run 30000
+Last active /omp style is pair_style tersoff/omp
+Neighbor list info ...
+  update: every = 1 steps, delay = 0 steps, check = yes
+  max neighbors/atom: 2000, page size: 100000
+  master list distance cutoff = 5.1
+  ghost atom cutoff = 5.1
+  binsize = 2.55, bins = 14 14 45
+  1 neighbor lists, perpetual/occasional/extra = 1 0 0
+  (1) pair tersoff/omp, perpetual
+      attributes: full, newton on, omp
+      pair build: full/bin/atomonly/omp
+      stencil: full/bin/3d
+      bin: standard
+Per MPI rank memory allocation (min/avg/max) = 9.52 | 9.52 | 9.52 Mbytes
+   Step          Temp          E_pair         E_mol          TotEng         Press          Volume    
+         0   300           -24282.863      0             -24059.54      -40544.298      130413.13    
+     20000   295.51345     -24142.824      0             -23922.841     -63.276821      124197.38    
+     30000   299.52129     -24140.776      0             -23917.81       72.389453      124192.79    
+Loop time of 25.5427 on 8 procs for 30000 steps with 5760 atoms
+
+Performance: 101.477 ns/day, 0.237 hours/ns, 1174.504 timesteps/s, 6.765 Matom-step/s
+796.5% CPU use with 1 MPI tasks x 8 OpenMP threads
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 22.553     | 22.553     | 22.553     |   0.0 | 88.30
+Neigh   | 0.001064   | 0.001064   | 0.001064   |   0.0 |  0.00
+Comm    | 0.58333    | 0.58333    | 0.58333    |   0.0 |  2.28
+Output  | 7.5986e-05 | 7.5986e-05 | 7.5986e-05 |   0.0 |  0.00
+Modify  | 2.2379     | 2.2379     | 2.2379     |   0.0 |  8.76
+Other   |            | 0.1669     |            |       |  0.65
+
+Nlocal:           5760 ave        5760 max        5760 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Nghost:           4709 ave        4709 max        4709 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Neighs:              0 ave           0 max           0 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+FullNghs:       161280 ave      161280 max      161280 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+
+Total # of neighbors = 161280
+Ave neighs/atom = 28
+Neighbor list builds = 2
+Dangerous builds = 0
+unfix npt
+velocity all scale 300.0
+
+# 2) NVE + reverse-NEMD: build the steady-state temperature gradient
+fix nve all nve
+fix swap all thermal/conductivity ${swap} z 20
+fix swap all thermal/conductivity 100 z 20
+run 100000
+Last active /omp style is pair_style tersoff/omp
+Per MPI rank memory allocation (min/avg/max) = 9.522 | 9.522 | 9.522 Mbytes
+   Step          Temp          E_pair         E_mol          TotEng         Press     
+     30000   300           -24140.776      0             -23917.454      75.454286    
+     40000   295.27611     -24137.26       0             -23917.453      31.444904    
+     60000   298.42807     -24139.607      0             -23917.454     -1.6563346    
+     80000   294.80502     -24136.909      0             -23917.453      72.981996    
+    100000   296.72269     -24138.339      0             -23917.455     -9.4603325    
+    120000   298.28223     -24139.499      0             -23917.455      0.55029407   
+    130000   298.49646     -24139.658      0             -23917.454      61.724993    
+Loop time of 79.1376 on 8 procs for 100000 steps with 5760 atoms
+
+Performance: 109.177 ns/day, 0.220 hours/ns, 1263.621 timesteps/s, 7.278 Matom-step/s
+797.1% CPU use with 1 MPI tasks x 8 OpenMP threads
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 73.777     | 73.777     | 73.777     |   0.0 | 93.23
+Neigh   | 0          | 0          | 0          |   0.0 |  0.00
+Comm    | 1.871      | 1.871      | 1.871      |   0.0 |  2.36
+Output  | 0.00030173 | 0.00030173 | 0.00030173 |   0.0 |  0.00
+Modify  | 2.7877     | 2.7877     | 2.7877     |   0.0 |  3.52
+Other   |            | 0.7015     |            |       |  0.89
+
+Nlocal:           5760 ave        5760 max        5760 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Nghost:           4709 ave        4709 max        4709 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Neighs:              0 ave           0 max           0 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+FullNghs:       161280 ave      161280 max      161280 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+
+Total # of neighbors = 161280
+Ave neighs/atom = 28
+Neighbor list builds = 0
+Dangerous builds = 0
+
+# 3) production: average the temperature profile, then re-arm the swap so its
+#    accumulator counts only the production interval.  fix ave/chunk must be
+#    defined BEFORE fix thermal/conductivity so the profile is sampled before
+#    each momentum swap (otherwise LAMMPS warns and the swap slabs are biased).
+unfix swap
+compute ke all ke/atom
+variable temp atom c_ke/(1.5*8.617333e-5)
+compute layers all chunk/atom bin/1d z lower 0.05 units reduced
+fix prof all ave/chunk 200 500 400000 layers v_temp file profile_${tag}_${nz}.dat
+fix prof all ave/chunk 200 500 400000 layers v_temp file profile_tersoff_${nz}.dat
+fix prof all ave/chunk 200 500 400000 layers v_temp file profile_tersoff_20.dat
+fix swap all thermal/conductivity ${swap} z 20
+fix swap all thermal/conductivity 100 z 20
+variable t0 equal $(time)
+variable t0 equal 130
+run 400000
+Last active /omp style is pair_style tersoff/omp
+Per MPI rank memory allocation (min/avg/max) = 9.647 | 9.647 | 9.647 Mbytes
+   Step          Temp          E_pair         E_mol          TotEng         Press     
+    130000   298.49646     -24139.658      0             -23917.454      61.724993    
+    140000   297.64418     -24139.022      0             -23917.453      47.685267    
+    160000   297.95131     -24139.251      0             -23917.454      87.840368    
+    180000   292.29151     -24135.036      0             -23917.451      3.3730212    
+    200000   298.35182     -24139.55       0             -23917.454      30.650407    
+    220000   299.40084     -24140.331      0             -23917.455     -54.232607    
+    240000   300.1502      -24140.889      0             -23917.455      17.541058    
+    260000   300.04913     -24140.814      0             -23917.454      44.293237    
+    280000   295.52431     -24137.442      0             -23917.451      21.978881    
+    300000   302.74168     -24142.819      0             -23917.455      25.334223    
+    320000   295.35656     -24137.316      0             -23917.45       49.402418    
+    340000   294.79958     -24136.904      0             -23917.452      25.33854     
+    360000   299.91337     -24140.713      0             -23917.455      2.8420571    
+    380000   303.23129     -24143.182      0             -23917.454      29.811768    
+    400000   296.14298     -24137.903      0             -23917.452      47.582871    
+    420000   299.79288     -24140.619      0             -23917.45       86.743762    
+    440000   303.44486     -24143.34       0             -23917.453      44.446879    
+    460000   300.67655     -24141.278      0             -23917.451      17.803176    
+    480000   300.14569     -24140.883      0             -23917.452     -50.061919    
+    500000   297.11844     -24138.629      0             -23917.451      4.054135     
+    520000   298.64468     -24139.768      0             -23917.454      25.303753    
+    530000   296.3459      -24138.053      0             -23917.45       49.997025    
+Loop time of 317.581 on 8 procs for 400000 steps with 5760 atoms
+
+Performance: 108.823 ns/day, 0.221 hours/ns, 1259.521 timesteps/s, 7.255 Matom-step/s
+797.1% CPU use with 1 MPI tasks x 8 OpenMP threads
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 296.22     | 296.22     | 296.22     |   0.0 | 93.27
+Neigh   | 0          | 0          | 0          |   0.0 |  0.00
+Comm    | 7.4499     | 7.4499     | 7.4499     |   0.0 |  2.35
+Output  | 0.0011311  | 0.0011311  | 0.0011311  |   0.0 |  0.00
+Modify  | 11.214     | 11.214     | 11.214     |   0.0 |  3.53
+Other   |            | 2.694      |            |       |  0.85
+
+Nlocal:           5760 ave        5760 max        5760 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Nghost:           4709 ave        4709 max        4709 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Neighs:              0 ave           0 max           0 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+FullNghs:       161280 ave      161280 max      161280 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+
+Total # of neighbors = 161280
+Ave neighs/atom = 28
+Neighbor list builds = 0
+Dangerous builds = 0
+
+print "- {ncells: ${nz}, length_A: $(lz:%.3f), edelta_eV: $(f_swap:%.6f),     time_ps: $(time-v_t0:%.3f), area_A2: $(lx*ly:%.4f)}"     append kappa_${tag}.yaml screen no
+print "- {ncells: ${nz}, length_A: $(lz:%.3f), edelta_eV: $(f_swap:%.6f),     time_ps: $(time-v_t0:%.3f), area_A2: $(lx*ly:%.4f)}"     append kappa_tersoff.yaml screen no
+next nz
+jump SELF loop
+
+print "Germanium RNEMD scan (${tag}) complete: kappa_${tag}.yaml + profile_${tag}_*.dat"
+Germanium RNEMD scan (tersoff) complete: kappa_tersoff.yaml + profile_tersoff_*.dat
+Total wall time: 0:07:02

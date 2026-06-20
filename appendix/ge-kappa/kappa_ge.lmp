@@ -1,0 +1,73 @@
+# LAMMPS Input File
+# Licensed under CC BY 4.0
+# A Set of Materials-Science Tutorials for the LAMMPS Simulation Package
+# Appendix (HPC offload): lattice thermal conductivity of crystalline germanium
+# by reverse non-equilibrium MD (Mueller-Plathe momentum swap), for a classical
+# (Tersoff) and a machine-learned (SNAP) potential.
+#
+# This is the same method as Tutorial 8 (silicon) but set up for a more powerful
+# machine: larger cells, longer runs, and an MPI domain decomposition along the
+# long (z) axis.  The SNAP runs are ~100x more expensive than Tersoff and are
+# meant to be run on many cores.  NOT an interactive tutorial input.
+#
+# Parameters are passed on the command line, e.g.
+#   mpirun -np 256 lmp -in kappa_ge.lmp -v tag tersoff -v pot pot_ge_tersoff.mod \
+#                      -v a0 5.658 -v ncross 6 -v nz 20 40 80 120 160 200
+#   mpirun -np 512 lmp -in kappa_ge.lmp -v tag snap    -v pot pot_ge_snap.mod \
+#                      -v a0 5.760 -v ncross 6 -v nz 20 40 60 80
+# Each length writes one record to kappa_${tag}.yaml and a temperature profile
+# profile_${tag}_${nz}.dat; analyze both potentials together with plot_ge.py.
+
+variable swap  equal 100                 # momentum swap every 100 steps (0.1 ps)
+
+print "# finite-size RNEMD thermal conductivity of germanium (${tag})" &
+    file kappa_${tag}.yaml screen no
+print "# records: ncells length_A edelta_eV time_ps area_A2 (heat along z, 20 slabs)" &
+    append kappa_${tag}.yaml screen no
+
+label loop
+clear
+units metal
+atom_style atomic
+boundary p p p
+lattice diamond ${a0}
+region box block 0 ${ncross} 0 ${ncross} 0 ${nz}
+create_box 1 box
+create_atoms 1 box
+mass 1 72.63
+include ${pot}
+velocity all create 300.0 4928459 mom yes rot yes dist gaussian
+timestep 0.001
+
+# 1) relax the box to its 300 K equilibrium size (each potential has its own a0)
+fix npt all npt temp 300.0 300.0 0.1 iso 0.0 0.0 1.0
+thermo 20000
+run 30000
+unfix npt
+velocity all scale 300.0
+
+# 2) NVE + reverse-NEMD: build the steady-state temperature gradient
+fix nve all nve
+fix swap all thermal/conductivity ${swap} z 20
+run 100000
+
+# 3) production: average the temperature profile, then re-arm the swap so its
+#    accumulator counts only the production interval.  fix ave/chunk must be
+#    defined BEFORE fix thermal/conductivity so the profile is sampled before
+#    each momentum swap (otherwise LAMMPS warns and the swap slabs are biased).
+unfix swap
+compute ke all ke/atom
+variable temp atom c_ke/(1.5*8.617333e-5)
+compute layers all chunk/atom bin/1d z lower 0.05 units reduced
+fix prof all ave/chunk 200 500 400000 layers v_temp file profile_${tag}_${nz}.dat
+fix swap all thermal/conductivity ${swap} z 20
+variable t0 equal $(time)
+run 400000
+
+print "- {ncells: ${nz}, length_A: $(lz:%.3f), edelta_eV: $(f_swap:%.6f), &
+    time_ps: $(time-v_t0:%.3f), area_A2: $(lx*ly:%.4f)}" &
+    append kappa_${tag}.yaml screen no
+next nz
+jump SELF loop
+
+print "Germanium RNEMD scan (${tag}) complete: kappa_${tag}.yaml + profile_${tag}_*.dat"

@@ -1,0 +1,3 @@
+seeded cooling: fcc count jumps near 737 K
+seed stays within 0.17 A (avg) of its target over the run
+the seed cures the supercooling, but freezes far below Tm (Gibbs-Thomson)

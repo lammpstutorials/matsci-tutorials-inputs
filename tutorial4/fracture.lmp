@@ -1,0 +1,83 @@
+# LAMMPS Input File
+# Licensed under CC BY 4.0
+# A Set of Materials-Science Tutorials for the LAMMPS Simulation Package
+# Tutorial 5: pull a bcc-iron <110> Sigma3(111) bicrystal apart perpendicular
+# to the grain boundary until it fractures, recording the stress-strain
+# response and per-atom stress for visualization.
+#
+# This is a quasi-static (athermal) test: two rigid "grips" at the top and
+# bottom are displaced apart in small increments, and the structure is
+# energy-minimized after each increment.  Run makegb.lmp first to create
+# Fe_gb.data (the relaxed grain boundary).
+
+variable delta  index 0.06     # grip displacement per step and side (Angstrom)
+variable nsteps index 80       # number of loading increments
+variable grip   index 6.0      # thickness of each rigid grip (Angstrom)
+
+# 1) Initialization -- non-periodic along y so the bicrystal has free surfaces
+#    at the top and bottom and a single grain boundary at y = 0
+units metal
+dimension 3
+boundary p s p
+atom_style atomic
+
+read_data Fe_gb.data
+
+# 2) Interatomic potential (Mendelev 2003 bcc iron)
+pair_style eam/fs
+pair_coeff * * Fe_mm.eam.fs Fe Fe
+
+# 3) Per-atom virial stress; sigma_yy (component 2) is the pulling direction.
+#    stress/atom has units of pressure*volume, so divide by the atomic volume
+#    (a0^3/2 for bcc) and by 1e4 to express it in GPa for coloring.
+compute satom all stress/atom NULL
+variable a0 equal 2.855324
+variable vatom equal ${a0}*${a0}*${a0}/2.0
+variable syy atom c_satom[2]/v_vatom/10000.0
+
+# 4) Relax the slab (now with free y-surfaces) BEFORE gripping it, so the
+#    zero-strain state is stress free
+min_style cg
+thermo 50
+thermo_style custom step pe ly pyy
+minimize 1.0e-10 1.0e-10 1000 10000
+
+# 5) Define the grips from the relaxed extent and freeze their forces.
+#    fix setforce records the pre-zeroed total force, so the top grip's
+#    reaction force (f_holdtop[2]) measures the load carried by the bicrystal.
+variable ylo equal bound(all,ymin)
+variable yhi equal bound(all,ymax)
+region rtop block INF INF $(v_yhi-v_grip) INF INF INF units box
+region rbot block INF INF INF $(v_ylo+v_grip) INF INF units box
+group gtop region rtop
+group gbot region rbot
+group grips union gtop gbot
+group mobile subtract all grips
+fix holdtop gtop setforce 0.0 0.0 0.0
+fix holdbot gbot setforce 0.0 0.0 0.0
+minimize 1.0e-10 1.0e-10 500 5000
+
+# 6) Stress-strain bookkeeping (engineering strain; tensile stress in GPa from
+#    the grip reaction force per cross-section, converting eV/Ang^3 -> GPa)
+variable count  equal 0
+variable area   equal lx*lz
+variable L0     equal $((v_yhi-v_grip)-(v_ylo+v_grip))
+variable strain equal 2.0*v_delta*v_count/v_L0
+variable stress equal -f_holdtop[2]/v_area*160.21766
+print "strain,stress_GPa" file stress-fracture.csv screen no
+print "$(v_strain:%.5f),$(v_stress:%.5f)" append stress-fracture.csv screen no
+write_dump all custom fracture.dump id type x y z v_syy modify append no
+
+# 7) Quasi-static loading loop: displace grips, minimize, record
+variable i loop ${nsteps}
+label loop
+displace_atoms gtop move 0  ${delta} 0 units box
+displace_atoms gbot move 0 -${delta} 0 units box
+minimize 1.0e-10 1.0e-10 500 5000
+variable count equal $i
+print "$(v_strain:%.5f),$(v_stress:%.5f)" append stress-fracture.csv screen no
+write_dump all custom fracture.dump id type x y z v_syy modify append yes
+next i
+jump SELF loop
+
+print "Fracture run complete: ${nsteps} increments, max strain $(v_strain:%.4f)."

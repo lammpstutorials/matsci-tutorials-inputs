@@ -1,0 +1,7 @@
+Warren-Cowley alpha (first shell, average of last 20 frames):
+            Co      Cr      Fe      Ni
+    Co  +0.005  -0.018  +0.022  -0.009
+    Cr  -0.018  +0.033  -0.033  +0.018
+    Fe  +0.022  -0.033  +0.016  -0.005
+    Ni  -0.009  +0.018  -0.005  -0.005
+wrote sro-alpha.png and sro-energy.png

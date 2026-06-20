@@ -1,0 +1,48 @@
+# LAMMPS Input File
+# Licensed under CC BY 4.0
+# A Set of Materials-Science Tutorials for the LAMMPS Simulation Package
+# Modernized recreation of the MSU/CAVS tutorials by Mark A. Tschopp
+# Tutorial 12, part 1: bracket the melting point of aluminum from the
+# heating/cooling hysteresis of a single-phase crystal.
+#
+# A bulk fcc crystal is heated through melting and then the melt is cooled
+# back down, both at constant pressure.  The volume jumps at melting and
+# freezing, but a defect-free crystal SUPERHEATS before it melts and the melt
+# SUPERCOOLS before it freezes, so the two branches form a hysteresis loop.
+# The true melting point lies inside the loop -- which is why part 2 uses the
+# two-phase method to pin it down.
+
+units metal
+atom_style atomic
+boundary p p p
+lattice fcc 4.05
+region box block 0 8 0 8 0 8
+create_box 1 box
+create_atoms 1 box
+mass 1 26.98
+pair_style eam/fs
+pair_coeff * * Al_mm.eam.fs Al
+velocity all create 300.0 12345 mom yes rot yes
+timestep 0.002
+thermo 5000
+
+variable temp equal temp
+variable vat  equal vol/atoms
+
+# equilibrate the solid at 300 K and constant (zero) pressure
+fix relax all npt temp 300.0 300.0 0.2 iso 0.0 0.0 2.0
+run 10000
+
+# 1) heat 300 -> 1500 K; record temperature and volume per atom
+unfix relax
+fix hot all npt temp 300.0 1500.0 0.2 iso 0.0 0.0 2.0
+fix rec all ave/time 50 20 1000 v_temp v_vat file heat.dat
+run 120000
+unfix rec
+unfix hot
+
+# 2) cool 1500 -> 300 K from the melt
+fix cold all npt temp 1500.0 300.0 0.2 iso 0.0 0.0 2.0
+fix rec all ave/time 50 20 1000 v_temp v_vat file cool.dat
+run 120000
+print "Heating/cooling hysteresis complete; see heat.dat and cool.dat"

@@ -1,0 +1,92 @@
+LAMMPS (30 Mar 2026 - Development - patch_30Mar2026-1121-g91d4111a9)
+OMP_NUM_THREADS environment is not set. Defaulting to 1 thread.
+  using 1 OpenMP thread(s) per MPI task
+# LAMMPS Input File
+# Licensed under CC BY 4.0
+# A Set of Materials-Science Tutorials for the LAMMPS Simulation Package
+# Modernized recreation of the MSU/CAVS tutorials by Mark A. Tschopp
+# Tutorial 2: single-point energy of fcc aluminum at a given lattice constant
+#
+# The lattice constant is an "index" variable, so it can be set either
+#   - interactively, from the LAMMPS-GUI variable dialog, or
+#   - on the command line:   lmp -in energy.lmp -var a0 4.10
+
+variable a0 index 4.05
+
+# 1) Initialization
+units metal
+dimension 3
+boundary p p p
+atom_style atomic
+
+# 2) System definition
+lattice fcc ${a0} origin 0.25 0.25 0.25
+lattice fcc 4.05 origin 0.25 0.25 0.25
+Lattice spacing in x,y,z = 4.05 4.05 4.05
+region box block 0 4 0 4 0 4
+create_box 1 box
+Created orthogonal box = (0 0 0) to (16.2 16.2 16.2)
+  1 by 1 by 1 MPI processor grid
+create_atoms 1 box
+Created 256 atoms
+  using lattice units in orthogonal box = (0 0 0) to (16.2 16.2 16.2)
+  create_atoms CPU = 0.000 seconds
+
+# 3) Settings
+pair_style eam/alloy
+pair_coeff * * Al_zhou.eam.alloy Al
+Reading eam/alloy potential file Al_zhou.eam.alloy with DATE: 2007-10-12
+
+# 4) Monitoring and 5) Run (single-point energy, no relaxation)
+thermo_style custom step pe vol
+run 0
+WARNING: No fixes with time integration, atoms won't move
+For more information see https://docs.lammps.org/err0028 (src/verlet.cpp:60)
+Neighbor list info ...
+  update: every = 1 steps, delay = 0 steps, check = yes
+  max neighbors/atom: 2000, page size: 100000
+  master list distance cutoff = 12.1025
+  ghost atom cutoff = 12.1025
+  binsize = 6.05125, bins = 3 3 3
+  1 neighbor lists, perpetual/occasional/extra = 1 0 0
+  (1) pair eam/alloy, perpetual
+      attributes: half, newton on
+      pair build: half/bin/atomonly/newton
+      stencil: half/bin/3d
+      bin: standard
+Per MPI rank memory allocation (min/avg/max) = 3.492 | 3.492 | 3.492 Mbytes
+   Step         PotEng         Volume    
+         0  -915.75277      4251.528     
+Loop time of 7.41e-07 on 1 procs for 0 steps with 256 atoms
+
+135.0% CPU use with 1 MPI tasks x 1 OpenMP threads
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 0          | 0          | 0          |   0.0 |  0.00
+Neigh   | 0          | 0          | 0          |   0.0 |  0.00
+Comm    | 0          | 0          | 0          |   0.0 |  0.00
+Output  | 0          | 0          | 0          |   0.0 |  0.00
+Modify  | 0          | 0          | 0          |   0.0 |  0.00
+Other   |            | 7.41e-07   |            |       |100.00
+
+Nlocal:            256 ave         256 max         256 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Nghost:           3744 ave        3744 max        3744 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Neighs:          54784 ave       54784 max       54784 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+
+Total # of neighbors = 54784
+Ave neighs/atom = 214
+Neighbor list builds = 0
+Dangerous builds = 0
+
+# report lattice constant, volume per atom, and cohesive energy
+variable natoms equal count(all)
+variable vatom  equal vol/v_natoms
+variable ecoh   equal pe/v_natoms
+print "EV ${a0} ${vatom} ${ecoh}"
+EV 4.05 16.60753125 -3.57715926981223
+Total wall time: 0:00:00

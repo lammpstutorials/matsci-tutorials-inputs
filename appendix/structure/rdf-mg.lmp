@@ -1,0 +1,44 @@
+# LAMMPS Input File
+# Licensed under CC BY 4.0
+# A Set of Materials-Science Tutorials for the LAMMPS Simulation Package
+# Appendix: structure-analysis toolkit -- radial distribution functions
+#
+# Compute g(r) of hcp magnesium (Mendelev EAM) at three temperatures: room temperature, an
+# intermediate temperature, and above the superheating limit, where the
+# crystal melts during the run and the final sampling sees the liquid.
+# A force-less pair_style zero is overlaid only to extend the neighbor
+# list to 8.5 A so that g(r) covers several coordination shells
+# independent of the force cutoff.  Outputs rdf_mg_<T>.dat; plot all
+# materials with rdf-plot.py.
+
+variable T index 300 600 1300
+
+units metal
+atom_style atomic
+boundary p p p
+
+lattice hcp 3.19
+region box block 0 8 0 5 0 5
+create_box 1 box
+create_atoms 1 box
+mass 1 24.305
+pair_style hybrid/overlay eam/fs zero 8.5
+pair_coeff * * eam/fs Mg_mm.eam.fs Mg
+pair_coeff * * zero
+
+velocity all create $(2.0*v_T) 31415 mom yes rot yes dist gaussian
+fix md all npt temp ${T} ${T} 0.2 iso 0.0 0.0 1.0
+thermo 1000
+thermo_style custom step temp pe press vol
+run 10000
+
+# sample g(r) over 10 ps
+compute gr all rdf 250
+fix rec all ave/time 100 100 10000 c_gr[*] file rdf_mg_${T}.dat mode vector
+run 10000
+
+print "RESULT mg T=${T} done"
+
+clear
+next T
+jump SELF

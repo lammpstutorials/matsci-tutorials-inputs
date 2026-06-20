@@ -1,0 +1,4 @@
+period (a0*sqrt(6)/2)      = 4.999 Ang
+Shockley partial b_p       = 1.666 Ang
+intrinsic SF energy  (ISF) =   51.0 mJ/m^2  at shift 1.652 Ang
+unstable  SF energy  (USF) =   94.6 mJ/m^2  at shift 0.942 Ang

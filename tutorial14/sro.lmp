@@ -1,0 +1,68 @@
+# LAMMPS Input File
+# Licensed under CC BY 4.0
+# A Set of Materials-Science Tutorials for the LAMMPS Simulation Package
+# Tutorial 14: chemical short-range order in a high-entropy alloy
+#
+# Build an equimolar fcc CoCrFeNi solid solution with the chemical species
+# assigned at random, then drive it toward chemical equilibrium with a hybrid
+# molecular dynamics / Monte Carlo scheme: molecular dynamics moves the atoms
+# while fix atom/swap proposes exchanges of the chemical identities of pairs
+# of atoms, accepted with the Metropolis criterion.  The alloy develops
+# chemical short-range order, which is quantified by the Warren-Cowley
+# parameters (see plot.py).  Uses the EAM potential of Farkas and Caro,
+# J. Mater. Res. 33, 3218 (2018), designed for fcc high-entropy alloys.
+
+units metal
+atom_style atomic
+boundary p p p
+
+variable T equal 700.0
+
+# 1) build a random equimolar CoCrFeNi crystal (fcc, 8x8x8 = 2048 atoms)
+lattice fcc 3.56
+region box block 0 8 0 8 0 8
+create_box 4 box
+create_atoms 1 box
+# randomly assign exactly one quarter of the sites to each element
+set group all type/subset 2 512 12345
+set type 1   type/subset 3 512 23456
+set type 1   type/subset 4 512 34567
+mass 1 58.933   # Co
+mass 2 51.996   # Cr
+mass 3 55.845   # Fe
+mass 4 58.693   # Ni
+pair_style eam/alloy
+pair_coeff * * FeNiCrCoCu-heafixed.setfl Co Cr Fe Ni
+
+variable peat equal pe/count(all)
+
+# 2) thermalize the atomic positions at temperature T (no swaps yet)
+velocity all create ${T} 9988 mom yes rot yes dist gaussian
+fix md all npt temp ${T} ${T} 0.1 iso 0.0 0.0 1.0
+thermo 500
+thermo_style custom step temp pe press
+run 2000
+write_dump all custom random.dump id type x y z modify sort id
+
+# 3) hybrid MD/MC: every 40 MD steps attempt 80 identity swaps for each
+#    element pair, accepted with the Metropolis criterion at temperature T
+fix s12 all atom/swap 40 80 701 ${T} types 1 2
+fix s13 all atom/swap 40 80 702 ${T} types 1 3
+fix s14 all atom/swap 40 80 703 ${T} types 1 4
+fix s23 all atom/swap 40 80 704 ${T} types 2 3
+fix s24 all atom/swap 40 80 705 ${T} types 2 4
+fix s34 all atom/swap 40 80 706 ${T} types 3 4
+# record the (smoothed) energy and dump snapshots for the order analysis
+fix peout all ave/time 100 1 100 v_peat file energy.dat
+dump traj all custom 500 anneal.dump id type x y z
+dump_modify traj sort id
+run 20000
+write_dump all custom ordered.dump id type x y z modify sort id
+
+# 4) report the fraction of accepted swaps for each pair
+print "acceptance Co-Cr: $(f_s12[2]/f_s12[1]:%.3f)"
+print "acceptance Co-Fe: $(f_s13[2]/f_s13[1]:%.3f)"
+print "acceptance Co-Ni: $(f_s14[2]/f_s14[1]:%.3f)"
+print "acceptance Cr-Fe: $(f_s23[2]/f_s23[1]:%.3f)"
+print "acceptance Cr-Ni: $(f_s24[2]/f_s24[1]:%.3f)"
+print "acceptance Fe-Ni: $(f_s34[2]/f_s34[1]:%.3f)"

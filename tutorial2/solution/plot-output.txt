@@ -1,0 +1,3 @@
+Equilibrium lattice constant a0 = 4.0807 Ang
+Minimum cohesive energy      E0 = -3.5789 eV/atom
+Bulk modulus                 B0 = 87.2 GPa

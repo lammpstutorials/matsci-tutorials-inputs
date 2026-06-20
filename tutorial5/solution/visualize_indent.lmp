@@ -1,0 +1,71 @@
+# LAMMPS Input File
+# Licensed under CC BY 4.0
+# Tutorial 6 -- render the dislocations nucleated under the spherical indenter.
+#
+# Run indent.lmp (shape=sphere) first to produce indent-sphere.dump, then open
+# this file in LAMMPS-GUI and run it (or: lmp -in visualize_indent.lmp).
+# As in the Tutorial 3 dislocation figure, the perfect-crystal atoms are drawn
+# as transparent "ghosts" and the high-centrosymmetry atoms (dislocation cores
+# and the contact) are opaque, exposing the dislocation structure in context.
+# The indenter sphere at the selected step is shown via fix indent (silver,
+# semi-transparent) so its position relative to the defect cloud is clear.
+variable step   index 25000      # trajectory frame to show (the deepest one)
+variable thresh index 6.0        # centrosymmetry above which an atom is a defect
+variable ghost  index 0.25       # opacity of the perfect-crystal (bulk) atoms
+variable radius index 25.0       # sphere radius (must match indent.lmp)
+variable rate   index 0.4        # indenter speed in Ang/ps (must match indent.lmp)
+
+units metal
+dimension 3
+boundary p p f
+atom_style atomic
+
+# rebuild the slab with TWO atom types so the defects can be retyped and drawn
+# with a different opacity than the ghosted bulk
+variable a0 equal 4.05
+lattice fcc ${a0}
+region box  block 0 18 0 18 -0.1 20 units lattice
+create_box 2 box
+region slab block 0 18 0 18 -0.1 12 units lattice
+create_atoms 1 region slab
+pair_style eam/alloy
+pair_coeff * * ../Al_zhou.eam.alloy Al Al
+
+# approximate indenter sphere position at the selected step.
+# The indenter starts one radius above the unrelaxed surface (12 lattice
+# planes at a0 = 48.6 Ang) and descends at the given rate.
+variable zhi0      equal 12.0*v_a0
+variable depth_viz equal ${rate}*${step}*0.001
+variable z0ind     equal v_zhi0+${radius}
+variable zind      equal v_z0ind-v_depth_viz
+variable xc        equal (xlo+xhi)/2.0
+variable yc        equal (ylo+yhi)/2.0
+fix ind all indent 100.0 sphere v_xc v_yc v_zind ${radius} units box
+
+read_dump ../indent-sphere.dump ${step} x y z box yes replace yes
+compute csym all centro/atom fcc
+run 0
+
+# retype the defect atoms (high centrosymmetry, away from the fixed bottom
+# surface) to type 2 so they can be made opaque while the bulk stays ghosted
+variable zlo equal bound(all,zmin)
+variable isdef atom "c_csym > v_thresh && z > v_zlo+6.0"
+group defect variable isdef
+set group defect type 2
+
+# SSAO is turned off because it does not combine well with transparency.
+# The view matches the nano-stamping figure (tilted, axes, no box).
+# The indenter sphere is drawn by fix indent (const color style, silver,
+# 40% opaque); fflag2=-5 shrinks the rendered radius by 5 Ang so that
+# atoms in the contact zone remain visible beneath the sphere surface.
+write_dump all image indent-defects.png c_csym type &
+    fix ind const 0 -5 &
+    adiam 2.6 zoom 1.4 view 60 -10 center s 0.49 0.48 0.34 box no 0.0 axes yes 0.5 0.05 &
+    size 1300 1100 shiny 0.15 ssao no 4539 0.5 fsaa yes &
+    modify backcolor white &
+    fcolor ind silver ftrans ind 0.75 &
+    color map1 0.000 0.227 0.427 color map2 0.459 0.055 0.075 &
+    amap 6.0 14.0 cf 0.0 3 min map1 0.5 goldenrod max map2 &
+    atrans 1 ${ghost} atrans 2 1.0
+
+print "Frame ${step}: $(count(defect)) defect atoms (csym > ${thresh})"

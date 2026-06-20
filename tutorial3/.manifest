@@ -1,0 +1,41 @@
+# LAMMPS Tutorial manifest file. This file determines what is downloaded when.
+# comments start with a # as the first character.
+# comments and empty lines are ignored
+##############################################################################
+# Tutorial 3: Uniaxial deformation of a single crystal
+#
+# 1) input file templates
+# the first file will be automatically loaded
+deform.lmp
+plot.py
+wire.lmp
+wire-alloy.lmp
+
+# 2) support files
+Al_zhou.eam.alloy
+AlCu.adp
+
+# 3) solution files
+# only downloaded on request
+solution/deform-tension.log
+solution/deform-compress.log
+solution/stress-tension.csv
+solution/stress-compress.csv
+solution/stress-strain.png
+solution/deform-dislocations.png
+# interactive dislocation-figure sandbox (loads a pre-recorded frame)
+solution/visualize.lmp
+solution/tension-yield.dump
+# nanowire extension (pure vs alloyed wire, see wire.lmp / wire-alloy.lmp)
+solution/wire-plot.py
+solution/wireviz.lmp
+solution/wire.log
+solution/stress-wire.csv
+solution/stress-wire-0.csv
+solution/stress-wire-10.csv
+solution/wire-0.dump
+solution/wire-10.dump
+solution/wire-0-50000.png
+solution/wire-10-50000.png
+solution/wire-stress-strain.png
+solution/wire-failure.png

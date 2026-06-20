@@ -1,0 +1,37 @@
+# LAMMPS Input File
+# Licensed under CC BY 4.0
+# A Set of Materials-Science Tutorials for the LAMMPS Simulation Package
+# Modernized recreation of the MSU/CAVS tutorials by Mark A. Tschopp
+# Tutorial 2: single-point energy of fcc aluminum at a given lattice constant
+#
+# The lattice constant is an "index" variable, so it can be set either
+#   - interactively, from the LAMMPS-GUI variable dialog, or
+#   - on the command line:   lmp -in energy.lmp -var a0 4.10
+
+variable a0 index 4.049
+
+# 1) Initialization
+units metal
+dimension 3
+boundary p p p
+atom_style atomic
+
+# 2) System definition
+lattice fcc ${a0} origin 0.25 0.25 0.25
+region box block 0 4 0 4 0 4
+create_box 1 box
+create_atoms 1 box
+
+# 3) Settings
+pair_style eam/alloy
+pair_coeff * * Al_zhou.eam.alloy Al
+
+# 4) Monitoring and 5) Run (single-point energy, no relaxation)
+thermo_style custom step pe vol
+run 0
+
+# report lattice constant, volume per atom, and cohesive energy
+variable natoms equal count(all)
+variable vat  equal vol/v_natoms
+variable ecoh   equal pe/v_natoms
+print "EV ${a0} ${vat} ${ecoh}"

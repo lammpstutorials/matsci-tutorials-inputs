@@ -1,0 +1,70 @@
+# LAMMPS Input File
+# Licensed under CC BY 4.0
+# A Set of Materials-Science Tutorials for the LAMMPS Simulation Package
+# Tutorial 5: build the bcc-iron <110> Sigma3(111) symmetric tilt grain
+# boundary used by the fracture simulation, and write it to a data file.
+#
+# The two grains share the [1 -1 0] tilt axis (along z); the (111) boundary
+# plane lies at y = 0.  The lower grain is the upper grain rotated 180 degrees
+# about the in-plane [1 1 -2] axis -- the symmetric-tilt relation, which here is
+# a Sigma3 misorientation.  Overlapping atoms at the interface are removed and
+# the structure is relaxed before it is written to Fe_gb.data.
+#
+# NOTE: the oriented cell repeats every (2/3) of a coincidence-site-lattice
+# period along x, so the box width (nx) must be a multiple of 3 to be
+# commensurate with the boundary; nx = 6 spans 4 CSL periods.
+
+# 1) Initialization
+units metal
+dimension 3
+boundary p p p
+atom_style atomic
+
+# 2) System definition: two mirror-related bcc grains meeting at y = 0
+variable a0 equal 2.855324          # bcc Fe lattice constant (Fe_mm.eam.fs)
+variable nx equal 6                 # cell width along x (multiple of 3)
+variable ny equal 8                 # half-height: cells per grain along y
+variable nz equal 2                 # thickness along the [1 -1 0] tilt axis
+
+lattice bcc ${a0} orient x 1 1 -2 orient y 1 1 1 orient z 1 -1 0
+region box block 0 ${nx} -${ny} ${ny} 0 ${nz} units lattice
+create_box 2 box
+
+# upper grain (y > 0): tilt axis [1 -1 0] along z, (111) plane at the boundary
+lattice bcc ${a0} orient x 1 1 -2 orient y 1 1 1 orient z 1 -1 0
+region upper block INF INF 0.0 INF INF INF units box
+create_atoms 1 region upper
+
+# lower grain (y < 0): the upper grain rotated 180 deg about x = [1 1 -2]
+lattice bcc ${a0} orient x 1 1 -2 orient y -1 -1 -1 orient z -1 1 0
+region lower block INF INF INF 0.0 INF INF units box
+create_atoms 2 region lower
+
+# 3) Settings
+pair_style eam/fs
+pair_coeff * * Fe_mm.eam.fs Fe Fe
+
+# remove atoms that sit on top of each other across the y = 0 interface
+delete_atoms overlap 0.35 all all
+
+# 4) Relax atomic positions, then the in-plane (x, z) box dimensions
+thermo 50
+thermo_style custom step pe lx ly lz press pxx pyy pzz
+min_style cg
+minimize 1.0e-12 1.0e-12 2000 20000
+
+fix relaxbox all box/relax x 0.0 z 0.0 couple none vmax 0.001
+minimize 1.0e-12 1.0e-12 2000 20000
+unfix relaxbox
+
+# 5) Grain-boundary energy.  With PBC along y the cell contains TWO equivalent
+# (111) boundaries (at y = 0 and across the periodic seam), hence the factor 2.
+variable ecoh   equal -4.122435     # bcc Fe cohesive energy (eV/atom)
+variable natoms equal count(all)
+variable area   equal lx*lz
+variable egb    equal (pe-v_natoms*v_ecoh)/(2.0*v_area)
+variable egb_mJ equal v_egb*16021.766
+print "GB area (one boundary): $(v_area:%.3f) Ang^2, atoms: ${natoms}"
+print "GB energy: $(v_egb:%.5f) eV/Ang^2 = $(v_egb_mJ:%.1f) mJ/m^2"
+
+write_data Fe_gb.data

@@ -1,0 +1,41 @@
+# LAMMPS Input File
+# Licensed under CC BY 4.0
+# A Set of Materials-Science Tutorials for the LAMMPS Simulation Package
+# Tutorial 9 (visualization): render the fcc-copper primitive-cell supercell
+# used by phonon.lmp.  Builds the same triclinic cell and writes a single
+# image with the built-in renderer, atoms drawn in a copper color.
+
+units       metal
+atom_style  atomic
+boundary    p p p
+
+variable    a0 equal 3.6318
+variable    N  equal 8
+variable    s  equal ${a0}/sqrt(2.0)
+variable    lx equal ${s}
+variable    ly equal ${s}*sqrt(3.0)/2.0
+variable    lz equal ${s}*sqrt(2.0/3.0)
+variable    ty equal ${s}/2.0
+variable    tz equal ${s}/(2.0*sqrt(3.0))
+
+lattice     custom ${a0}                          &
+            a1 0.7071068 0.0       0.0            &
+            a2 0.3535534 0.6123724 0.0            &
+            a3 0.3535534 0.2041241 0.5773503      &
+            basis 0.0 0.0 0.0 origin 0.5 0.5 0.5
+region      box prism 0 $(v_N*v_lx) 0 $(v_N*v_ly) 0 $(v_N*v_lz) &
+            $(v_N*v_ty) $(v_N*v_ty) $(v_N*v_tz) units box
+create_box  1 box
+create_atoms 1 box
+mass        1 63.546
+pair_style  eam/alloy
+pair_coeff  * * Cu_mishin1.eam.alloy Cu
+
+run 0 post no
+
+# copper-colored spheres, midnightblue cell edges, SSAO depth shading
+write_dump  all image cu-cell.png type type adiam 2.0           &
+            view 85 5 zoom 4.0 size 1100 850                   &
+            shiny 0.15 fsaa yes ssao yes 4321 0.6 box yes 0.025 &
+            modify backcolor white boxcolor midnightblue        &
+            color copper 0.80 0.48 0.23 acolor 1 copper

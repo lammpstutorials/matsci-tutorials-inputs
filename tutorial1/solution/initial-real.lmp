@@ -1,0 +1,26 @@
+# LAMMPS Input File
+# Licensed under CC BY 4.0
+# Tutorial 1 -- units/potential demonstration (solution only)
+# Identical single-point energy to initial.lmp, but run in "real" units.
+# Al_zhou.eam.alloy is written in "metal" units and carries a UNITS: tag,
+# so LAMMPS automatically converts it to real units (energies x 23.060549).
+# The single-point energy is therefore physically identical to the metal-unit
+# result (-915.75277 eV = -21117.76 kcal/mol). Without the UNITS: tag, LAMMPS
+# could not convert and would silently use the eV numbers as kcal/mol.
+
+units real
+dimension 3
+boundary p p p
+atom_style atomic
+
+lattice fcc 4.05
+region box block 0 4 0 4 0 4
+create_box 1 box
+create_atoms 1 box
+
+pair_style eam/alloy
+pair_coeff * * Al_zhou.eam.alloy Al
+
+thermo_style custom step pe press lx
+run 0
+print "Single-point energy in real units: $(pe) kcal/mol"

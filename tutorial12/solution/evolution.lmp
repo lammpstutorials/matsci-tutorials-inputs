@@ -1,0 +1,88 @@
+# LAMMPS Input File  (figure: solid-liquid interface evolution vs temperature)
+# Licensed under CC BY 4.0
+# Build ONE solid-liquid two-phase cell of fcc Al (Mendelev potential), then
+# hold a copy of it at three temperatures -- above, at, and below the melting
+# point -- and snapshot the interface at four times each.  Below Tm the solid
+# (right) grows into the liquid (left); above Tm it melts; near Tm it barely
+# moves.  Atoms are colored by common-neighbor analysis of the INHERENT
+# structure (a brief minimization per snapshot removes thermal noise, since
+# near Tm the instantaneous structures of hot solid and liquid overlap).
+#
+# Designed to run in parallel (e.g. mpirun -np 64 lmp -in evolution.lmp).
+# The three temperatures may need a few-kelvin adjustment to straddle this
+# cell's Tm; the segment length (run NNN) sets how far the interface moves
+# between frames.  Assemble the 12 PNGs with, e.g.:
+#   montage evo_970_*.png evo_930_*.png evo_890_*.png -tile 4x3 -geometry +4+4 evolution.png
+
+# ---------- build the two-phase cell ----------
+units metal
+atom_style atomic
+boundary p p p
+lattice fcc 4.05
+region box block 0 10 0 10 0 40          # bigger cross-section for a clean interface
+create_box 1 box
+create_atoms 1 box
+mass 1 26.98
+pair_style eam/fs
+pair_coeff * * ../Al_mm.eam.fs Al
+velocity all create 800.0 7654 mom yes rot yes
+timestep 0.002
+thermo 10000
+
+fix eq all npt temp 800.0 800.0 0.2 x 0 0 2 y 0 0 2 z 0 0 2 couple xy
+run 15000
+unfix eq
+variable zmid equal zlo+(zhi-zlo)/2.0
+region rtop block INF INF INF INF ${zmid} INF units box
+group top region rtop
+group bot subtract all top
+fix baro all nph z 0 0 2
+fix hot  top langevin 1400.0 1400.0 0.1 11111
+fix cold bot langevin  800.0  800.0 0.1 22222
+run 20000
+unfix hot
+unfix cold
+write_restart start.restart
+
+# ---------- evolve at three temperatures, saving 4 snapshots each ----------
+variable T index 970 930 890             # above / near / below Tm (tune to cell)
+label tloop
+clear
+read_restart start.restart
+pair_style eam/fs
+pair_coeff * * ../Al_mm.eam.fs Al
+timestep 0.002
+reset_timestep 0
+fix baro all nph x 0 0 2 y 0 0 2 z 0 0 2 couple xy
+fix th all langevin $T $T 0.1 4321
+thermo 10000
+write_restart evo_$T_0.restart
+run 30000
+write_restart evo_$T_1.restart
+run 30000
+write_restart evo_$T_2.restart
+run 30000
+write_restart evo_$T_3.restart
+next T
+jump SELF tloop
+
+# ---------- render the 12 snapshots (inherent structure, z horizontal) ----------
+variable S index evo_970_0 evo_970_1 evo_970_2 evo_970_3 &
+                 evo_930_0 evo_930_1 evo_930_2 evo_930_3 &
+                 evo_890_0 evo_890_1 evo_890_2 evo_890_3
+label sloop
+clear
+read_restart ${S}.restart
+pair_style eam/fs
+pair_coeff * * ../Al_mm.eam.fs Al
+minimize 1.0e-6 1.0e-6 2000 20000
+compute cna all cna/atom 3.6
+thermo_style custom step pe
+run 0
+# z runs left-right; liquid (low fcc) left, solid (steelblue) right
+write_dump all image ${S}.png c_cna type adiam 2.6 &
+    view 90 -90 up 1 0 0 zoom 6.2 size 1000 300 shiny 0.15 fsaa yes ssao yes 7123 0.6 &
+    box yes 0.02 modify backcolor white boxcolor midnightblue &
+    amap 1 5 sa 1.0 5 steelblue purple green red gray
+next S
+jump SELF sloop

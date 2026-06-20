@@ -1,0 +1,19 @@
+Elastic stiffness matrix C_ij [GPa]:
+[[151.4  76.4  76.4  -0.   -0.   -0. ]
+ [ 76.4 151.4  76.4  -0.   -0.    0. ]
+ [ 76.4  76.4 151.4   0.    0.   -0. ]
+ [  0.    0.    0.   56.4   0.    0. ]
+ [  0.    0.    0.    0.   56.4   0. ]
+ [  0.    0.    0.    0.    0.   56.4]]
+
+Cubic elastic constants (this work / SW analytic / experiment):
+  C11 =  151.4  / 151.4 / 165.6 GPa
+  C12 =   76.4  /  76.4 /  63.9 GPa
+  C44 =   56.4  /  56.4 /  79.6 GPa
+
+Aggregate (Voigt-Reuss-Hill) moduli:
+  bulk modulus    B =  101.4 GPa
+  shear modulus   G =   47.9 GPa
+  Young's modulus E =  124.2 GPa
+  Poisson ratio   v =  0.296
+  Zener anisotropy A =  1.51

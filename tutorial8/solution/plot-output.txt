@@ -1,0 +1,9 @@
+L =   10.9 nm   dT/dz =  2.66 K/nm   kappa =    5.2 W/m/K
+L =   21.7 nm   dT/dz =  1.46 K/nm   kappa =   10.4 W/m/K
+L =   32.6 nm   dT/dz =  1.29 K/nm   kappa =   12.2 W/m/K
+L =   43.4 nm   dT/dz =  0.84 K/nm   kappa =   19.3 W/m/K
+
+kappa grows by 3.7x over this length range and is still rising:
+the cells are far shorter than the silicon phonon mean free path (~300 nm),
+so transport is quasi-ballistic and kappa is severely size-limited.
+experiment (Si, 300 K): ~148 W/m/K.

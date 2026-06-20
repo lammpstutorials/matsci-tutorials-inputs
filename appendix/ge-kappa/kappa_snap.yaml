@@ -1,0 +1,6 @@
+# finite-size RNEMD thermal conductivity of germanium (snap)
+# records: ncells length_A edelta_eV time_ps area_A2 (heat along z, 20 slabs)
+- {ncells: 20, length_A: 116.036, edelta_eV: 673.248547,     time_ps: 400.000, area_A2: 1211.7993}
+- {ncells: 40, length_A: 231.993, edelta_eV: 707.760599,     time_ps: 400.000, area_A2: 1210.9707}
+- {ncells: 60, length_A: 348.024, edelta_eV: 735.577879,     time_ps: 400.000, area_A2: 1211.2059}
+- {ncells: 80, length_A: 464.058, edelta_eV: 744.126998,     time_ps: 400.000, area_A2: 1211.3430}

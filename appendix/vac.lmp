@@ -1,0 +1,21 @@
+units metal
+boundary p p p
+atom_style atomic
+lattice ${lat} ${a}
+region box block 0 ${n} 0 ${n} 0 ${n}
+create_box 1 box
+create_atoms 1 box
+mass 1 ${mass}
+include ${pot}
+min_style cg
+variable Nperf equal count(all)
+run 0
+variable tmp equal pe
+variable eperf equal ${tmp}          # FROZEN perfect-crystal total energy
+group del id 1
+delete_atoms group del compress yes
+minimize 1e-12 1e-10 2000 20000
+variable tmp2 equal pe
+variable edef equal ${tmp2}          # FROZEN defect total energy
+variable evac equal ${edef}-(${Nperf}-1)/${Nperf}*${eperf}
+print "EVAC = ${evac} eV   ECOH = $(v_eperf/v_Nperf) eV/atom"

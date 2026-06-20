@@ -1,0 +1,5 @@
+# RNEMD kappa scan v2 (swap=100, build40 prod80)
+- {ncells: 20, length_A: 108.620, edelta_eV: 145.653374,     time_ps: 80.000, area_A2: 1061.8474}
+- {ncells: 40, length_A: 217.240, edelta_eV: 161.689265,     time_ps: 80.000, area_A2: 1061.8474}
+- {ncells: 60, length_A: 325.860, edelta_eV: 166.207943,     time_ps: 80.000, area_A2: 1061.8474}
+- {ncells: 80, length_A: 434.480, edelta_eV: 172.714186,     time_ps: 80.000, area_A2: 1061.8474}

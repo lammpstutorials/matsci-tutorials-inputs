@@ -1,0 +1,537 @@
+LAMMPS (30 Mar 2026 - Development - patch_30Mar2026-1178-g5f8b8984a-modified)
+  using 2 OpenMP thread(s) per MPI task
+# LAMMPS Input File
+# Licensed under CC BY 4.0
+# A Set of Materials-Science Tutorials for the LAMMPS Simulation Package
+# Appendix: structure-analysis toolkit -- radial distribution functions
+#
+# Compute g(r) of diamond-cubic silicon (Stillinger-Weber) at three temperatures: room temperature, an
+# intermediate temperature, and above the superheating limit, where the
+# crystal melts during the run and the final sampling sees the liquid.
+# A force-less pair_style zero is overlaid only to extend the neighbor
+# list to 8.5 A so that g(r) covers several coordination shells
+# independent of the force cutoff.  Outputs rdf_si_<T>.dat; plot all
+# materials with rdf-plot.py.
+
+variable T index 300 1000 2600
+
+units metal
+atom_style atomic
+boundary p p p
+
+lattice diamond 5.431
+Lattice spacing in x,y,z = 5.431 5.431 5.431
+region box block 0 6 0 6 0 6
+create_box 1 box
+Created orthogonal box = (0 0 0) to (32.586 32.586 32.586)
+  1 by 1 by 1 MPI processor grid
+create_atoms 1 box
+Created 1728 atoms
+  using lattice units in orthogonal box = (0 0 0) to (32.586 32.586 32.586)
+  create_atoms CPU = 0.000 seconds
+mass 1 28.0855
+pair_style hybrid/overlay sw zero 8.5
+pair_coeff * * sw Si.sw Si
+Reading sw potential file Si.sw with DATE: 2007-06-11
+pair_coeff * * zero
+
+velocity all create $(2.0*v_T) 31415 mom yes rot yes dist gaussian
+velocity all create 600 31415 mom yes rot yes dist gaussian
+fix md all npt temp ${T} ${T} 0.2 iso 0.0 0.0 1.0
+fix md all npt temp 300 ${T} 0.2 iso 0.0 0.0 1.0
+fix md all npt temp 300 300 0.2 iso 0.0 0.0 1.0
+thermo 1000
+thermo_style custom step temp pe press vol
+run 10000
+Neighbor list info ...
+  update: every = 1 steps, delay = 0 steps, check = yes
+  max neighbors/atom: 2000, page size: 100000
+  master list distance cutoff = 10.5
+  ghost atom cutoff = 10.5
+  binsize = 5.25, bins = 7 7 7
+  2 neighbor lists, perpetual/occasional/extra = 2 0 0
+  (1) pair sw, perpetual
+      attributes: full, newton on
+      pair build: full/bin/atomonly
+      stencil: full/bin/3d
+      bin: standard
+  (2) pair zero, perpetual, half/full from (1)
+      attributes: half, newton on, cut 10.5
+      pair build: halffull/newton
+      stencil: none
+      bin: none
+Per MPI rank memory allocation (min/avg/max) = 7.5 | 7.5 | 7.5 Mbytes
+   Step          Temp          PotEng         Press          Volume    
+         0   600           -7493.6448      4106.471       34601.359    
+      1000   289.4452      -7420.9722      1380.2204      34676.32     
+      2000   291.20125     -7421.8059      827.60134      34691.428    
+      3000   309.86561     -7428.2935     -91.668157      34725.151    
+      4000   293.1712      -7424.6689     -742.96336      34739.142    
+      5000   299.67393     -7423.4373     -1342.7757      34764.677    
+      6000   288.54116     -7420.2704     -1598.3052      34774.855    
+      7000   296.78018     -7423.5097     -2107.4925      34790.971    
+      8000   295.30618     -7425.4907     -139.38274      34725.067    
+      9000   317.3498      -7427.5557      595.82794      34699.269    
+     10000   302.00563     -7425.1117      1596.4366      34663.752    
+Loop time of 18.7933 on 2 procs for 10000 steps with 1728 atoms
+
+Performance: 45.974 ns/day, 0.522 hours/ns, 532.103 timesteps/s, 919.474 katom-step/s
+199.4% CPU use with 1 MPI tasks x 2 OpenMP threads
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 18.325     | 18.325     | 18.325     |   0.0 | 97.51
+Neigh   | 0          | 0          | 0          |   0.0 |  0.00
+Comm    | 0.12153    | 0.12153    | 0.12153    |   0.0 |  0.65
+Output  | 0.00018631 | 0.00018631 | 0.00018631 |   0.0 |  0.00
+Modify  | 0.31556    | 0.31556    | 0.31556    |   0.0 |  1.68
+Other   |            | 0.03089    |            |       |  0.16
+
+Nlocal:           1728 ave        1728 max        1728 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Nghost:           5701 ave        5701 max        5701 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Neighs:         236736 ave      236736 max      236736 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+FullNghs:       473472 ave      473472 max      473472 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+
+Total # of neighbors = 473472
+Ave neighs/atom = 274
+Neighbor list builds = 0
+Dangerous builds = 0
+
+# sample g(r) over 10 ps
+compute gr all rdf 250
+fix rec all ave/time 100 100 10000 c_gr[*] file rdf_si_${T}.dat mode vector
+fix rec all ave/time 100 100 10000 c_gr[*] file rdf_si_300.dat mode vector
+run 10000
+Neighbor list info ...
+  update: every = 1 steps, delay = 0 steps, check = yes
+  max neighbors/atom: 2000, page size: 100000
+  master list distance cutoff = 10.5
+  ghost atom cutoff = 10.5
+  binsize = 5.25, bins = 7 7 7
+  3 neighbor lists, perpetual/occasional/extra = 2 1 0
+  (1) pair sw, perpetual
+      attributes: full, newton on
+      pair build: full/bin/atomonly
+      stencil: full/bin/3d
+      bin: standard
+  (2) pair zero, perpetual, half/full from (1)
+      attributes: half, newton on, cut 10.5
+      pair build: halffull/newton
+      stencil: none
+      bin: none
+  (3) compute rdf, occasional, copy from (2)
+      attributes: half, newton on
+      pair build: copy
+      stencil: none
+      bin: none
+Per MPI rank memory allocation (min/avg/max) = 7.5 | 7.5 | 7.5 Mbytes
+   Step          Temp          PotEng         Press          Volume    
+     10000   302.00563     -7425.1117      1596.4366      34663.752    
+     11000   306.53628     -7431.6238      2459.3765      34634.745    
+     12000   286.62401     -7425.0685      1178.0852      34676.889    
+     13000   274.83416     -7420.5903     -121.83672      34716.616    
+     14000   305.24213     -7424.891       64.916414      34718.055    
+     15000   300.69274     -7424.7689     -1141.3768      34763.315    
+     16000   291.76428     -7425.6113     -3211.0404      34831.329    
+     17000   289.86852     -7423.6288     -1912.6088      34781.421    
+     18000   312.29221     -7426.4128      25.027976      34723.022    
+     19000   291.21405     -7423.1064      437.77181      34704.63     
+     20000   298.50028     -7425.1964      1283.142       34677.602    
+Loop time of 18.8294 on 2 procs for 10000 steps with 1728 atoms
+
+Performance: 45.886 ns/day, 0.523 hours/ns, 531.085 timesteps/s, 917.714 katom-step/s
+199.4% CPU use with 1 MPI tasks x 2 OpenMP threads
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 18.14      | 18.14      | 18.14      |   0.0 | 96.34
+Neigh   | 0          | 0          | 0          |   0.0 |  0.00
+Comm    | 0.12299    | 0.12299    | 0.12299    |   0.0 |  0.65
+Output  | 0.00016843 | 0.00016843 | 0.00016843 |   0.0 |  0.00
+Modify  | 0.53568    | 0.53568    | 0.53568    |   0.0 |  2.84
+Other   |            | 0.03058    |            |       |  0.16
+
+Nlocal:           1728 ave        1728 max        1728 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Nghost:           5701 ave        5701 max        5701 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Neighs:         229036 ave      229036 max      229036 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+FullNghs:       458072 ave      458072 max      458072 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+
+Total # of neighbors = 458072
+Ave neighs/atom = 265.08796
+Neighbor list builds = 0
+Dangerous builds = 0
+
+print "RESULT si T=${T} done"
+RESULT si T=300 done
+
+clear
+  using 2 OpenMP thread(s) per MPI task
+next T
+jump SELF
+# LAMMPS Input File
+# Licensed under CC BY 4.0
+# A Set of Materials-Science Tutorials for the LAMMPS Simulation Package
+# Appendix: structure-analysis toolkit -- radial distribution functions
+#
+# Compute g(r) of diamond-cubic silicon (Stillinger-Weber) at three temperatures: room temperature, an
+# intermediate temperature, and above the superheating limit, where the
+# crystal melts during the run and the final sampling sees the liquid.
+# A force-less pair_style zero is overlaid only to extend the neighbor
+# list to 8.5 A so that g(r) covers several coordination shells
+# independent of the force cutoff.  Outputs rdf_si_<T>.dat; plot all
+# materials with rdf-plot.py.
+
+variable T index 300 1000 2600
+
+units metal
+atom_style atomic
+boundary p p p
+
+lattice diamond 5.431
+Lattice spacing in x,y,z = 5.431 5.431 5.431
+region box block 0 6 0 6 0 6
+create_box 1 box
+Created orthogonal box = (0 0 0) to (32.586 32.586 32.586)
+  1 by 1 by 1 MPI processor grid
+create_atoms 1 box
+Created 1728 atoms
+  using lattice units in orthogonal box = (0 0 0) to (32.586 32.586 32.586)
+  create_atoms CPU = 0.000 seconds
+mass 1 28.0855
+pair_style hybrid/overlay sw zero 8.5
+pair_coeff * * sw Si.sw Si
+Reading sw potential file Si.sw with DATE: 2007-06-11
+pair_coeff * * zero
+
+velocity all create $(2.0*v_T) 31415 mom yes rot yes dist gaussian
+velocity all create 2000 31415 mom yes rot yes dist gaussian
+fix md all npt temp ${T} ${T} 0.2 iso 0.0 0.0 1.0
+fix md all npt temp 1000 ${T} 0.2 iso 0.0 0.0 1.0
+fix md all npt temp 1000 1000 0.2 iso 0.0 0.0 1.0
+thermo 1000
+thermo_style custom step temp pe press vol
+run 10000
+Neighbor list info ...
+  update: every = 1 steps, delay = 0 steps, check = yes
+  max neighbors/atom: 2000, page size: 100000
+  master list distance cutoff = 10.5
+  ghost atom cutoff = 10.5
+  binsize = 5.25, bins = 7 7 7
+  2 neighbor lists, perpetual/occasional/extra = 2 0 0
+  (1) pair sw, perpetual
+      attributes: full, newton on
+      pair build: full/bin/atomonly
+      stencil: full/bin/3d
+      bin: standard
+  (2) pair zero, perpetual, half/full from (1)
+      attributes: half, newton on, cut 10.5
+      pair build: halffull/newton
+      stencil: none
+      bin: none
+Per MPI rank memory allocation (min/avg/max) = 7.5 | 7.5 | 7.5 Mbytes
+   Step          Temp          PotEng         Press          Volume    
+         0   2000          -7493.6448      13753.886      34601.359    
+      1000   1044.8213     -7267.3153     -317.26252      34975.393    
+      2000   1070.9593     -7268.0191     -911.68307      35012.257    
+      3000   973.4398      -7254.0986      1125.6559      34889.839    
+      4000   1013.3173     -7263.9333      1573.6708      34914.255    
+      5000   1053.5508     -7260.7619     -2219.2136      35057.815    
+      6000   1028.3272     -7257.404      -124.92889      34969.508    
+      7000   1023.3958     -7259.7403      1786.0914      34898.684    
+      8000   940.02764     -7256.5552      11.382394      34931.488    
+      9000   1001.4853     -7259.0233     -329.35698      34972.699    
+     10000   987.71651     -7254.5729     -245.10049      34968.864    
+Loop time of 22.1187 on 2 procs for 10000 steps with 1728 atoms
+
+Performance: 39.062 ns/day, 0.614 hours/ns, 452.106 timesteps/s, 781.239 katom-step/s
+199.4% CPU use with 1 MPI tasks x 2 OpenMP threads
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 21.661     | 21.661     | 21.661     |   0.0 | 97.93
+Neigh   | 0          | 0          | 0          |   0.0 |  0.00
+Comm    | 0.12332    | 0.12332    | 0.12332    |   0.0 |  0.56
+Output  | 0.00018197 | 0.00018197 | 0.00018197 |   0.0 |  0.00
+Modify  | 0.30221    | 0.30221    | 0.30221    |   0.0 |  1.37
+Other   |            | 0.03168    |            |       |  0.14
+
+Nlocal:           1728 ave        1728 max        1728 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Nghost:           5701 ave        5701 max        5701 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Neighs:         236736 ave      236736 max      236736 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+FullNghs:       473472 ave      473472 max      473472 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+
+Total # of neighbors = 473472
+Ave neighs/atom = 274
+Neighbor list builds = 0
+Dangerous builds = 0
+
+# sample g(r) over 10 ps
+compute gr all rdf 250
+fix rec all ave/time 100 100 10000 c_gr[*] file rdf_si_${T}.dat mode vector
+fix rec all ave/time 100 100 10000 c_gr[*] file rdf_si_1000.dat mode vector
+run 10000
+Neighbor list info ...
+  update: every = 1 steps, delay = 0 steps, check = yes
+  max neighbors/atom: 2000, page size: 100000
+  master list distance cutoff = 10.5
+  ghost atom cutoff = 10.5
+  binsize = 5.25, bins = 7 7 7
+  3 neighbor lists, perpetual/occasional/extra = 2 1 0
+  (1) pair sw, perpetual
+      attributes: full, newton on
+      pair build: full/bin/atomonly
+      stencil: full/bin/3d
+      bin: standard
+  (2) pair zero, perpetual, half/full from (1)
+      attributes: half, newton on, cut 10.5
+      pair build: halffull/newton
+      stencil: none
+      bin: none
+  (3) compute rdf, occasional, copy from (2)
+      attributes: half, newton on
+      pair build: copy
+      stencil: none
+      bin: none
+Per MPI rank memory allocation (min/avg/max) = 7.5 | 7.5 | 7.5 Mbytes
+   Step          Temp          PotEng         Press          Volume    
+     10000   987.71651     -7254.5729     -245.10049      34968.864    
+     11000   1016.6013     -7260.082       869.31624      34937.019    
+     12000   975.00066     -7260.3075      850.19893      34908.864    
+     13000   994.30269     -7265.092      -2198.1938      35033.63     
+     14000   1006.9926     -7259.6644     -2010.7235      35046.196    
+     15000   1032.358      -7258.4577      2611.1248      34880.787    
+     16000   1024.7974     -7253.9991     -171.68281      34973.49     
+     17000   1026.9172     -7266.1213      155.30382      34960.371    
+     18000   1017.8387     -7265.61        497.70603      34955.643    
+     19000   1005.3404     -7258.4077     -723.63715      34997.114    
+     20000   1001.9701     -7252.1168     -2502.8071      35041.965    
+Loop time of 22.0607 on 2 procs for 10000 steps with 1728 atoms
+
+Performance: 39.165 ns/day, 0.613 hours/ns, 453.295 timesteps/s, 783.294 katom-step/s
+198.9% CPU use with 1 MPI tasks x 2 OpenMP threads
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 21.287     | 21.287     | 21.287     |   0.0 | 96.49
+Neigh   | 0.086899   | 0.086899   | 0.086899   |   0.0 |  0.39
+Comm    | 0.12181    | 0.12181    | 0.12181    |   0.0 |  0.55
+Output  | 0.00016883 | 0.00016883 | 0.00016883 |   0.0 |  0.00
+Modify  | 0.53272    | 0.53272    | 0.53272    |   0.0 |  2.41
+Other   |            | 0.03219    |            |       |  0.15
+
+Nlocal:           1728 ave        1728 max        1728 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Nghost:           5703 ave        5703 max        5703 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Neighs:         221497 ave      221497 max      221497 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+FullNghs:       442994 ave      442994 max      442994 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+
+Total # of neighbors = 442994
+Ave neighs/atom = 256.36227
+Neighbor list builds = 12
+Dangerous builds = 0
+
+print "RESULT si T=${T} done"
+RESULT si T=1000 done
+
+clear
+  using 2 OpenMP thread(s) per MPI task
+next T
+jump SELF
+# LAMMPS Input File
+# Licensed under CC BY 4.0
+# A Set of Materials-Science Tutorials for the LAMMPS Simulation Package
+# Appendix: structure-analysis toolkit -- radial distribution functions
+#
+# Compute g(r) of diamond-cubic silicon (Stillinger-Weber) at three temperatures: room temperature, an
+# intermediate temperature, and above the superheating limit, where the
+# crystal melts during the run and the final sampling sees the liquid.
+# A force-less pair_style zero is overlaid only to extend the neighbor
+# list to 8.5 A so that g(r) covers several coordination shells
+# independent of the force cutoff.  Outputs rdf_si_<T>.dat; plot all
+# materials with rdf-plot.py.
+
+variable T index 300 1000 2600
+
+units metal
+atom_style atomic
+boundary p p p
+
+lattice diamond 5.431
+Lattice spacing in x,y,z = 5.431 5.431 5.431
+region box block 0 6 0 6 0 6
+create_box 1 box
+Created orthogonal box = (0 0 0) to (32.586 32.586 32.586)
+  1 by 1 by 1 MPI processor grid
+create_atoms 1 box
+Created 1728 atoms
+  using lattice units in orthogonal box = (0 0 0) to (32.586 32.586 32.586)
+  create_atoms CPU = 0.000 seconds
+mass 1 28.0855
+pair_style hybrid/overlay sw zero 8.5
+pair_coeff * * sw Si.sw Si
+Reading sw potential file Si.sw with DATE: 2007-06-11
+pair_coeff * * zero
+
+velocity all create $(2.0*v_T) 31415 mom yes rot yes dist gaussian
+velocity all create 5200 31415 mom yes rot yes dist gaussian
+fix md all npt temp ${T} ${T} 0.2 iso 0.0 0.0 1.0
+fix md all npt temp 2600 ${T} 0.2 iso 0.0 0.0 1.0
+fix md all npt temp 2600 2600 0.2 iso 0.0 0.0 1.0
+thermo 1000
+thermo_style custom step temp pe press vol
+run 10000
+Neighbor list info ...
+  update: every = 1 steps, delay = 0 steps, check = yes
+  max neighbors/atom: 2000, page size: 100000
+  master list distance cutoff = 10.5
+  ghost atom cutoff = 10.5
+  binsize = 5.25, bins = 7 7 7
+  2 neighbor lists, perpetual/occasional/extra = 2 0 0
+  (1) pair sw, perpetual
+      attributes: full, newton on
+      pair build: full/bin/atomonly
+      stencil: full/bin/3d
+      bin: standard
+  (2) pair zero, perpetual, half/full from (1)
+      attributes: half, newton on, cut 10.5
+      pair build: halffull/newton
+      stencil: none
+      bin: none
+Per MPI rank memory allocation (min/avg/max) = 7.5 | 7.5 | 7.5 Mbytes
+   Step          Temp          PotEng         Press          Volume    
+         0   5200          -7493.6448      35805.12       34601.359    
+      1000   2554.9989     -6754.5044      2072.5696      35252.973    
+      2000   2535.0386     -6759.102       3108.0394      35222.338    
+      3000   2610.5525     -6710.0556     -598.34174      35298.974    
+      4000   2515.2272     -6617.1379     -1882.4274      35196.062    
+      5000   2444.8556     -6466.3105     -870.83832      34489.505    
+      6000   2512.7951     -6246.0872      2275.6329      33743.482    
+      7000   2569.4085     -6253.2827     -7549.7258      33664.725    
+      8000   2615.3673     -6246.0905      6126.1489      33276.597    
+      9000   2644.0019     -6235.055       5117.877       33480.757    
+     10000   2709.5576     -6262.1838      1507.809       33632.27     
+Loop time of 31.5169 on 2 procs for 10000 steps with 1728 atoms
+
+Performance: 27.414 ns/day, 0.875 hours/ns, 317.290 timesteps/s, 548.277 katom-step/s
+193.3% CPU use with 1 MPI tasks x 2 OpenMP threads
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 28.745     | 28.745     | 28.745     |   0.0 | 91.21
+Neigh   | 2.2824     | 2.2824     | 2.2824     |   0.0 |  7.24
+Comm    | 0.14035    | 0.14035    | 0.14035    |   0.0 |  0.45
+Output  | 0.00018903 | 0.00018903 | 0.00018903 |   0.0 |  0.00
+Modify  | 0.31329    | 0.31329    | 0.31329    |   0.0 |  0.99
+Other   |            | 0.03565    |            |       |  0.11
+
+Nlocal:           1728 ave        1728 max        1728 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Nghost:           6011 ave        6011 max        6011 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Neighs:         214520 ave      214520 max      214520 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+FullNghs:       429040 ave      429040 max      429040 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+
+Total # of neighbors = 429040
+Ave neighs/atom = 248.28704
+Neighbor list builds = 317
+Dangerous builds = 0
+
+# sample g(r) over 10 ps
+compute gr all rdf 250
+fix rec all ave/time 100 100 10000 c_gr[*] file rdf_si_${T}.dat mode vector
+fix rec all ave/time 100 100 10000 c_gr[*] file rdf_si_2600.dat mode vector
+run 10000
+Neighbor list info ...
+  update: every = 1 steps, delay = 0 steps, check = yes
+  max neighbors/atom: 2000, page size: 100000
+  master list distance cutoff = 10.5
+  ghost atom cutoff = 10.5
+  binsize = 5.25, bins = 7 7 7
+  3 neighbor lists, perpetual/occasional/extra = 2 1 0
+  (1) pair sw, perpetual
+      attributes: full, newton on
+      pair build: full/bin/atomonly
+      stencil: full/bin/3d
+      bin: standard
+  (2) pair zero, perpetual, half/full from (1)
+      attributes: half, newton on, cut 10.5
+      pair build: halffull/newton
+      stencil: none
+      bin: none
+  (3) compute rdf, occasional, copy from (2)
+      attributes: half, newton on
+      pair build: copy
+      stencil: none
+      bin: none
+Per MPI rank memory allocation (min/avg/max) = 7.508 | 7.508 | 7.508 Mbytes
+   Step          Temp          PotEng         Press          Volume    
+     10000   2709.5576     -6262.1838      1507.809       33632.27     
+     11000   2636.06       -6262.182      -634.2968       33516.698    
+     12000   2532.8419     -6258.3323      4300.7553      33421.636    
+     13000   2616.0524     -6232.2697     -6699.0052      33759.16     
+     14000   2664.5372     -6252.366       1370.762       33428.275    
+     15000   2602.9151     -6252.4691      1766.3339      33478.485    
+     16000   2586.0673     -6250.3224     -782.78036      33488.725    
+     17000   2579.571      -6233.4568     -3643.8902      33814.996    
+     18000   2618.4623     -6261.5102      4132.4087      33359.183    
+     19000   2558.5391     -6242.1541      3837.1         33336.354    
+     20000   2649.1414     -6251.6551     -3923.0542      33524.482    
+Loop time of 37.3631 on 2 procs for 10000 steps with 1728 atoms
+
+Performance: 23.124 ns/day, 1.038 hours/ns, 267.644 timesteps/s, 462.488 katom-step/s
+192.9% CPU use with 1 MPI tasks x 2 OpenMP threads
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 34.164     | 34.164     | 34.164     |   0.0 | 91.44
+Neigh   | 2.428      | 2.428      | 2.428      |   0.0 |  6.50
+Comm    | 0.1475     | 0.1475     | 0.1475     |   0.0 |  0.39
+Output  | 0.00017498 | 0.00017498 | 0.00017498 |   0.0 |  0.00
+Modify  | 0.58692    | 0.58692    | 0.58692    |   0.0 |  1.57
+Other   |            | 0.03688    |            |       |  0.10
+
+Nlocal:           1728 ave        1728 max        1728 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Nghost:           6018 ave        6018 max        6018 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Neighs:         214954 ave      214954 max      214954 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+FullNghs:       429908 ave      429908 max      429908 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+
+Total # of neighbors = 429908
+Ave neighs/atom = 248.78935
+Neighbor list builds = 333
+Dangerous builds = 0
+
+print "RESULT si T=${T} done"
+RESULT si T=2600 done
+
+clear
+  using 2 OpenMP thread(s) per MPI task
+next T
+jump SELF
+Total wall time: 0:02:30

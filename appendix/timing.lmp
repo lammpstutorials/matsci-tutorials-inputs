@@ -1,0 +1,14 @@
+units metal
+boundary p p p
+atom_style atomic
+lattice ${lat} ${a}
+region box block 0 ${n} 0 ${n} 0 ${n}
+create_box 1 box
+create_atoms 1 box
+mass 1 ${mass}
+include ${pot}
+velocity all create 300 12345
+fix 1 all nve
+timestep 0.001
+thermo 100
+run 200

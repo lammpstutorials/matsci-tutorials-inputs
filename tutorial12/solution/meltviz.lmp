@@ -1,0 +1,70 @@
+# LAMMPS Input File  (figure: seeded melt, cut-away)
+# Licensed under CC BY 4.0
+# Render the seeded melt (nucleate.lmp) with the top-front quarter of the cell
+# cut away so the crystalline seed at the center is exposed.  The bulk (molten)
+# atoms are gray; the seed atoms are a separate type drawn steelblue, so they
+# stand out where they protrude into the cut-away void.
+
+units metal
+atom_style atomic
+boundary p p p
+lattice fcc 4.05
+region box block 0 8 0 8 0 8
+create_box 2 box
+create_atoms 1 box
+mass 1 26.98
+mass 2 26.98
+pair_style eam/fs
+pair_coeff * * ../Al_mm.eam.fs Al Al
+velocity all create 300.0 12345 mom yes rot yes
+timestep 0.002
+thermo 5000
+
+# central spherical seed -> atom type 2 (so it can be colored separately)
+region sphere sphere 16.2 16.2 16.2 9.0 units box
+group  seed region sphere
+set group seed type 2
+
+# restrain the seed to its co-dilating lattice sites (as in nucleate.lmp)
+fix seed0 seed store/state 0 xs ys zs
+variable txx atom xlo+f_seed0[1]*lx
+variable tyy atom ylo+f_seed0[2]*ly
+variable tzz atom zlo+f_seed0[3]*lz
+variable dxs atom x-v_txx
+variable dys atom y-v_tyy
+variable dzs atom z-v_tzz
+variable drs atom sqrt(v_dxs*v_dxs+v_dys*v_dys+v_dzs*v_dzs)
+variable kgrow equal 10000
+variable gate  equal "(step/v_kgrow)*(step<=v_kgrow)+(step>v_kgrow)"
+variable k0   equal 3.0
+variable k1   equal 9.0
+variable d0   equal 0.6
+variable keff atom v_gate*(v_k0+v_k1/(1.0+(v_drs/v_d0)*(v_drs/v_d0)))
+variable fxx atom -v_keff*v_dxs
+variable fyy atom -v_keff*v_dys
+variable fzz atom -v_keff*v_dzs
+fix pull seed addforce v_fxx v_fyy v_fzz
+
+# equilibrate, then heat well above melting so the bulk is liquid
+fix relax all npt temp 300.0 300.0 0.2 iso 0.0 0.0 2.0
+run 10000
+unfix relax
+fix hot all npt temp 300.0 1500.0 0.2 iso 0.0 0.0 2.0
+run 60000
+unfix hot
+fix eqm all npt temp 1500.0 1500.0 0.2 iso 0.0 0.0 2.0
+run 20000
+
+# show every atom EXCEPT bulk atoms in the top-front quarter (z>zmid & y<ymid);
+# the whole seed is always shown via gmask(seed)
+variable ymid equal ylo+(yhi-ylo)/2.0
+variable zmid equal zlo+(zhi-zlo)/2.0
+# the atom-style variable selects the shown atoms; group ... variable turns it
+# into a (static) group that write_dump can render in a single file
+variable show atom "(z<v_zmid)||(y>v_ymid)||gmask(seed)"
+group shown variable show
+
+write_dump shown image seed-cutaway.png type type adiam 3.0 &
+    view 80 -10 zoom 1.45 size 800 800 shiny 0.2 fsaa yes ssao yes 9921 0.4 &
+    box yes 0.02 modify backcolor white boxcolor midnightblue &
+    acolor 1 gray acolor 2 steelblue lights 0.2 0.9 0.5 0.9 

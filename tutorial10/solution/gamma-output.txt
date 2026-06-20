@@ -1,0 +1,10 @@
+2 atoms in the cell -> 6 phonon modes at Gamma
+frequencies (THz):
+  mode 1:   -0.000  (acoustic)
+  mode 2:   -0.000  (acoustic)
+  mode 3:    0.000  (acoustic)
+  mode 4:   17.833  (optical)
+  mode 5:   17.833  (optical)
+  mode 6:   17.833  (optical)
+optical mode: 17.83 THz   (experiment: 15.53 THz)
+wrote gamma-levels.png

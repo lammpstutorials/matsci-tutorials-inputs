@@ -1,0 +1,220 @@
+LAMMPS (30 Mar 2026 - Development - patch_30Mar2026-1121-g91d4111a9)
+  using 8 OpenMP thread(s) per MPI task
+package omp 0
+using multi-threaded neighbor list subroutines
+# LAMMPS Input File
+# Licensed under CC BY 4.0
+# A Set of Materials-Science Tutorials for the LAMMPS Simulation Package
+# Tutorial 5: build the bcc-iron <110> Sigma3(111) symmetric tilt grain
+# boundary used by the fracture simulation, and write it to a data file.
+#
+# The two grains share the [1 -1 0] tilt axis (along z); the (111) boundary
+# plane lies at y = 0.  The lower grain is the upper grain rotated 180 degrees
+# about the in-plane [1 1 -2] axis -- the symmetric-tilt relation, which here is
+# a Sigma3 misorientation.  Overlapping atoms at the interface are removed and
+# the structure is relaxed before it is written to Fe_gb.data.
+#
+# NOTE: the oriented cell repeats every (2/3) of a coincidence-site-lattice
+# period along x, so the box width (nx) must be a multiple of 3 to be
+# commensurate with the boundary; nx = 6 spans 4 CSL periods.
+
+# 1) Initialization
+units metal
+dimension 3
+boundary p p p
+atom_style atomic
+
+# 2) System definition: two mirror-related bcc grains meeting at y = 0
+variable a0 equal 2.855324          # bcc Fe lattice constant (Fe_mm.eam.fs)
+variable nx equal 6                 # cell width along x (multiple of 3)
+variable ny equal 8                 # half-height: cells per grain along y
+variable nz equal 2                 # thickness along the [1 -1 0] tilt axis
+
+lattice bcc ${a0} orient x 1 1 -2 orient y 1 1 1 orient z 1 -1 0
+lattice bcc 2.855324 orient x 1 1 -2 orient y 1 1 1 orient z 1 -1 0
+Lattice spacing in x,y,z = 4.6627246 4.9455662 4.0380379
+region box block 0 ${nx} -${ny} ${ny} 0 ${nz} units lattice
+region box block 0 6 -${ny} ${ny} 0 ${nz} units lattice
+region box block 0 6 -8 ${ny} 0 ${nz} units lattice
+region box block 0 6 -8 8 0 ${nz} units lattice
+region box block 0 6 -8 8 0 2 units lattice
+create_box 2 box
+Created orthogonal box = (0 -39.56453 0) to (27.976347 39.56453 8.0760759)
+  1 by 1 by 1 MPI processor grid
+
+# upper grain (y > 0): tilt axis [1 -1 0] along z, (111) plane at the boundary
+lattice bcc ${a0} orient x 1 1 -2 orient y 1 1 1 orient z 1 -1 0
+lattice bcc 2.855324 orient x 1 1 -2 orient y 1 1 1 orient z 1 -1 0
+Lattice spacing in x,y,z = 4.6627246 4.9455662 4.0380379
+region upper block INF INF 0.0 INF INF INF units box
+create_atoms 1 region upper
+Created 766 atoms
+  using lattice units in orthogonal box = (0 -39.56453 0) to (27.976347 39.56453 8.0760759)
+  create_atoms CPU = 0.001 seconds
+
+# lower grain (y < 0): the upper grain rotated 180 deg about x = [1 1 -2]
+lattice bcc ${a0} orient x 1 1 -2 orient y -1 -1 -1 orient z -1 1 0
+lattice bcc 2.855324 orient x 1 1 -2 orient y -1 -1 -1 orient z -1 1 0
+Lattice spacing in x,y,z = 4.6627246 4.9455662 4.0380379
+region lower block INF INF INF 0.0 INF INF units box
+create_atoms 2 region lower
+Created 782 atoms
+  using lattice units in orthogonal box = (0 -39.56453 0) to (27.976347 39.56453 8.0760759)
+  create_atoms CPU = 0.000 seconds
+
+# 3) Settings
+pair_style eam/fs
+pair_coeff * * Fe_mm.eam.fs Fe Fe
+Reading eam/fs potential file Fe_mm.eam.fs with DATE: 2007-06-11
+
+# remove atoms that sit on top of each other across the y = 0 interface
+delete_atoms overlap 0.35 all all
+System init for delete_atoms ...
+Last active /omp style is pair_style eam/fs/omp
+Neighbor list info ...
+  update: every = 1 steps, delay = 0 steps, check = yes
+  max neighbors/atom: 2000, page size: 100000
+  master list distance cutoff = 7.3
+  ghost atom cutoff = 7.3
+  binsize = 3.65, bins = 8 22 3
+  2 neighbor lists, perpetual/occasional/extra = 1 1 0
+  (1) command delete_atoms, occasional
+      attributes: full, newton on, omp
+      pair build: full/bin/atomonly/omp
+      stencil: full/bin/3d
+      bin: standard
+  (2) pair eam/fs/omp, perpetual
+      attributes: half, newton on, omp
+      pair build: half/bin/atomonly/newton/omp
+      stencil: half/bin/3d
+      bin: standard
+Deleted 14 atoms, new total = 1534
+
+# 4) Relax atomic positions, then the in-plane (x, z) box dimensions
+thermo 50
+thermo_style custom step pe lx ly lz press pxx pyy pzz
+min_style cg
+minimize 1.0e-12 1.0e-12 2000 20000
+Last active /omp style is pair_style eam/fs/omp
+Neighbor list info ...
+  update: every = 1 steps, delay = 0 steps, check = yes
+  max neighbors/atom: 2000, page size: 100000
+  master list distance cutoff = 7.3
+  ghost atom cutoff = 7.3
+  binsize = 3.65, bins = 8 22 3
+  1 neighbor lists, perpetual/occasional/extra = 1 0 0
+  (1) pair eam/fs/omp, perpetual
+      attributes: half, newton on, omp
+      pair build: half/bin/atomonly/newton/omp
+      stencil: half/bin/3d
+      bin: standard
+Per MPI rank memory allocation (min/avg/max) = 11.06 | 11.06 | 11.06 Mbytes
+   Step         PotEng           Lx             Ly             Lz           Press           Pxx            Pyy            Pzz      
+         0  -6156.4054      27.976347      79.12906       8.0760759      34724.458     -309.09868      104791.57     -309.09855    
+        50  -6282.2273      27.976347      79.12906       8.0760759      12039.911      6056.2887      24000.16       6063.2841    
+        76  -6282.2273      27.976347      79.12906       8.0760759      12039.375      6056.0692      23998.92       6063.135     
+Loop time of 0.0308646 on 8 procs for 76 steps with 1534 atoms
+
+799.2% CPU use with 1 MPI tasks x 8 OpenMP threads
+
+Minimization stats:
+  Stopping criterion = energy tolerance
+  Energy initial, next-to-last, final = 
+     -6156.40543267701  -6282.22731655481  -6282.22731656051
+  Force two-norm initial, final = 190.69486 0.00023329769
+  Force max component initial, final = 23.865705 1.5517147e-05
+  Final line search alpha, max atom move = 1 1.5517147e-05
+  Iterations, force evaluations = 76 150
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 0.024805   | 0.024805   | 0.024805   |   0.0 | 80.37
+Neigh   | 0          | 0          | 0          |   0.0 |  0.00
+Comm    | 0.0026314  | 0.0026314  | 0.0026314  |   0.0 |  8.53
+Output  | 1.4287e-05 | 1.4287e-05 | 1.4287e-05 |   0.0 |  0.05
+Modify  | 0.0015456  | 0.0015456  | 0.0015456  |   0.0 |  5.01
+Other   |            | 0.001868   |            |       |  6.05
+
+Nlocal:           1534 ave        1534 max        1534 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Nghost:           6100 ave        6100 max        6100 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Neighs:         104368 ave      104368 max      104368 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+
+Total # of neighbors = 104368
+Ave neighs/atom = 68.036506
+Neighbor list builds = 0
+Dangerous builds = 0
+
+fix relaxbox all box/relax x 0.0 z 0.0 couple none vmax 0.001
+minimize 1.0e-12 1.0e-12 2000 20000
+Last active /omp style is pair_style eam/fs/omp
+WARNING: Energy due to 3 extra global DOFs will be included in minimizer energies
+ (src/min.cpp:222)
+Per MPI rank memory allocation (min/avg/max) = 11.07 | 11.07 | 11.07 Mbytes
+   Step         PotEng           Lx             Ly             Lz           Press           Pxx            Pyy            Pzz      
+        76  -6282.2273      27.976347      79.12906       8.0760759      12039.375      6056.0692      23998.92       6063.135     
+       100  -6282.3254      28.017078      79.12906       8.0877727      7074.4078     -13.660763      21229.944      6.9402261    
+       150  -6282.3254      28.016769      79.12906       8.0878199      7087.986       5.9402691      21261.864     -3.8460308    
+       200  -6282.3256      28.017235      79.12906       8.0878209      7119.4509     -15.733817      21369.578      4.5086837    
+       250  -6282.3257      28.017005      79.12906       8.0878694      7159.3862      4.2860599      21475.383     -1.5103018    
+       300  -6282.3257      28.01725       79.12906       8.0878544      7152.9364     -14.585359      21474.459     -1.064346     
+       350  -6282.3257      28.016976      79.12906       8.0878413      7162.4933      11.817595      21464.737      10.925641    
+       400  -6282.3257      28.017018      79.12906       8.0878759      7147.8014      0.84754627     21447.617     -5.0602321    
+       450  -6282.3257      28.017087      79.12906       8.0878598      7144.6326     -4.1311777      21440.385     -2.3557798    
+       500  -6282.3258      28.017058      79.12906       8.0878497      7147.2217     -0.83567992     21440.772      1.7289285    
+       548  -6282.3258      28.017038      79.12906       8.0878598      7144.6887     -0.45762418     21435.762     -1.2382932    
+Loop time of 0.236781 on 8 procs for 472 steps with 1534 atoms
+
+796.5% CPU use with 1 MPI tasks x 8 OpenMP threads
+
+Minimization stats:
+  Stopping criterion = energy tolerance
+  Energy initial, next-to-last, final = 
+     -6282.22731656051  -6282.32575628189  -6282.32575628716
+  Force two-norm initial, final = 95.626053 0.016167851
+  Force max component initial, final = 67.657242 0.013837949
+  Final line search alpha, max atom move = 0.11006103 0.001523019
+  Iterations, force evaluations = 472 943
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 0.18664    | 0.18664    | 0.18664    |   0.0 | 78.82
+Neigh   | 0          | 0          | 0          |   0.0 |  0.00
+Comm    | 0.012319   | 0.012319   | 0.012319   |   0.0 |  5.20
+Output  | 0.00012841 | 0.00012841 | 0.00012841 |   0.0 |  0.05
+Modify  | 0.0097175  | 0.0097175  | 0.0097175  |   0.0 |  4.10
+Other   |            | 0.02798    |            |       | 11.82
+
+Nlocal:           1534 ave        1534 max        1534 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Nghost:           6100 ave        6100 max        6100 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Neighs:         104672 ave      104672 max      104672 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+
+Total # of neighbors = 104672
+Ave neighs/atom = 68.234681
+Neighbor list builds = 0
+Dangerous builds = 0
+unfix relaxbox
+
+# 5) Grain-boundary energy.  With PBC along y the cell contains TWO equivalent
+# (111) boundaries (at y = 0 and across the periodic seam), hence the factor 2.
+variable ecoh   equal -4.122435     # bcc Fe cohesive energy (eV/atom)
+variable natoms equal count(all)
+variable area   equal lx*lz
+variable egb    equal (pe-v_natoms*v_ecoh)/(2.0*v_area)
+variable egb_mJ equal v_egb*16021.766
+print "GB area (one boundary): $(v_area:%.3f) Ang^2, atoms: ${natoms}"
+GB area (one boundary): 226.598 Ang^2, atoms: 1534
+print "GB energy: $(v_egb:%.5f) eV/Ang^2 = $(v_egb_mJ:%.1f) mJ/m^2"
+GB energy: 0.09155 eV/Ang^2 = 1466.8 mJ/m^2
+
+write_data Fe_gb.data
+System init for write_data ...
+Last active /omp style is pair_style eam/fs/omp
+Total wall time: 0:00:00

@@ -1,0 +1,37 @@
+# LAMMPS Tutorial manifest file. This file determines what is downloaded when.
+# comments start with a # as the first character.
+# comments and empty lines are ignored
+##############################################################################
+# Tutorial 1: Crystalline metals and the EAM potential
+#
+# 1) input file templates
+# the first file will be automatically loaded
+initial.lmp
+minimize.lmp
+shifted.lmp
+
+# 2) support files
+Al_zhou.eam.alloy
+
+# 3) solution files
+# only downloaded on request
+# (solution/Al_zhou.eam.alloy is a symlink to ../Al_zhou.eam.alloy so the
+#  potential is not duplicated; LAMMPS-GUI resolves the redirect on download)
+solution/Al_zhou.eam.alloy
+solution/initial.log
+solution/minimize.log
+solution/shifted.log
+solution/render.lmp
+# units/potential-conversion demonstration: same single-point energy as
+# initial.lmp but in real units (auto-converted via the UNITS: tag)
+solution/initial-real.lmp
+solution/initial-real.log
+# potential-comparison variants (solution only): different potentials,
+# same fcc Al calculation, reported in the text as a "proof with numbers"
+solution/minimize-Al_mm.lmp
+solution/minimize-Al_mm.log
+solution/Al_mm.eam.fs
+solution/minimize-AlSiMgCuFe.lmp
+solution/minimize-AlSiMgCuFe.log
+solution/AlSiMgCuFe.meam
+solution/library.meam

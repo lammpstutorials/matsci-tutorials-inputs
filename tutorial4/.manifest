@@ -1,0 +1,31 @@
+# LAMMPS Tutorial manifest file. This file determines what is downloaded when.
+# comments start with a # as the first character.
+# comments and empty lines are ignored
+##############################################################################
+# Tutorial 4: Grain boundaries -- construction and fracture
+#
+# Part A: Al Sigma5(310) symmetric tilt grain boundary
+# Part B: Fe Sigma3(111) grain-boundary fracture
+#
+# 1) input file templates
+# the first file will be automatically loaded
+gb.lmp
+makegb.lmp
+fracture.lmp
+plot.py
+
+# 2) support files
+Al_zhou.eam.alloy
+Fe_mm.eam.fs
+Fe_gb.data
+
+# 3) solution files
+# only downloaded on request
+solution/gb.log
+solution/gb-structure.png
+solution/visualize.lmp
+solution/makegb.log
+solution/fracture.log
+solution/stress-fracture.csv
+solution/fracture-stress-strain.png
+solution/gb-fracture.png

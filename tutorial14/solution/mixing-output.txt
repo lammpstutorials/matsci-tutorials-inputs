@@ -1,0 +1,6 @@
+dHmix(1-2) = 2 meV/atom
+dHmix(1-3) = 1 meV/atom
+dHmix(1-4) = 1 meV/atom
+dHmix(2-3) = 3 meV/atom
+dHmix(2-4) = 0 meV/atom
+dHmix(3-4) = 2 meV/atom

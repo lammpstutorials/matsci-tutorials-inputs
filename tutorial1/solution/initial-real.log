@@ -1,0 +1,81 @@
+LAMMPS (30 Mar 2026 - Development - patch_30Mar2026-1121-g91d4111a9)
+OMP_NUM_THREADS environment is not set. Defaulting to 1 thread.
+  using 1 OpenMP thread(s) per MPI task
+# LAMMPS Input File
+# Licensed under CC BY 4.0
+# Tutorial 1 -- units/potential demonstration (solution only)
+# Identical single-point energy to initial.lmp, but run in "real" units.
+# Al_zhou.eam.alloy is written in "metal" units and carries a UNITS: tag,
+# so LAMMPS automatically converts it to real units (energies x 23.060549).
+# The single-point energy is therefore physically identical to the metal-unit
+# result (-915.75277 eV = -21117.76 kcal/mol). Without the UNITS: tag, LAMMPS
+# could not convert and would silently use the eV numbers as kcal/mol.
+
+units real
+dimension 3
+boundary p p p
+atom_style atomic
+
+lattice fcc 4.05
+Lattice spacing in x,y,z = 4.05 4.05 4.05
+region box block 0 4 0 4 0 4
+create_box 1 box
+Created orthogonal box = (0 0 0) to (16.2 16.2 16.2)
+  1 by 1 by 1 MPI processor grid
+create_atoms 1 box
+Created 256 atoms
+  using lattice units in orthogonal box = (0 0 0) to (16.2 16.2 16.2)
+  create_atoms CPU = 0.000 seconds
+
+pair_style eam/alloy
+pair_coeff * * Al_zhou.eam.alloy Al
+Reading eam/alloy potential file Al_zhou.eam.alloy with DATE: 2007-10-12
+WARNING: Converting eam/alloy potential in metal units to real units (src/potential_file_reader.cpp:300)
+
+thermo_style custom step pe press lx
+run 0
+WARNING: No fixes with time integration, atoms won't move
+For more information see https://docs.lammps.org/err0028 (src/verlet.cpp:60)
+Neighbor list info ...
+  update: every = 1 steps, delay = 0 steps, check = yes
+  max neighbors/atom: 2000, page size: 100000
+  master list distance cutoff = 12.1025
+  ghost atom cutoff = 12.1025
+  binsize = 6.05125, bins = 3 3 3
+  1 neighbor lists, perpetual/occasional/extra = 1 0 0
+  (1) pair eam/alloy, perpetual
+      attributes: half, newton on
+      pair build: half/bin/atomonly/newton
+      stencil: half/bin/3d
+      bin: standard
+Per MPI rank memory allocation (min/avg/max) = 3.469 | 3.469 | 3.469 Mbytes
+   Step         PotEng         Press            Lx      
+         0  -21117.762      23292.571      16.2         
+Loop time of 7.72e-07 on 1 procs for 0 steps with 256 atoms
+
+129.5% CPU use with 1 MPI tasks x 1 OpenMP threads
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 0          | 0          | 0          |   0.0 |  0.00
+Neigh   | 0          | 0          | 0          |   0.0 |  0.00
+Comm    | 0          | 0          | 0          |   0.0 |  0.00
+Output  | 0          | 0          | 0          |   0.0 |  0.00
+Modify  | 0          | 0          | 0          |   0.0 |  0.00
+Other   |            | 7.72e-07   |            |       |100.00
+
+Nlocal:            256 ave         256 max         256 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Nghost:           3173 ave        3173 max        3173 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Neighs:          54784 ave       54784 max       54784 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+
+Total # of neighbors = 54784
+Ave neighs/atom = 214
+Neighbor list builds = 0
+Dangerous builds = 0
+print "Single-point energy in real units: $(pe) kcal/mol"
+Single-point energy in real units: -21117.761695306184265 kcal/mol
+Total wall time: 0:00:00
