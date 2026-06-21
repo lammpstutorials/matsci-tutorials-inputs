@@ -3,7 +3,7 @@
 # A Set of Materials-Science Tutorials for the LAMMPS Simulation Package
 # Appendix (HPC offload): lattice thermal conductivity of crystalline germanium
 # by reverse non-equilibrium MD (Mueller-Plathe momentum swap), for a classical
-# (Tersoff) and a machine-learned (SNAP) potential.
+# (Tersoff) and a machine-learning (SNAP) potential.
 #
 # This is the same method as Tutorial 8 (silicon) but set up for a more powerful
 # machine: larger cells, longer runs, and an MPI domain decomposition along the

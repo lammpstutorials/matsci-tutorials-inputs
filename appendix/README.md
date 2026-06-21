@@ -1,4 +1,4 @@
-# Appendix: machine-learned vs. classical potentials
+# Appendix: machine-learning interatomic vs. classical potentials
 
 Inputs that reproduce Table 2 of the article (lattice constant, cohesive and
 vacancy-formation energy, elastic constants, and cost for silicon and tantalum
@@ -45,8 +45,8 @@ cohesive energy per atom and the vacancy-formation energy, e.g.
     lmp -in vac.lmp -var lat diamond -var a 5.431 -var mass 28.0855 \
         -var n 4 -var pot pot_si_sw.mod
 
-The cohesive energy is meaningful only for the classical potentials; an ML
-model's energy zero is its DFT reference, not the isolated atom.
+The cohesive energy is meaningful only for the classical potentials; an MLIP's
+energy zero is its DFT reference, not the isolated atom.
 
 ## Cost
 

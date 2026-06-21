@@ -1,8 +1,8 @@
-# Germanium thermal conductivity: classical vs. machine-learned (HPC offload)
+# Germanium thermal conductivity: classical vs. machine-learning (HPC offload)
 
 These inputs compute the lattice thermal conductivity of crystalline germanium
 by reverse non-equilibrium molecular dynamics (the same Mueller-Plathe method as
-Tutorial 8), for a **classical** Tersoff potential and a **machine-learned**
+Tutorial 8), for a **classical** Tersoff potential and a **machine-learning**
 SNAP potential, and compare their finite-size behaviour.  They are deliberately
 **not** sized for an interactive run: the cells are large, the runs are long, and
 the SNAP evaluations are ~100x more expensive than Tersoff, so this is meant to

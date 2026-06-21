@@ -12,7 +12,7 @@ module load lammps        # or load your own MPI + LAMMPS build (needs ML-SNAP)
 srun lmp -in kappa_ge.lmp -v tag tersoff -v pot pot_ge_tersoff.mod \
          -v a0 5.658 -v ncross 6 -v nz 40 80 120 160 200
 
-# machine-learned SNAP: ~100x heavier, shorter range
+# machine-learning SNAP: ~100x heavier, shorter range
 srun lmp -in kappa_ge.lmp -v tag snap -v pot pot_ge_snap.mod \
          -v a0 5.760 -v ncross 6 -v nz 20 40 60 80
 

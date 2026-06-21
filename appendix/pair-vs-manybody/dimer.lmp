@@ -1,0 +1,25 @@
+# Extract the effective LJ sigma/epsilon/cutoff of an OpenKIM "universal" LJ
+# species from a dimer energy scan.  REQUIRES LAMMPS built with the KIM package
+# and the model installed:
+#   kim-api-collections-management install user \
+#     LennardJones612_UniversalShifted__MO_959249795837_003
+# Run:  lmp -in dimer.lmp -v elem Al -v m 26.9815   (then Fe / 55.847)
+# r_min (energy minimum) gives sigma = r_min/2^(1/6); the well depth gives eps;
+# the largest r with nonzero energy is the cutoff.  Feed these into a plain
+# lj/cut + "pair_modify shift yes" (see pot_<el>_ulj.mod) for a KIM-free run.
+kim init LennardJones612_UniversalShifted__MO_959249795837_003 metal
+boundary f f f
+region box block -30 30 -30 30 -30 30 units box
+create_box 1 box
+create_atoms 1 single 0.0 0.0 0.0 units box
+create_atoms 1 single 3.0 0.0 0.0 units box
+kim interactions ${elem}
+mass 1 ${m}
+variable i loop 460
+variable r equal 1.40+0.02*v_i
+label loop
+  set atom 2 x ${r}
+  run 0 post no
+  print "DIMER ${r} $(pe:%.8f)"
+  next i
+jump SELF loop

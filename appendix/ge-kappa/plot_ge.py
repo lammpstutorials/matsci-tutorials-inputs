@@ -2,7 +2,7 @@
 # Python Script -- Licensed under CC BY 4.0
 # A Set of Materials-Science Tutorials for the LAMMPS Simulation Package
 # Appendix (HPC offload): thermal conductivity of germanium with a classical
-# (Tersoff) and a machine-learned (SNAP) potential, from the reverse-NEMD output
+# (Tersoff) and a machine-learning (SNAP) potential, from the reverse-NEMD output
 # of kappa_ge.lmp.  For each potential it fits the steady-state temperature
 # gradient at every cell length, forms the apparent kappa(L), and extrapolates
 # 1/kappa vs 1/L to the bulk (infinite-length) value.
@@ -25,7 +25,7 @@ from matplotlib.lines import Line2D
 CONV = 1602.1766          # eV/(Ang*ps*K) -> W/(m*K)
 KAPPA_EXP = 60.0          # experimental Ge at 300 K (W/m/K)
 TAGS = {"tersoff": ("Tersoff (classical)", "steelblue"),
-        "snap":    ("SNAP (machine-learned)", "firebrick")}
+        "snap":    ("SNAP (MLIP)", "firebrick")}
 
 
 def read_profile(fname):

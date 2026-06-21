@@ -1,0 +1,20 @@
+# Structure-stability test: relax one crystal structure to its own
+# equilibrium and report the cohesive energy per atom.  Comparing the
+# value across fcc/bcc/hcp for one potential reveals which structure
+# that potential predicts as the ground state.
+#   -var lat fcc|bcc|hcp  -var a <seed>  -var mass <amu>  -var n <cells>
+#   -var pot pot_<el>_<style>.mod
+units metal
+boundary p p p
+atom_style atomic
+lattice ${lat} ${a}
+region box block 0 ${n} 0 ${n} 0 ${n}
+create_box 1 box
+create_atoms 1 box
+mass 1 ${mass}
+include ${pot}
+min_style cg
+fix relax all box/relax aniso 0.0 vmax 0.001
+minimize 1.0e-12 1.0e-12 10000 100000
+variable ecoh equal pe/count(all)
+print "RESULT lat=${lat} pot=${pot} N=$(count(all)) Ecoh=$(v_ecoh:%.5f) eV/atom lx=$(lx/v_n:%.4f) ly=$(ly:%.4f) lz=$(lz:%.4f)"
