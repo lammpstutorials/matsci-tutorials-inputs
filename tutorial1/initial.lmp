@@ -1,8 +1,8 @@
 # LAMMPS Input File
 # Licensed under CC BY 4.0
-# A Set of Materials-Science Tutorials for the LAMMPS Simulation Package
-# Modernized recreation of the MSU/CAVS tutorials by Mark A. Tschopp
-# Tutorial 1: Crystalline metals and the EAM potential -- single-point energy
+# A Set of Materials-Science Tutorials for the LAMMPS Simulation Package: 2. Materials Science
+# By Simon Gravelle, Mark A. Tschopp, Jacob R. Gissinger, and Axel Kohlmeyer
+# Tutorial 1: 1. Single point energy calculation
 
 # 1) Initialization
 units metal
@@ -28,4 +28,4 @@ thermo 10
 thermo_style custom step pe c_eatoms press lx ly lz
 
 # 5) Run
-run 0
+run 0 post no

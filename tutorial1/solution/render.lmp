@@ -1,29 +1,39 @@
 # LAMMPS Input File
 # Licensed under CC BY 4.0
-# Tutorial 1 figure generator: render the fcc aluminum crystal.
-# Run twice:
-#   lmp -in render.lmp                              # naive fcc cell   -> metals-fcc.0.png
-#   lmp -in render.lmp -var o 0.25 -var tag shift   # shifted fcc cell -> metals-shift.0.png
-
+# A Set of Materials-Science Tutorials for the LAMMPS Simulation Package: 2. Materials Science
+# By Simon Gravelle, Mark A. Tschopp, Jacob R. Gissinger, and Axel Kohlmeyer
+# Tutorial 1: Generate figures. Use the "Run->Set Variables dialog to change "o" to 0.25
 variable o   index 0.0
 variable tag index fcc
 
+# 1) Initialization
 units metal
 dimension 3
 boundary p p p
 atom_style atomic
 
-lattice fcc 4.05 origin ${o} ${o} ${o}
+# 2) System definition
+lattice ${tag} 4.049  origin $o $o $o
 region box block 0 4 0 4 0 4
 create_box 1 box
 create_atoms 1 box
 
+# 3) Settings
 pair_style eam/alloy
 pair_coeff * * Al_zhou.eam.alloy Al
 
-dump d1 all image 1 metals-${tag}.*.png type type &
+compute eng all pe/atom
+compute eatoms all reduce sum c_eng
+
+# 4) Monitoring
+thermo 10
+thermo_style custom step pe c_eatoms press lx ly lz
+
+# 5) Image rendering (HQ mode)
+dump d1 all image 1 metals-${tag}-${o}-*.png element type &
      adiam 2.6 view 60 -40 zoom 1.2 box yes 0.028 size 1200 1200 &
      shiny 0.15 ssao yes 4539 0.5 fsaa yes
-dump_modify d1 backcolor white acolor 1 gray boxcolor midnightblue
+dump_modify d1 backcolor white boxcolor midnightblue
 
-run 0
+# 6) Run
+run 0 post no

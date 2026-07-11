@@ -1,8 +1,8 @@
 # LAMMPS Input File
 # Licensed under CC BY 4.0
-# A Set of Materials-Science Tutorials for the LAMMPS Simulation Package
-# Modernized recreation of the MSU/CAVS tutorials by Mark A. Tschopp
-# Tutorial 1: Crystalline metals and the EAM potential -- box relaxation
+# A Set of Materials-Science Tutorials for the LAMMPS Simulation Package: 2. Materials Science
+# By Simon Gravelle, Mark A. Tschopp, Jacob R. Gissinger, and Axel Kohlmeyer
+# Tutorial 1: 2. Minimization and box relaxation
 
 # 1) Initialization
 units metal
@@ -36,7 +36,7 @@ minimize 1.0e-12 1.0e-12 10000 100000
 variable ncell  equal 4
 variable a0     equal lx/v_ncell
 variable ecoh   equal pe/count(all)
-print "----------------------------------------------------"
+print "------- EAM: Al_zhou.eam.alloy ---------------------"
 print "Number of atoms        = $(count(all))"
 print "Equilibrium a0 (Ang)   = ${a0}"
 print "Cohesive energy (eV)   = ${ecoh}"

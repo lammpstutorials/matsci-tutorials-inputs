@@ -1,9 +1,8 @@
 # LAMMPS Input File
 # Licensed under CC BY 4.0
-# A Set of Materials-Science Tutorials for the LAMMPS Simulation Package
-# Modernized recreation of the MSU/CAVS tutorials by Mark A. Tschopp
-# Tutorial 1: Crystalline metals and the EAM potential -- shifted cell
-# Same as minimize.lmp, but the lattice origin is shifted off the box faces.
+# A Set of Materials-Science Tutorials for the LAMMPS Simulation Package: 2. Materials Science
+# By Simon Gravelle, Mark A. Tschopp, Jacob R. Gissinger, and Axel Kohlmeyer
+# Tutorial 1: 3. Check for translation invariance
 
 # 1) Initialization
 units metal
