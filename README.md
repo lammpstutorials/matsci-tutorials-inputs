@@ -2,7 +2,6 @@
 WARNING: This is just a placeholder
 -->
 
-
 ## Input files for LAMMPS Materials Science tutorials
 
 LAMMPS and Python input files corresponding
