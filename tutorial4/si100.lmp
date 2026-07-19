@@ -1,0 +1,94 @@
+# LAMMPS Input File
+# Licensed under CC BY 4.0
+# A Set of Materials-Science Tutorials for the LAMMPS Simulation Package: 2. Materials Science
+# By Simon Gravelle, Mark A. Tschopp, Jacob R. Gissinger, and Axel Kohlmeyer
+# Tutorial 4: 2. The 2x1 dimer reconstruction of the Si(100) surface
+#
+# A bulk-terminated Si(100) surface keeps two dangling bonds per surface
+# atom.  Minimization alone does NOT reconstruct it: the 1x1 termination is
+# a symmetric saddle point, so the in-plane forces cancel.  This input
+# therefore SEEDS the 2x1 dimer pattern with displace_atoms driven by an
+# atom-style variable -- each surface atom computes from its own coordinate
+# whether to move +delta or -delta -- and lets the minimizer do the rest.
+#
+# Index variables (Set Variables dialog or -var on the command line):
+#   pot   = sw | tersoff   interatomic potential
+#   dir   = y | x          seeding direction; dimers form along y for this
+#                          termination, seeding along x slides back to 1x1
+#   delta = seed displacement (Angstrom)
+
+# 1) Initialization
+variable pot   index sw
+variable dir   index y
+variable delta index 0.7
+units metal
+dimension 3
+boundary p p s
+atom_style atomic
+
+# 2) System definition: x = [110], y = [-110], z = [001]; the surface atoms
+#    then form a square grid with spacing s = a0/sqrt(2) along x and y
+variable a0 index 5.431
+variable s  equal ${a0}/sqrt(2.0)
+lattice diamond ${a0} orient x 1 1 0 orient y -1 1 0 orient z 0 0 1 origin 0.1 0.1 0.05
+region box block 0 4 0 4 0 3
+create_box 1 box
+create_atoms 1 box
+mass 1 28.0855
+
+# 3) Settings
+if "${pot} == sw" then &
+  "pair_style sw" &
+  "pair_coeff * * Si.sw Si" &
+else &
+  "pair_style tersoff" &
+  "pair_coeff * * Si.tersoff Si"
+
+# hold the two bottom layers at bulk positions: they stand in for the
+# crystal underneath, and their constant energy cancels in the difference
+variable zbot equal bound(all,zmin)
+region rbot block INF INF INF INF INF $(v_zbot+1.5) units box
+group bottom region rbot
+fix hold bottom setforce 0.0 0.0 0.0
+
+# 4) Monitoring
+thermo 50
+thermo_style custom step pe fnorm
+
+# 5) Relax the bulk-terminated 1x1 surface (stays 1x1 -- a saddle point)
+min_style cg
+minimize 1.0e-10 1.0e-12 10000 100000
+variable e1x1 equal $(pe)
+write_data si1x1.data
+
+# 6) Seed the 2x1 dimer pattern on the top layer: surface atoms sit in rows
+#    at intervals of s; rows 0,2,4,... move +delta, rows 1,3,5,... move
+#    -delta, so neighboring rows pair up.  Each atom evaluates its own row
+#    index from its own coordinate -- floor(.../s+0.5)%2 -- so a single
+#    displace_atoms command moves every atom the right way.
+variable ztop equal bound(all,zmax)
+region rtop block INF INF INF INF $(v_ztop-0.3) INF units box
+group top region rtop
+variable x0 equal 0.2*v_s        # first surface row (from the origin shift)
+variable y0 equal 0.7*v_s
+variable dxx atom (1-2*(floor((x-v_x0)/v_s+0.5)%2))*v_delta
+variable dyy atom (1-2*(floor((y-v_y0)/v_s+0.5)%2))*v_delta
+if "${dir} == y" then &
+  "displace_atoms top move 0.0 v_dyy 0.0 units box" &
+else &
+  "displace_atoms top move v_dxx 0.0 0.0 units box"
+
+# 7) Relax again: the seeded surface falls into the 2x1 reconstruction
+minimize 1.0e-10 1.0e-12 10000 100000
+variable e2x1 equal $(pe)
+write_data si2x1.data
+
+# 8) Energy gained per dimer
+variable ndim equal count(top)/2
+variable gain equal (v_e2x1-v_e1x1)/v_ndim
+print "--------------------------------------------------"
+print "Potential ${pot}, seeding along ${dir}"
+print "E(1x1 relaxed)         = $(v_e1x1:%.4f) eV"
+print "E(2x1 relaxed)         = $(v_e2x1:%.4f) eV"
+print "Gain per dimer         = $(v_gain:%.4f) eV  (${ndim} dimers)"
+print "--------------------------------------------------"

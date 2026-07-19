@@ -2,30 +2,19 @@
 # comments start with a # as the first character.
 # comments and empty lines are ignored
 ##############################################################################
-# Tutorial 11: Radiation damage cascade (bcc iron, compute frenkel)
+# Tutorial 11: Building a dislocation from its displacement field
 #
 # 1) input file templates
 # the first file will be automatically loaded
-cascade.lmp
-cascade-plot.py
+screw.lmp
 
 # 2) support files
-Fe_mm.eam.fs
+Al_zhou.eam.alloy
 
 # 3) solution files
 # only downloaded on request
-solution/cascade.log
-solution/Fe_mm.eam.fs
-solution/cascade.lmp
-solution/cascade-plot.py
-solution/clusters.lmp
-solution/clusters.txt
-solution/clusters.log
-solution/cascade.dat
-solution/cascade.png
-solution/final.dump
-solution/defectviz.lmp
-solution/defects.png
-solution/peak.dump
-solution/peakviz.lmp
-solution/peak.png
+solution/screw.log
+solution/screw.data
+# interactive core-figure sandbox (loads the relaxed configuration)
+solution/screwviz.lmp
+solution/screw-core.png

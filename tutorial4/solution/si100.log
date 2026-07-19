@@ -1,0 +1,209 @@
+LAMMPS (30 Mar 2026 - Development - patch_30Mar2026-1178-g5f8b8984a-modified)
+OMP_NUM_THREADS environment is not set. Defaulting to 1 thread.
+  using 1 OpenMP thread(s) per MPI task
+# LAMMPS Input File
+# Licensed under CC BY 4.0
+# A Set of Materials-Science Tutorials for the LAMMPS Simulation Package: 2. Materials Science
+# By Simon Gravelle, Mark A. Tschopp, Jacob R. Gissinger, and Axel Kohlmeyer
+# Tutorial 4: 2. The 2x1 dimer reconstruction of the Si(100) surface
+#
+# A bulk-terminated Si(100) surface keeps two dangling bonds per surface
+# atom.  Minimization alone does NOT reconstruct it: the 1x1 termination is
+# a symmetric saddle point, so the in-plane forces cancel.  This input
+# therefore SEEDS the 2x1 dimer pattern with displace_atoms driven by an
+# atom-style variable -- each surface atom computes from its own coordinate
+# whether to move +delta or -delta -- and lets the minimizer do the rest.
+#
+# Index variables (Set Variables dialog or -var on the command line):
+#   pot   = sw | tersoff   interatomic potential
+#   dir   = y | x          seeding direction; dimers form along y for this
+#                          termination, seeding along x slides back to 1x1
+#   delta = seed displacement (Angstrom)
+
+# 1) Initialization
+variable pot   index sw
+variable dir   index y
+variable delta index 0.7
+units metal
+dimension 3
+boundary p p s
+atom_style atomic
+
+# 2) System definition: x = [110], y = [-110], z = [001]; the surface atoms
+#    then form a square grid with spacing s = a0/sqrt(2) along x and y
+variable a0 index 5.431
+variable s  equal ${a0}/sqrt(2.0)
+variable s  equal 5.431/sqrt(2.0)
+lattice diamond ${a0} orient x 1 1 0 orient y -1 1 0 orient z 0 0 1 origin 0.1 0.1 0.05
+lattice diamond 5.431 orient x 1 1 0 orient y -1 1 0 orient z 0 0 1 origin 0.1 0.1 0.05
+Lattice spacing in x,y,z = 7.6805939 7.6805939 5.431
+region box block 0 4 0 4 0 3
+create_box 1 box
+Created orthogonal box = (0 0 0) to (30.722375 30.722375 16.293)
+  1 by 1 by 1 MPI processor grid
+create_atoms 1 box
+Created 768 atoms
+  using lattice units in orthogonal box = (0 0 -0.0016293) to (30.722375 30.722375 16.294629)
+  create_atoms CPU = 0.000 seconds
+mass 1 28.0855
+
+# 3) Settings
+if "${pot} == sw" then   "pair_style sw"   "pair_coeff * * Si.sw Si" else   "pair_style tersoff"   "pair_coeff * * Si.tersoff Si"
+pair_style sw
+pair_coeff * * Si.sw Si
+Reading sw potential file Si.sw with DATE: 2007-06-11
+
+# hold the two bottom layers at bulk positions: they stand in for the
+# crystal underneath, and their constant energy cancels in the difference
+variable zbot equal bound(all,zmin)
+region rbot block INF INF INF INF INF $(v_zbot+1.5) units box
+region rbot block INF INF INF INF INF 1.7715499999999999581 units box
+group bottom region rbot
+128 atoms in group bottom
+fix hold bottom setforce 0.0 0.0 0.0
+
+# 4) Monitoring
+thermo 50
+thermo_style custom step pe fnorm
+
+# 5) Relax the bulk-terminated 1x1 surface (stays 1x1 -- a saddle point)
+min_style cg
+minimize 1.0e-10 1.0e-12 10000 100000
+Neighbor list info ...
+  update: every = 1 steps, delay = 0 steps, check = yes
+  max neighbors/atom: 2000, page size: 100000
+  master list distance cutoff = 5.77118
+  ghost atom cutoff = 5.77118
+  binsize = 2.88559, bins = 11 11 6
+  1 neighbor lists, perpetual/occasional/extra = 1 0 0
+  (1) pair sw, perpetual
+      attributes: full, newton on
+      pair build: full/bin/atomonly
+      stencil: full/bin/3d
+      bin: standard
+Per MPI rank memory allocation (min/avg/max) = 4.207 | 4.207 | 4.207 Mbytes
+   Step         PotEng         Fnorm     
+         0  -3052.9664      0.0020718653 
+         1  -3052.9664      0.0020103811 
+Loop time of 0.000576302 on 1 procs for 1 steps with 768 atoms
+
+99.3% CPU use with 1 MPI tasks x 1 OpenMP threads
+
+Minimization stats:
+  Stopping criterion = energy tolerance
+  Energy initial, next-to-last, final = 
+     -3052.96639650807  -3052.96639650807  -3052.96639673589
+  Force two-norm initial, final = 0.0020718653 0.0020103811
+  Force max component initial, final = 0.00025898316 0.0002511776
+  Final line search alpha, max atom move = 1 0.0002511776
+  Iterations, force evaluations = 1 2
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 0.00054923 | 0.00054923 | 0.00054923 |   0.0 | 95.30
+Neigh   | 0          | 0          | 0          |   0.0 |  0.00
+Comm    | 4.818e-06  | 4.818e-06  | 4.818e-06  |   0.0 |  0.84
+Output  | 0          | 0          | 0          |   0.0 |  0.00
+Modify  | 2.324e-06  | 2.324e-06  | 2.324e-06  |   0.0 |  0.40
+Other   |            | 1.993e-05  |            |       |  3.46
+
+Nlocal:            768 ave         768 max         768 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Nghost:            684 ave         684 max         684 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Neighs:              0 ave           0 max           0 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+FullNghs:        23040 ave       23040 max       23040 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+
+Total # of neighbors = 23040
+Ave neighs/atom = 30
+Neighbor list builds = 0
+Dangerous builds = 0
+variable e1x1 equal $(pe)
+variable e1x1 equal -3052.9663967358928858
+write_data si1x1.data
+System init for write_data ...
+
+# 6) Seed the 2x1 dimer pattern on the top layer: surface atoms sit in rows
+#    at intervals of s; rows 0,2,4,... move +delta, rows 1,3,5,... move
+#    -delta, so neighboring rows pair up.  Each atom evaluates its own row
+#    index from its own coordinate -- floor(.../s+0.5)%2 -- so a single
+#    displace_atoms command moves every atom the right way.
+variable ztop equal bound(all,zmax)
+region rtop block INF INF INF INF $(v_ztop-0.3) INF units box
+region rtop block INF INF INF INF 14.906772505564999776 INF units box
+group top region rtop
+64 atoms in group top
+variable x0 equal 0.2*v_s        # first surface row (from the origin shift)
+variable y0 equal 0.7*v_s
+variable dxx atom (1-2*(floor((x-v_x0)/v_s+0.5)%2))*v_delta
+variable dyy atom (1-2*(floor((y-v_y0)/v_s+0.5)%2))*v_delta
+if "${dir} == y" then   "displace_atoms top move 0.0 v_dyy 0.0 units box" else   "displace_atoms top move v_dxx 0.0 0.0 units box"
+displace_atoms top move 0.0 v_dyy 0.0 units box
+Displacing atoms ...
+
+# 7) Relax again: the seeded surface falls into the 2x1 reconstruction
+minimize 1.0e-10 1.0e-12 10000 100000
+Per MPI rank memory allocation (min/avg/max) = 4.207 | 4.207 | 4.207 Mbytes
+   Step         PotEng         Fnorm     
+         1  -3097.1212      16.880392    
+        25  -3106.8733      0.0014746763 
+Loop time of 0.0121652 on 1 procs for 24 steps with 768 atoms
+
+98.8% CPU use with 1 MPI tasks x 1 OpenMP threads
+
+Minimization stats:
+  Stopping criterion = energy tolerance
+  Energy initial, next-to-last, final = 
+     -3097.12120953122  -3106.87329303768  -3106.87329324242
+  Force two-norm initial, final = 16.880392 0.0014746763
+  Force max component initial, final = 1.3277726 0.0001381109
+  Final line search alpha, max atom move = 1 0.0001381109
+  Iterations, force evaluations = 24 48
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 0.011786   | 0.011786   | 0.011786   |   0.0 | 96.88
+Neigh   | 0          | 0          | 0          |   0.0 |  0.00
+Comm    | 7.7288e-05 | 7.7288e-05 | 7.7288e-05 |   0.0 |  0.64
+Output  | 0          | 0          | 0          |   0.0 |  0.00
+Modify  | 3.0617e-05 | 3.0617e-05 | 3.0617e-05 |   0.0 |  0.25
+Other   |            | 0.0002718  |            |       |  2.23
+
+Nlocal:            768 ave         768 max         768 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Nghost:            684 ave         684 max         684 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Neighs:              0 ave           0 max           0 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+FullNghs:        23168 ave       23168 max       23168 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+
+Total # of neighbors = 23168
+Ave neighs/atom = 30.166667
+Neighbor list builds = 0
+Dangerous builds = 0
+variable e2x1 equal $(pe)
+variable e2x1 equal -3106.8732932424168212
+write_data si2x1.data
+System init for write_data ...
+
+# 8) Energy gained per dimer
+variable ndim equal count(top)/2
+variable gain equal (v_e2x1-v_e1x1)/v_ndim
+print "--------------------------------------------------"
+--------------------------------------------------
+print "Potential ${pot}, seeding along ${dir}"
+Potential sw, seeding along y
+print "E(1x1 relaxed)         = $(v_e1x1:%.4f) eV"
+E(1x1 relaxed)         = -3052.9664 eV
+print "E(2x1 relaxed)         = $(v_e2x1:%.4f) eV"
+E(2x1 relaxed)         = -3106.8733 eV
+print "Gain per dimer         = $(v_gain:%.4f) eV  (${ndim} dimers)"
+Gain per dimer         = -1.6846 eV  (32 dimers)
+print "--------------------------------------------------"
+--------------------------------------------------
+Total wall time: 0:00:00

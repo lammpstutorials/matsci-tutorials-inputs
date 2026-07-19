@@ -1,0 +1,91 @@
+# LAMMPS Input File
+# Licensed under CC BY 4.0
+# A Set of Materials-Science Tutorials for the LAMMPS Simulation Package
+# Tutorial 8: nanoindentation of an fcc aluminum surface.
+#
+# A thin aluminum slab with a free (100) top surface is equilibrated and then
+# indented with a rigid, repulsive indenter (a sphere or a flat punch).  The
+# indentation force is recorded against the indenter depth, and the
+# centrosymmetry parameter reveals the dislocations nucleated under the tip.
+
+variable shape  index sphere     # indenter shape: "sphere" or "plane"
+variable temp   index 300.0      # temperature (K)
+variable rate   index 0.4        # indenter speed (Angstrom/ps)
+variable radius index 25.0       # sphere radius (Angstrom)
+variable nequil index 10000      # equilibration steps
+variable nindent index 25000     # indentation steps
+
+# 1) Initialization
+units metal
+dimension 3
+boundary p p f                   # periodic in-plane, free surface along z
+atom_style atomic
+
+# 2) System: fcc Al slab, (100) surfaces, with vacuum above for the indenter
+variable a0 equal 4.05
+lattice fcc ${a0}
+region box   block 0 18 0 18 -0.1 20 units lattice
+create_box 1 box
+region slab  block 0 18 0 18 -0.1 12 units lattice
+create_atoms 1 region slab
+
+# 3) Interatomic potential
+pair_style eam/alloy
+pair_coeff * * Al_zhou.eam.alloy Al
+
+# 4) Partition the slab along z: fixed bottom / Langevin buffer / free surface
+variable zlo  equal bound(all,zmin)
+variable zhi  equal bound(all,zmax)
+region rbot   block INF INF INF INF INF $(v_zlo+1.5*v_a0) units box
+region rbuf   block INF INF INF INF $(v_zlo+1.5*v_a0) $(v_zlo+4.5*v_a0) units box
+group bottom  region rbot
+group mobile  subtract all bottom
+group buffer  region rbuf
+
+compute csym all centro/atom fcc
+
+# 5) Equilibration: integrate the mobile atoms, thermostat everything briefly
+velocity mobile create ${temp} 8675309 mom yes rot yes dist gaussian
+fix integrate mobile nve
+fix thermostat mobile langevin ${temp} ${temp} 0.1 48279
+thermo 500
+thermo_style custom step temp pe etotal
+timestep 0.001
+run ${nequil}
+
+# restrict the thermostat to the buffer layer so the surface region (fix nve
+# only) exchanges heat with the bulk through conduction, not with the bath
+unfix thermostat
+fix thermostat buffer langevin ${temp} ${temp} 0.1 90210
+
+# 6) Indenter, lowered from first contact with the surface at a constant rate.
+#    A sphere starts one radius above the surface; a flat punch starts at it.
+reset_timestep 0
+if "${shape} == plane" then "variable z0 equal $(v_zhi)" &
+else "variable z0 equal $(v_zhi+v_radius)"
+variable zind equal v_z0-v_rate*step*0.001
+variable xc   equal $((xlo+xhi)/2.0)
+variable yc   equal $((ylo+yhi)/2.0)
+variable depth equal v_z0-v_zind
+
+if "${shape} == plane" then &
+  "fix ind all indent 10.0 plane z v_zind hi units box" &
+else &
+  "fix ind all indent 100.0 sphere v_xc v_yc v_zind ${radius} units box"
+
+# indentation force (z) and depth below the original surface
+variable fz equal f_ind[3]
+fix out all print 100 "$(v_depth:%.4f),$(v_fz:%.5f)" &
+    file load-${shape}.csv title "depth_Ang,load_eV_per_Ang" screen no
+
+dump traj all custom 2500 indent-${shape}.lammpstrj id type x y z c_csym
+dump snap all image  2500 snap-${shape}.*.jpg c_csym type &
+     fix ind type 0 0 adiam 2.6 zoom 1.3 view 60 -10 &
+     center s 0.5 0.5 0.55 box no 0.0 size 800 700 &
+     fsaa yes ssao yes 4539 0.5
+dump_modify snap amap 0.0 15.0 cf 0.0 2 min blue max red &
+    backcolor white
+thermo_style custom step temp pe v_depth v_fz
+run ${nindent}
+
+print "Indentation (${shape}) complete: depth $(v_depth:%.2f) Ang."

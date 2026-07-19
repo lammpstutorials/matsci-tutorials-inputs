@@ -1,0 +1,49 @@
+# LAMMPS Input File
+# Licensed under CC BY 4.0
+# A Set of Materials-Science Tutorials for the LAMMPS Simulation Package
+# Modernized recreation of the MSU/CAVS tutorials by Mark A. Tschopp
+# Tutorial 15, part 2 (step 2 of 2): the melting point from interface motion.
+#
+# Hold the two-phase cell built by coexist.lmp at a series of fixed
+# temperatures.  Below T_m the solid grows and consumes the liquid; above
+# T_m it melts.  The crystalline fraction is read from the INHERENT STRUCTURE
+# (a brief energy minimization removes thermal noise) because near T_m the
+# instantaneous structures of hot solid and liquid overlap too much for
+# common-neighbor analysis to separate them.  fcc fraction vs T falls through
+# one half at T_m.
+#
+# This is a deliberately SHORT scan (small cell, few temperatures, short
+# runs) so it finishes in minutes on a laptop.  It locates T_m only roughly;
+# a converged value needs a larger cell, more temperatures, and longer runs
+# -- and a parallel machine.  See the note in the tutorial text.
+
+variable T index 900 925 950 975          # temperatures to scan (K)
+label loop
+clear
+read_restart twophase.restart
+pair_style eam/fs
+pair_coeff * * Al_mm.eam.fs Al
+timestep 0.002
+reset_timestep 0
+
+# hold the whole cell at the trial temperature; the box keeps its square
+# cross-section (couple xy) while z relaxes -- the interface is free to move
+fix baro all nph x 0.0 0.0 2.0 y 0.0 0.0 2.0 z 0.0 0.0 2.0 couple xy
+fix th all langevin $T $T 0.1 4321
+thermo 10000
+thermo_style custom step temp vol
+run 25000
+unfix th
+unfix baro
+
+# inherent structure: minimize, then count fcc-coordinated atoms
+minimize 1.0e-8 1.0e-8 2000 20000
+compute cna all cna/atom 3.6
+variable isfcc atom "c_cna==1"
+compute nfcc all reduce sum v_isfcc
+thermo_style custom step pe c_nfcc
+run 0
+print "$T $(c_nfcc) $(atoms)" append fcc_vs_T.dat screen no
+
+next T
+jump SELF loop

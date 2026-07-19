@@ -1,0 +1,110 @@
+# LAMMPS Input File
+# Licensed under CC BY 4.0
+# A Set of Materials-Science Tutorials for the LAMMPS Simulation Package
+# Tutorial 15 (advanced): seed the supercooled melt so it refreezes.
+#
+# In hysteresis.lmp the cooled melt supercools all the way to 300 K without
+# refreezing: a small, defect-free periodic cell offers no nucleation site.
+# Here we plant one.  A small sphere of atoms at the box center is restrained
+# to its lattice sites so it stays crystalline through the melt and templates
+# regrowth on cooling.
+#
+# The restraint is built by hand so the target co-dilates with the NPT box:
+#   * fix store/state stores the INITIAL FRACTIONAL coordinates (xs ys zs),
+#   * three atom-style variables rebuild the target abs. position each step
+#     from the current box (xlo + xs0*lx ...) and form a restoring force,
+#   * fix addforce applies that force.
+# Unlike fix spring/self (which tethers to fixed absolute coordinates), this
+# keeps the seed at the CURRENT equilibrium lattice spacing at every
+# temperature, so it never strains against the thermally expanded hot box.
+#
+# Result: the seeded melt DOES refreeze (unlike the unseeded run), but only
+# near ~740 K -- far below Tm.  A small curved seed is sub-critical near Tm
+# (Gibbs-Thomson), so it cannot freeze the melt at Tm; only the flat interface
+# of the two-phase method (coexist.lmp) can.  This is why a seed cures the
+# supercooling artifact but cannot, by itself, measure the melting point.
+
+units metal
+atom_style atomic
+boundary p p p
+lattice fcc 4.05
+region box block 0 8 0 8 0 8
+create_box 1 box
+create_atoms 1 box
+mass 1 26.98
+pair_style eam/fs
+pair_coeff * * Al_mm.eam.fs Al
+velocity all create 300.0 12345 mom yes rot yes
+timestep 0.002
+thermo 5000
+
+variable temp equal temp
+variable vat  equal vol/atoms
+
+# central spherical seed (box center = 16.2 Ang for an 8 x 4.05 box)
+region sphere sphere 16.2 16.2 16.2 9.0 units box
+group  seed region sphere
+
+# store the seed's INITIAL FRACTIONAL coordinates once (N=0 -> never updated)
+fix seed0 seed store/state 0 xs ys zs
+
+# co-dilating target position, rebuilt from the current box each step
+variable txx atom xlo+f_seed0[1]*lx
+variable tyy atom ylo+f_seed0[2]*ly
+variable tzz atom zlo+f_seed0[3]*lz
+variable dxs atom x-v_txx
+variable dys atom y-v_tyy
+variable dzs atom z-v_tzz
+variable drs atom sqrt(v_dxs*v_dxs+v_dys*v_dys+v_dzs*v_dzs)
+
+# ramp the restraint on over the first 10000 steps, then hold it for the run
+variable kgrow equal 10000
+variable gate  equal "(step/v_kgrow)*(step<=v_kgrow)+(step>v_kgrow)"
+
+# adaptive stiffness: gentle (k0) far from home, stiffening (k0+k1) near home
+# so returning atoms lock into place; v_keff has units of force/distance
+variable k0   equal 3.0
+variable k1   equal 9.0
+variable d0   equal 0.6
+variable keff atom v_gate*(v_k0+v_k1/(1.0+(v_drs/v_d0)*(v_drs/v_d0)))
+
+# three atom-style force components pointing at the moving target
+variable fxx atom -v_keff*v_dxs
+variable fyy atom -v_keff*v_dys
+variable fzz atom -v_keff*v_dzs
+fix pull seed addforce v_fxx v_fyy v_fzz
+
+# diagnostics: seed deviation from its target, and the fcc-coordinated count
+compute dravg seed reduce ave v_drs
+compute drmax seed reduce max v_drs
+compute cna all cna/atom 3.8
+variable isfcc atom "c_cna==1"
+compute nfcc all reduce sum v_isfcc
+
+# equilibrate at 300 K, zero pressure
+fix relax all npt temp 300.0 300.0 0.2 iso 0.0 0.0 2.0
+run 10000
+unfix relax
+
+# 1) heat 300 -> 1500 K (seed held crystalline throughout)
+fix hot all npt temp 300.0 1500.0 0.2 iso 0.0 0.0 2.0
+fix rec all ave/time 50 20 1000 v_temp v_vat c_nfcc c_dravg c_drmax file seeded-heat.dat
+run 120000
+unfix rec
+unfix hot
+
+# 2) cool 1500 -> 300 K; snapshots capture the crystallite growing from the seed
+fix cold all npt temp 1500.0 300.0 0.2 iso 0.0 0.0 2.0
+fix rec all ave/time 50 20 1000 v_temp v_vat c_nfcc c_dravg c_drmax file seeded-cool.dat
+dump grow all image 11000 grow.*.png c_cna type adiam 2.6 &
+    view 60 -30 zoom 1.5 size 800 640 shiny 0.2 fsaa yes ssao yes 8431 0.6 &
+    box yes 0.02
+dump_modify grow backcolor white boxcolor midnightblue &
+    amap 1 5 sa 1.0 5 steelblue purple green red gray
+run 120000
+
+write_dump all image seeded-final.png c_cna type adiam 2.6 &
+    view 60 -30 zoom 1.5 size 800 640 shiny 0.2 fsaa yes ssao yes 8431 0.6 &
+    box yes 0.02 modify backcolor white boxcolor midnightblue &
+    amap 1 5 sa 1.0 5 steelblue purple green red gray
+print "Seeded heat/cool complete; see seeded-heat.dat, seeded-cool.dat"

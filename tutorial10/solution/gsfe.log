@@ -1,0 +1,2561 @@
+LAMMPS (30 Mar 2026 - Development - patch_30Mar2026-1121-g91d4111a9)
+OMP_NUM_THREADS environment is not set. Defaulting to 1 thread.
+  using 1 OpenMP thread(s) per MPI task
+# LAMMPS Input File
+# Licensed under CC BY 4.0
+# A Set of Materials-Science Tutorials for the LAMMPS Simulation Package
+# Modernized recreation of the MSU/CAVS tutorials by Mark A. Tschopp
+# Tutorial 10: generalized stacking fault energy (gamma-line) of fcc aluminum.
+#
+# A (111)-oriented slab is cut in two along a (111) plane.  The upper half is
+# rigidly displaced along the [11-2] direction by increasing fractions of the
+# in-plane lattice repeat; at each displacement the atoms are relaxed ONLY
+# perpendicular to the fault plane (in z), and the excess energy per unit area
+# is the generalized stacking fault energy gamma.  Tracing gamma versus the
+# displacement gives the gamma-line, whose local minimum is the intrinsic
+# stacking fault energy (ISF) and whose first maximum is the unstable stacking
+# fault energy (USF).
+#
+# Strategy (compare Tutorials 2 and 6): the ideal slab is written once to a
+# data file; a loop then reloads it, applies the TOTAL shift for that step,
+# relaxes, and appends one record to a structured YAML file.  Reloading the
+# ideal slab every step keeps the displacements independent (no drift).
+
+# crystallographic orientation: x=[1-10], y=[11-2], z=[111] (the fault normal)
+# Material is selected through three index variables, so the identical script
+# runs any fcc metal by overriding them (GUI "Set Variables" dialog or -var):
+#   default (aluminum):  Al_zhou.eam.alloy, element Al, a0 = 4.08165 Ang
+#   copper:  -var pot Cu_mishin1.eam.alloy -var elem Cu -var lat 3.61493
+variable pot  index Al_zhou.eam.alloy
+variable elem index Al
+variable lat  index 4.08165          # relaxed lattice constant (Angstrom)
+
+units metal
+boundary p p s                       # free surfaces in z: a single fault plane
+atom_style atomic
+lattice fcc ${lat} orient x 1 -1 0 orient y 1 1 -2 orient z 1 1 1
+lattice fcc 4.08165 orient x 1 -1 0 orient y 1 1 -2 orient z 1 1 1
+Lattice spacing in x,y,z = 5.7723248 6.6653065 7.0696252
+# The in-plane lattice repeat along [11-2] is a0*sqrt(6)/2; LAMMPS' oriented
+# y-cell is 4/3 of it, so the box is commensurate with the shifted crystal
+# only when the number of y-cells is a multiple of 3 (here 6 = 8 repeats).
+# A non-multiple gives a strained, artificially high stacking-fault energy.
+region box block 0 4 0 6 0 8
+create_box 1 box
+Created orthogonal box = (0 0 0) to (23.089299 39.991839 56.557001)
+  1 by 1 by 1 MPI processor grid
+create_atoms 1 box
+Created 3200 atoms
+  using lattice units in orthogonal box = (0 0 -0.0056557001) to (23.089299 39.991839 56.562657)
+  create_atoms CPU = 0.001 seconds
+pair_style eam/alloy
+pair_coeff * * ${pot} ${elem}
+pair_coeff * * Al_zhou.eam.alloy ${elem}
+pair_coeff * * Al_zhou.eam.alloy Al
+Reading eam/alloy potential file Al_zhou.eam.alloy with DATE: 2007-10-12
+write_data slab.data
+System init for write_data ...
+Neighbor list info ...
+  update: every = 1 steps, delay = 0 steps, check = yes
+  max neighbors/atom: 2000, page size: 100000
+  master list distance cutoff = 12.1025
+  ghost atom cutoff = 12.1025
+  binsize = 6.05125, bins = 4 7 10
+  1 neighbor lists, perpetual/occasional/extra = 1 0 0
+  (1) pair eam/alloy, perpetual
+      attributes: half, newton on
+      pair build: half/bin/atomonly/newton
+      stencil: half/bin/3d
+      bin: standard
+
+# one in-plane repeat along [11-2] is a0*sqrt(6)/2; the Shockley partial that
+# creates the intrinsic stacking fault is one third of it, b_p = a0/sqrt(6).
+# The fault plane is placed in a (111) gap near the slab middle; its height
+# scales with the (111) interlayer spacing a0/sqrt(3).
+variable period equal ${lat}*sqrt(6.0)/2.0
+variable period equal 4.08165*sqrt(6.0)/2.0
+variable zcut   equal 11.5*${lat}/sqrt(3.0)
+variable zcut   equal 11.5*4.08165/sqrt(3.0)
+variable np equal 25                 # number of displacement steps over one period
+variable conv equal 16021.766        # eV/Ang^2 -> mJ/m^2
+
+print "# gamma-line of fcc ${elem} (${pot}), shift along [11-2] on (111)" file gsfe.yaml screen no
+print "# shift in Angstrom; pe in eV; area in Ang^2; period = ${period} Ang" append gsfe.yaml screen no
+
+variable k loop 0 ${np}
+variable k loop 0 25
+label loop
+  clear
+OMP_NUM_THREADS environment is not set. Defaulting to 1 thread.
+  using 1 OpenMP thread(s) per MPI task
+  units metal
+  boundary p p s
+  atom_style atomic
+  read_data slab.data
+Reading data file ...
+  orthogonal box = (0 0 -0.0056557001) to (23.089299 39.991839 56.562657)
+  1 by 1 by 1 MPI processor grid
+  reading atoms ...
+  3200 atoms
+  reading velocities ...
+  3200 velocities
+  read_data CPU = 0.006 seconds
+  pair_style eam/alloy
+  pair_coeff * * ${pot} ${elem}
+  pair_coeff * * Al_zhou.eam.alloy ${elem}
+  pair_coeff * * Al_zhou.eam.alloy Al
+Reading eam/alloy potential file Al_zhou.eam.alloy with DATE: 2007-10-12
+
+  # upper half: everything above a (111) gap near the middle of the slab
+  region rup block INF INF INF INF ${zcut} INF units box
+  region rup block INF INF INF INF 27.1002298517351 INF units box
+  group upper region rup
+1664 atoms in group upper
+
+  # rigid shift of the upper half by the total displacement for this step
+  variable shift equal ${k}*${period}/${np}
+  variable shift equal 0*${period}/${np}
+  variable shift equal 0*4.99897990431548/${np}
+  variable shift equal 0*4.99897990431548/25
+  displace_atoms upper move 0.0 ${shift} 0.0 units box
+  displace_atoms upper move 0.0 0 0.0 units box
+Displacing atoms ...
+
+  # relax atoms perpendicular to the fault only (zero the in-plane forces)
+  fix frz all setforce 0.0 0.0 NULL
+  min_style cg
+  minimize 1.0e-8 1.0e-8 1000 10000
+Neighbor list info ...
+  update: every = 1 steps, delay = 0 steps, check = yes
+  max neighbors/atom: 2000, page size: 100000
+  master list distance cutoff = 12.1025
+  ghost atom cutoff = 12.1025
+  binsize = 6.05125, bins = 4 7 10
+  1 neighbor lists, perpetual/occasional/extra = 1 0 0
+  (1) pair eam/alloy, perpetual
+      attributes: half, newton on
+      pair build: half/bin/atomonly/newton
+      stencil: half/bin/3d
+      bin: standard
+Per MPI rank memory allocation (min/avg/max) = 7.069 | 7.069 | 7.069 Mbytes
+   Step          Temp          E_pair         E_mol          TotEng         Press          Volume    
+         0   0             -11359.555      0             -11359.555     -4860.5261      52234.251    
+        11   0             -11360.245      0             -11360.245     -3155.9826      52234.251    
+Loop time of 0.271829 on 1 procs for 11 steps with 3200 atoms
+
+99.6% CPU use with 1 MPI tasks x 1 OpenMP threads
+
+Minimization stats:
+  Stopping criterion = energy tolerance
+  Energy initial, next-to-last, final = 
+     -11359.5551308342  -11360.2451794638  -11360.2452556644
+  Force two-norm initial, final = 2.2975434 0.024704683
+  Force max component initial, final = 0.11332981 0.0011857869
+  Final line search alpha, max atom move = 1 0.0011857869
+  Iterations, force evaluations = 11 22
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 0.27024    | 0.27024    | 0.27024    |   0.0 | 99.42
+Neigh   | 0          | 0          | 0          |   0.0 |  0.00
+Comm    | 0.00058081 | 0.00058081 | 0.00058081 |   0.0 |  0.21
+Output  | 0          | 0          | 0          |   0.0 |  0.00
+Modify  | 0.00021727 | 0.00021727 | 0.00021727 |   0.0 |  0.08
+Other   |            | 0.0007908  |            |       |  0.29
+
+Nlocal:           3200 ave        3200 max        3200 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Nghost:           7381 ave        7381 max        7381 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Neighs:         632960 ave      632960 max      632960 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+
+Total # of neighbors = 632960
+Ave neighs/atom = 197.8
+Neighbor list builds = 0
+Dangerous builds = 0
+
+  variable area equal lx*ly
+  print "- {shift: $(v_shift:%.4f), pe: $(pe:%.6f), area: $(v_area:%.4f)}"       append gsfe.yaml screen no
+  next k
+  jump SELF loop
+  clear
+OMP_NUM_THREADS environment is not set. Defaulting to 1 thread.
+  using 1 OpenMP thread(s) per MPI task
+  units metal
+  boundary p p s
+  atom_style atomic
+  read_data slab.data
+Reading data file ...
+  orthogonal box = (0 0 -0.0056557001) to (23.089299 39.991839 56.562657)
+  1 by 1 by 1 MPI processor grid
+  reading atoms ...
+  3200 atoms
+  reading velocities ...
+  3200 velocities
+  read_data CPU = 0.006 seconds
+  pair_style eam/alloy
+  pair_coeff * * ${pot} ${elem}
+  pair_coeff * * Al_zhou.eam.alloy ${elem}
+  pair_coeff * * Al_zhou.eam.alloy Al
+Reading eam/alloy potential file Al_zhou.eam.alloy with DATE: 2007-10-12
+
+  # upper half: everything above a (111) gap near the middle of the slab
+  region rup block INF INF INF INF ${zcut} INF units box
+  region rup block INF INF INF INF 27.1002298517351 INF units box
+  group upper region rup
+1664 atoms in group upper
+
+  # rigid shift of the upper half by the total displacement for this step
+  variable shift equal ${k}*${period}/${np}
+  variable shift equal 1*${period}/${np}
+  variable shift equal 1*4.99897990431548/${np}
+  variable shift equal 1*4.99897990431548/25
+  displace_atoms upper move 0.0 ${shift} 0.0 units box
+  displace_atoms upper move 0.0 0.199959196172619 0.0 units box
+Displacing atoms ...
+
+  # relax atoms perpendicular to the fault only (zero the in-plane forces)
+  fix frz all setforce 0.0 0.0 NULL
+  min_style cg
+  minimize 1.0e-8 1.0e-8 1000 10000
+Neighbor list info ...
+  update: every = 1 steps, delay = 0 steps, check = yes
+  max neighbors/atom: 2000, page size: 100000
+  master list distance cutoff = 12.1025
+  ghost atom cutoff = 12.1025
+  binsize = 6.05125, bins = 4 7 10
+  1 neighbor lists, perpetual/occasional/extra = 1 0 0
+  (1) pair eam/alloy, perpetual
+      attributes: half, newton on
+      pair build: half/bin/atomonly/newton
+      stencil: half/bin/3d
+      bin: standard
+Per MPI rank memory allocation (min/avg/max) = 7.069 | 7.069 | 7.069 Mbytes
+   Step          Temp          E_pair         E_mol          TotEng         Press          Volume    
+         0   0             -11358.532      0             -11358.532     -4709.2659      52234.251    
+        10   0             -11359.239      0             -11359.239     -3010.7811      52234.251    
+Loop time of 0.240378 on 1 procs for 10 steps with 3200 atoms
+
+99.5% CPU use with 1 MPI tasks x 1 OpenMP threads
+
+Minimization stats:
+  Stopping criterion = energy tolerance
+  Energy initial, next-to-last, final = 
+     -11358.5319148694  -11359.2393020584  -11359.2394142812
+  Force two-norm initial, final = 2.3258188 0.0095517725
+  Force max component initial, final = 0.11332981 0.00037128393
+  Final line search alpha, max atom move = 1 0.00037128393
+  Iterations, force evaluations = 10 20
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 0.23882    | 0.23882    | 0.23882    |   0.0 | 99.35
+Neigh   | 0          | 0          | 0          |   0.0 |  0.00
+Comm    | 0.00060945 | 0.00060945 | 0.00060945 |   0.0 |  0.25
+Output  | 0          | 0          | 0          |   0.0 |  0.00
+Modify  | 0.00025344 | 0.00025344 | 0.00025344 |   0.0 |  0.11
+Other   |            | 0.0006924  |            |       |  0.29
+
+Nlocal:           3200 ave        3200 max        3200 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Nghost:           7381 ave        7381 max        7381 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Neighs:         633344 ave      633344 max      633344 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+
+Total # of neighbors = 633344
+Ave neighs/atom = 197.92
+Neighbor list builds = 0
+Dangerous builds = 0
+
+  variable area equal lx*ly
+  print "- {shift: $(v_shift:%.4f), pe: $(pe:%.6f), area: $(v_area:%.4f)}"       append gsfe.yaml screen no
+  next k
+  jump SELF loop
+  clear
+OMP_NUM_THREADS environment is not set. Defaulting to 1 thread.
+  using 1 OpenMP thread(s) per MPI task
+  units metal
+  boundary p p s
+  atom_style atomic
+  read_data slab.data
+Reading data file ...
+  orthogonal box = (0 0 -0.0056557001) to (23.089299 39.991839 56.562657)
+  1 by 1 by 1 MPI processor grid
+  reading atoms ...
+  3200 atoms
+  reading velocities ...
+  3200 velocities
+  read_data CPU = 0.006 seconds
+  pair_style eam/alloy
+  pair_coeff * * ${pot} ${elem}
+  pair_coeff * * Al_zhou.eam.alloy ${elem}
+  pair_coeff * * Al_zhou.eam.alloy Al
+Reading eam/alloy potential file Al_zhou.eam.alloy with DATE: 2007-10-12
+
+  # upper half: everything above a (111) gap near the middle of the slab
+  region rup block INF INF INF INF ${zcut} INF units box
+  region rup block INF INF INF INF 27.1002298517351 INF units box
+  group upper region rup
+1664 atoms in group upper
+
+  # rigid shift of the upper half by the total displacement for this step
+  variable shift equal ${k}*${period}/${np}
+  variable shift equal 2*${period}/${np}
+  variable shift equal 2*4.99897990431548/${np}
+  variable shift equal 2*4.99897990431548/25
+  displace_atoms upper move 0.0 ${shift} 0.0 units box
+  displace_atoms upper move 0.0 0.399918392345238 0.0 units box
+Displacing atoms ...
+
+  # relax atoms perpendicular to the fault only (zero the in-plane forces)
+  fix frz all setforce 0.0 0.0 NULL
+  min_style cg
+  minimize 1.0e-8 1.0e-8 1000 10000
+Neighbor list info ...
+  update: every = 1 steps, delay = 0 steps, check = yes
+  max neighbors/atom: 2000, page size: 100000
+  master list distance cutoff = 12.1025
+  ghost atom cutoff = 12.1025
+  binsize = 6.05125, bins = 4 7 10
+  1 neighbor lists, perpetual/occasional/extra = 1 0 0
+  (1) pair eam/alloy, perpetual
+      attributes: half, newton on
+      pair build: half/bin/atomonly/newton
+      stencil: half/bin/3d
+      bin: standard
+Per MPI rank memory allocation (min/avg/max) = 7.069 | 7.069 | 7.069 Mbytes
+   Step          Temp          E_pair         E_mol          TotEng         Press          Volume    
+         0   0             -11356.519      0             -11356.519     -4394.6082      52234.251    
+        17   0             -11357.367      0             -11357.367     -2843.436       52234.251    
+Loop time of 0.384893 on 1 procs for 17 steps with 3200 atoms
+
+99.5% CPU use with 1 MPI tasks x 1 OpenMP threads
+
+Minimization stats:
+  Stopping criterion = energy tolerance
+  Energy initial, next-to-last, final = 
+     -11356.5194078956  -11357.3668644773  -11357.3669693629
+  Force two-norm initial, final = 2.5360299 0.019483891
+  Force max component initial, final = 0.11332981 0.00097551874
+  Final line search alpha, max atom move = 1 0.00097551874
+  Iterations, force evaluations = 17 33
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 0.38277    | 0.38277    | 0.38277    |   0.0 | 99.45
+Neigh   | 0          | 0          | 0          |   0.0 |  0.00
+Comm    | 0.00079145 | 0.00079145 | 0.00079145 |   0.0 |  0.21
+Output  | 0          | 0          | 0          |   0.0 |  0.00
+Modify  | 0.00031231 | 0.00031231 | 0.00031231 |   0.0 |  0.08
+Other   |            | 0.001016   |            |       |  0.26
+
+Nlocal:           3200 ave        3200 max        3200 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Nghost:           7461 ave        7461 max        7461 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Neighs:         632448 ave      632448 max      632448 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+
+Total # of neighbors = 632448
+Ave neighs/atom = 197.64
+Neighbor list builds = 0
+Dangerous builds = 0
+
+  variable area equal lx*ly
+  print "- {shift: $(v_shift:%.4f), pe: $(pe:%.6f), area: $(v_area:%.4f)}"       append gsfe.yaml screen no
+  next k
+  jump SELF loop
+  clear
+OMP_NUM_THREADS environment is not set. Defaulting to 1 thread.
+  using 1 OpenMP thread(s) per MPI task
+  units metal
+  boundary p p s
+  atom_style atomic
+  read_data slab.data
+Reading data file ...
+  orthogonal box = (0 0 -0.0056557001) to (23.089299 39.991839 56.562657)
+  1 by 1 by 1 MPI processor grid
+  reading atoms ...
+  3200 atoms
+  reading velocities ...
+  3200 velocities
+  read_data CPU = 0.006 seconds
+  pair_style eam/alloy
+  pair_coeff * * ${pot} ${elem}
+  pair_coeff * * Al_zhou.eam.alloy ${elem}
+  pair_coeff * * Al_zhou.eam.alloy Al
+Reading eam/alloy potential file Al_zhou.eam.alloy with DATE: 2007-10-12
+
+  # upper half: everything above a (111) gap near the middle of the slab
+  region rup block INF INF INF INF ${zcut} INF units box
+  region rup block INF INF INF INF 27.1002298517351 INF units box
+  group upper region rup
+1664 atoms in group upper
+
+  # rigid shift of the upper half by the total displacement for this step
+  variable shift equal ${k}*${period}/${np}
+  variable shift equal 3*${period}/${np}
+  variable shift equal 3*4.99897990431548/${np}
+  variable shift equal 3*4.99897990431548/25
+  displace_atoms upper move 0.0 ${shift} 0.0 units box
+  displace_atoms upper move 0.0 0.599877588517858 0.0 units box
+Displacing atoms ...
+
+  # relax atoms perpendicular to the fault only (zero the in-plane forces)
+  fix frz all setforce 0.0 0.0 NULL
+  min_style cg
+  minimize 1.0e-8 1.0e-8 1000 10000
+Neighbor list info ...
+  update: every = 1 steps, delay = 0 steps, check = yes
+  max neighbors/atom: 2000, page size: 100000
+  master list distance cutoff = 12.1025
+  ghost atom cutoff = 12.1025
+  binsize = 6.05125, bins = 4 7 10
+  1 neighbor lists, perpetual/occasional/extra = 1 0 0
+  (1) pair eam/alloy, perpetual
+      attributes: half, newton on
+      pair build: half/bin/atomonly/newton
+      stencil: half/bin/3d
+      bin: standard
+Per MPI rank memory allocation (min/avg/max) = 7.064 | 7.064 | 7.064 Mbytes
+   Step          Temp          E_pair         E_mol          TotEng         Press          Volume    
+         0   0             -11354.695      0             -11354.695     -4146.2151      52234.251    
+        17   0             -11355.825      0             -11355.825     -3030.4338      52234.251    
+Loop time of 0.391647 on 1 procs for 17 steps with 3200 atoms
+
+99.6% CPU use with 1 MPI tasks x 1 OpenMP threads
+
+Minimization stats:
+  Stopping criterion = energy tolerance
+  Energy initial, next-to-last, final = 
+     -11354.6945097632  -11355.8251751698  -11355.8252812776
+  Force two-norm initial, final = 2.8464729 0.019831837
+  Force max component initial, final = 0.11332981 0.00060239591
+  Final line search alpha, max atom move = 1 0.00060239591
+  Iterations, force evaluations = 17 34
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 0.38992    | 0.38992    | 0.38992    |   0.0 | 99.56
+Neigh   | 0          | 0          | 0          |   0.0 |  0.00
+Comm    | 0.0005735  | 0.0005735  | 0.0005735  |   0.0 |  0.15
+Output  | 0          | 0          | 0          |   0.0 |  0.00
+Modify  | 0.00029932 | 0.00029932 | 0.00029932 |   0.0 |  0.08
+Other   |            | 0.0008536  |            |       |  0.22
+
+Nlocal:           3200 ave        3200 max        3200 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Nghost:           7393 ave        7393 max        7393 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Neighs:         632960 ave      632960 max      632960 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+
+Total # of neighbors = 632960
+Ave neighs/atom = 197.8
+Neighbor list builds = 0
+Dangerous builds = 0
+
+  variable area equal lx*ly
+  print "- {shift: $(v_shift:%.4f), pe: $(pe:%.6f), area: $(v_area:%.4f)}"       append gsfe.yaml screen no
+  next k
+  jump SELF loop
+  clear
+OMP_NUM_THREADS environment is not set. Defaulting to 1 thread.
+  using 1 OpenMP thread(s) per MPI task
+  units metal
+  boundary p p s
+  atom_style atomic
+  read_data slab.data
+Reading data file ...
+  orthogonal box = (0 0 -0.0056557001) to (23.089299 39.991839 56.562657)
+  1 by 1 by 1 MPI processor grid
+  reading atoms ...
+  3200 atoms
+  reading velocities ...
+  3200 velocities
+  read_data CPU = 0.006 seconds
+  pair_style eam/alloy
+  pair_coeff * * ${pot} ${elem}
+  pair_coeff * * Al_zhou.eam.alloy ${elem}
+  pair_coeff * * Al_zhou.eam.alloy Al
+Reading eam/alloy potential file Al_zhou.eam.alloy with DATE: 2007-10-12
+
+  # upper half: everything above a (111) gap near the middle of the slab
+  region rup block INF INF INF INF ${zcut} INF units box
+  region rup block INF INF INF INF 27.1002298517351 INF units box
+  group upper region rup
+1664 atoms in group upper
+
+  # rigid shift of the upper half by the total displacement for this step
+  variable shift equal ${k}*${period}/${np}
+  variable shift equal 4*${period}/${np}
+  variable shift equal 4*4.99897990431548/${np}
+  variable shift equal 4*4.99897990431548/25
+  displace_atoms upper move 0.0 ${shift} 0.0 units box
+  displace_atoms upper move 0.0 0.799836784690477 0.0 units box
+Displacing atoms ...
+
+  # relax atoms perpendicular to the fault only (zero the in-plane forces)
+  fix frz all setforce 0.0 0.0 NULL
+  min_style cg
+  minimize 1.0e-8 1.0e-8 1000 10000
+Neighbor list info ...
+  update: every = 1 steps, delay = 0 steps, check = yes
+  max neighbors/atom: 2000, page size: 100000
+  master list distance cutoff = 12.1025
+  ghost atom cutoff = 12.1025
+  binsize = 6.05125, bins = 4 7 10
+  1 neighbor lists, perpetual/occasional/extra = 1 0 0
+  (1) pair eam/alloy, perpetual
+      attributes: half, newton on
+      pair build: half/bin/atomonly/newton
+      stencil: half/bin/3d
+      bin: standard
+Per MPI rank memory allocation (min/avg/max) = 7.064 | 7.064 | 7.064 Mbytes
+   Step          Temp          E_pair         E_mol          TotEng         Press          Volume    
+         0   0             -11353.477      0             -11353.477     -3980.0289      52234.251    
+        22   0             -11354.956      0             -11354.956     -3235.6211      52234.251    
+Loop time of 0.503984 on 1 procs for 22 steps with 3200 atoms
+
+99.5% CPU use with 1 MPI tasks x 1 OpenMP threads
+
+Minimization stats:
+  Stopping criterion = energy tolerance
+  Energy initial, next-to-last, final = 
+     -11353.4766287743  -11354.9554102116  -11354.9555021398
+  Force two-norm initial, final = 3.0869492 0.013686553
+  Force max component initial, final = 0.12742255 0.00046632639
+  Final line search alpha, max atom move = 1 0.00046632639
+  Iterations, force evaluations = 22 44
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 0.50167    | 0.50167    | 0.50167    |   0.0 | 99.54
+Neigh   | 0          | 0          | 0          |   0.0 |  0.00
+Comm    | 0.00076513 | 0.00076513 | 0.00076513 |   0.0 |  0.15
+Output  | 0          | 0          | 0          |   0.0 |  0.00
+Modify  | 0.00038689 | 0.00038689 | 0.00038689 |   0.0 |  0.08
+Other   |            | 0.001163   |            |       |  0.23
+
+Nlocal:           3200 ave        3200 max        3200 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Nghost:           7393 ave        7393 max        7393 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Neighs:         634752 ave      634752 max      634752 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+
+Total # of neighbors = 634752
+Ave neighs/atom = 198.36
+Neighbor list builds = 0
+Dangerous builds = 0
+
+  variable area equal lx*ly
+  print "- {shift: $(v_shift:%.4f), pe: $(pe:%.6f), area: $(v_area:%.4f)}"       append gsfe.yaml screen no
+  next k
+  jump SELF loop
+  clear
+OMP_NUM_THREADS environment is not set. Defaulting to 1 thread.
+  using 1 OpenMP thread(s) per MPI task
+  units metal
+  boundary p p s
+  atom_style atomic
+  read_data slab.data
+Reading data file ...
+  orthogonal box = (0 0 -0.0056557001) to (23.089299 39.991839 56.562657)
+  1 by 1 by 1 MPI processor grid
+  reading atoms ...
+  3200 atoms
+  reading velocities ...
+  3200 velocities
+  read_data CPU = 0.006 seconds
+  pair_style eam/alloy
+  pair_coeff * * ${pot} ${elem}
+  pair_coeff * * Al_zhou.eam.alloy ${elem}
+  pair_coeff * * Al_zhou.eam.alloy Al
+Reading eam/alloy potential file Al_zhou.eam.alloy with DATE: 2007-10-12
+
+  # upper half: everything above a (111) gap near the middle of the slab
+  region rup block INF INF INF INF ${zcut} INF units box
+  region rup block INF INF INF INF 27.1002298517351 INF units box
+  group upper region rup
+1664 atoms in group upper
+
+  # rigid shift of the upper half by the total displacement for this step
+  variable shift equal ${k}*${period}/${np}
+  variable shift equal 5*${period}/${np}
+  variable shift equal 5*4.99897990431548/${np}
+  variable shift equal 5*4.99897990431548/25
+  displace_atoms upper move 0.0 ${shift} 0.0 units box
+  displace_atoms upper move 0.0 0.999795980863096 0.0 units box
+Displacing atoms ...
+
+  # relax atoms perpendicular to the fault only (zero the in-plane forces)
+  fix frz all setforce 0.0 0.0 NULL
+  min_style cg
+  minimize 1.0e-8 1.0e-8 1000 10000
+Neighbor list info ...
+  update: every = 1 steps, delay = 0 steps, check = yes
+  max neighbors/atom: 2000, page size: 100000
+  master list distance cutoff = 12.1025
+  ghost atom cutoff = 12.1025
+  binsize = 6.05125, bins = 4 7 10
+  1 neighbor lists, perpetual/occasional/extra = 1 0 0
+  (1) pair eam/alloy, perpetual
+      attributes: half, newton on
+      pair build: half/bin/atomonly/newton
+      stencil: half/bin/3d
+      bin: standard
+Per MPI rank memory allocation (min/avg/max) = 7.068 | 7.068 | 7.068 Mbytes
+   Step          Temp          E_pair         E_mol          TotEng         Press          Volume    
+         0   0             -11353.06       0             -11353.06      -3867.644       52234.251    
+        23   0             -11354.819      0             -11354.819     -3387.478       52234.251    
+Loop time of 0.54341 on 1 procs for 23 steps with 3200 atoms
+
+99.6% CPU use with 1 MPI tasks x 1 OpenMP threads
+
+Minimization stats:
+  Stopping criterion = energy tolerance
+  Energy initial, next-to-last, final = 
+     -11353.0597768839  -11354.8185664401   -11354.818590324
+  Force two-norm initial, final = 3.1763631 0.0043435859
+  Force max component initial, final = 0.13343752 0.00016446853
+  Final line search alpha, max atom move = 1 0.00016446853
+  Iterations, force evaluations = 23 46
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 0.54091    | 0.54091    | 0.54091    |   0.0 | 99.54
+Neigh   | 0          | 0          | 0          |   0.0 |  0.00
+Comm    | 0.00083303 | 0.00083303 | 0.00083303 |   0.0 |  0.15
+Output  | 0          | 0          | 0          |   0.0 |  0.00
+Modify  | 0.00040971 | 0.00040971 | 0.00040971 |   0.0 |  0.08
+Other   |            | 0.001259   |            |       |  0.23
+
+Nlocal:           3200 ave        3200 max        3200 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Nghost:           7393 ave        7393 max        7393 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Neighs:         635520 ave      635520 max      635520 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+
+Total # of neighbors = 635520
+Ave neighs/atom = 198.6
+Neighbor list builds = 0
+Dangerous builds = 0
+
+  variable area equal lx*ly
+  print "- {shift: $(v_shift:%.4f), pe: $(pe:%.6f), area: $(v_area:%.4f)}"       append gsfe.yaml screen no
+  next k
+  jump SELF loop
+  clear
+OMP_NUM_THREADS environment is not set. Defaulting to 1 thread.
+  using 1 OpenMP thread(s) per MPI task
+  units metal
+  boundary p p s
+  atom_style atomic
+  read_data slab.data
+Reading data file ...
+  orthogonal box = (0 0 -0.0056557001) to (23.089299 39.991839 56.562657)
+  1 by 1 by 1 MPI processor grid
+  reading atoms ...
+  3200 atoms
+  reading velocities ...
+  3200 velocities
+  read_data CPU = 0.006 seconds
+  pair_style eam/alloy
+  pair_coeff * * ${pot} ${elem}
+  pair_coeff * * Al_zhou.eam.alloy ${elem}
+  pair_coeff * * Al_zhou.eam.alloy Al
+Reading eam/alloy potential file Al_zhou.eam.alloy with DATE: 2007-10-12
+
+  # upper half: everything above a (111) gap near the middle of the slab
+  region rup block INF INF INF INF ${zcut} INF units box
+  region rup block INF INF INF INF 27.1002298517351 INF units box
+  group upper region rup
+1664 atoms in group upper
+
+  # rigid shift of the upper half by the total displacement for this step
+  variable shift equal ${k}*${period}/${np}
+  variable shift equal 6*${period}/${np}
+  variable shift equal 6*4.99897990431548/${np}
+  variable shift equal 6*4.99897990431548/25
+  displace_atoms upper move 0.0 ${shift} 0.0 units box
+  displace_atoms upper move 0.0 1.19975517703572 0.0 units box
+Displacing atoms ...
+
+  # relax atoms perpendicular to the fault only (zero the in-plane forces)
+  fix frz all setforce 0.0 0.0 NULL
+  min_style cg
+  minimize 1.0e-8 1.0e-8 1000 10000
+Neighbor list info ...
+  update: every = 1 steps, delay = 0 steps, check = yes
+  max neighbors/atom: 2000, page size: 100000
+  master list distance cutoff = 12.1025
+  ghost atom cutoff = 12.1025
+  binsize = 6.05125, bins = 4 7 10
+  1 neighbor lists, perpetual/occasional/extra = 1 0 0
+  (1) pair eam/alloy, perpetual
+      attributes: half, newton on
+      pair build: half/bin/atomonly/newton
+      stencil: half/bin/3d
+      bin: standard
+Per MPI rank memory allocation (min/avg/max) = 7.068 | 7.068 | 7.068 Mbytes
+   Step          Temp          E_pair         E_mol          TotEng         Press          Volume    
+         0   0             -11353.52       0             -11353.52      -3856.549       52234.251    
+        22   0             -11355.331      0             -11355.331     -3500.486       52234.251    
+Loop time of 0.544992 on 1 procs for 22 steps with 3200 atoms
+
+99.5% CPU use with 1 MPI tasks x 1 OpenMP threads
+
+Minimization stats:
+  Stopping criterion = energy tolerance
+  Energy initial, next-to-last, final = 
+     -11353.5200704078  -11355.3305126594  -11355.3305961386
+  Force two-norm initial, final = 3.0824018 0.011717566
+  Force max component initial, final = 0.12068844 0.0004575579
+  Final line search alpha, max atom move = 1 0.0004575579
+  Iterations, force evaluations = 22 44
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 0.54194    | 0.54194    | 0.54194    |   0.0 | 99.44
+Neigh   | 0          | 0          | 0          |   0.0 |  0.00
+Comm    | 0.0011331  | 0.0011331  | 0.0011331  |   0.0 |  0.21
+Output  | 0          | 0          | 0          |   0.0 |  0.00
+Modify  | 0.00042555 | 0.00042555 | 0.00042555 |   0.0 |  0.08
+Other   |            | 0.001496   |            |       |  0.27
+
+Nlocal:           3200 ave        3200 max        3200 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Nghost:           7393 ave        7393 max        7393 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Neighs:         635264 ave      635264 max      635264 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+
+Total # of neighbors = 635264
+Ave neighs/atom = 198.52
+Neighbor list builds = 0
+Dangerous builds = 0
+
+  variable area equal lx*ly
+  print "- {shift: $(v_shift:%.4f), pe: $(pe:%.6f), area: $(v_area:%.4f)}"       append gsfe.yaml screen no
+  next k
+  jump SELF loop
+  clear
+OMP_NUM_THREADS environment is not set. Defaulting to 1 thread.
+  using 1 OpenMP thread(s) per MPI task
+  units metal
+  boundary p p s
+  atom_style atomic
+  read_data slab.data
+Reading data file ...
+  orthogonal box = (0 0 -0.0056557001) to (23.089299 39.991839 56.562657)
+  1 by 1 by 1 MPI processor grid
+  reading atoms ...
+  3200 atoms
+  reading velocities ...
+  3200 velocities
+  read_data CPU = 0.006 seconds
+  pair_style eam/alloy
+  pair_coeff * * ${pot} ${elem}
+  pair_coeff * * Al_zhou.eam.alloy ${elem}
+  pair_coeff * * Al_zhou.eam.alloy Al
+Reading eam/alloy potential file Al_zhou.eam.alloy with DATE: 2007-10-12
+
+  # upper half: everything above a (111) gap near the middle of the slab
+  region rup block INF INF INF INF ${zcut} INF units box
+  region rup block INF INF INF INF 27.1002298517351 INF units box
+  group upper region rup
+1664 atoms in group upper
+
+  # rigid shift of the upper half by the total displacement for this step
+  variable shift equal ${k}*${period}/${np}
+  variable shift equal 7*${period}/${np}
+  variable shift equal 7*4.99897990431548/${np}
+  variable shift equal 7*4.99897990431548/25
+  displace_atoms upper move 0.0 ${shift} 0.0 units box
+  displace_atoms upper move 0.0 1.39971437320833 0.0 units box
+Displacing atoms ...
+
+  # relax atoms perpendicular to the fault only (zero the in-plane forces)
+  fix frz all setforce 0.0 0.0 NULL
+  min_style cg
+  minimize 1.0e-8 1.0e-8 1000 10000
+Neighbor list info ...
+  update: every = 1 steps, delay = 0 steps, check = yes
+  max neighbors/atom: 2000, page size: 100000
+  master list distance cutoff = 12.1025
+  ghost atom cutoff = 12.1025
+  binsize = 6.05125, bins = 4 7 10
+  1 neighbor lists, perpetual/occasional/extra = 1 0 0
+  (1) pair eam/alloy, perpetual
+      attributes: half, newton on
+      pair build: half/bin/atomonly/newton
+      stencil: half/bin/3d
+      bin: standard
+Per MPI rank memory allocation (min/avg/max) = 7.064 | 7.064 | 7.064 Mbytes
+   Step          Temp          E_pair         E_mol          TotEng         Press          Volume    
+         0   0             -11354.728      0             -11354.728     -4004.8642      52234.251    
+        22   0             -11356.326      0             -11356.326     -3636.4079      52234.251    
+Loop time of 0.539141 on 1 procs for 22 steps with 3200 atoms
+
+99.5% CPU use with 1 MPI tasks x 1 OpenMP threads
+
+Minimization stats:
+  Stopping criterion = energy tolerance
+  Energy initial, next-to-last, final = 
+      -11354.727760235  -11356.3258781549  -11356.3259572425
+  Force two-norm initial, final = 2.8498351 0.01197947
+  Force max component initial, final = 0.11332981 0.00046089258
+  Final line search alpha, max atom move = 1 0.00046089258
+  Iterations, force evaluations = 22 44
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 0.53577    | 0.53577    | 0.53577    |   0.0 | 99.38
+Neigh   | 0          | 0          | 0          |   0.0 |  0.00
+Comm    | 0.0012106  | 0.0012106  | 0.0012106  |   0.0 |  0.22
+Output  | 0          | 0          | 0          |   0.0 |  0.00
+Modify  | 0.00048571 | 0.00048571 | 0.00048571 |   0.0 |  0.09
+Other   |            | 0.00167    |            |       |  0.31
+
+Nlocal:           3200 ave        3200 max        3200 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Nghost:           7397 ave        7397 max        7397 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Neighs:         635008 ave      635008 max      635008 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+
+Total # of neighbors = 635008
+Ave neighs/atom = 198.44
+Neighbor list builds = 0
+Dangerous builds = 0
+
+  variable area equal lx*ly
+  print "- {shift: $(v_shift:%.4f), pe: $(pe:%.6f), area: $(v_area:%.4f)}"       append gsfe.yaml screen no
+  next k
+  jump SELF loop
+  clear
+OMP_NUM_THREADS environment is not set. Defaulting to 1 thread.
+  using 1 OpenMP thread(s) per MPI task
+  units metal
+  boundary p p s
+  atom_style atomic
+  read_data slab.data
+Reading data file ...
+  orthogonal box = (0 0 -0.0056557001) to (23.089299 39.991839 56.562657)
+  1 by 1 by 1 MPI processor grid
+  reading atoms ...
+  3200 atoms
+  reading velocities ...
+  3200 velocities
+  read_data CPU = 0.006 seconds
+  pair_style eam/alloy
+  pair_coeff * * ${pot} ${elem}
+  pair_coeff * * Al_zhou.eam.alloy ${elem}
+  pair_coeff * * Al_zhou.eam.alloy Al
+Reading eam/alloy potential file Al_zhou.eam.alloy with DATE: 2007-10-12
+
+  # upper half: everything above a (111) gap near the middle of the slab
+  region rup block INF INF INF INF ${zcut} INF units box
+  region rup block INF INF INF INF 27.1002298517351 INF units box
+  group upper region rup
+1664 atoms in group upper
+
+  # rigid shift of the upper half by the total displacement for this step
+  variable shift equal ${k}*${period}/${np}
+  variable shift equal 8*${period}/${np}
+  variable shift equal 8*4.99897990431548/${np}
+  variable shift equal 8*4.99897990431548/25
+  displace_atoms upper move 0.0 ${shift} 0.0 units box
+  displace_atoms upper move 0.0 1.59967356938095 0.0 units box
+Displacing atoms ...
+
+  # relax atoms perpendicular to the fault only (zero the in-plane forces)
+  fix frz all setforce 0.0 0.0 NULL
+  min_style cg
+  minimize 1.0e-8 1.0e-8 1000 10000
+Neighbor list info ...
+  update: every = 1 steps, delay = 0 steps, check = yes
+  max neighbors/atom: 2000, page size: 100000
+  master list distance cutoff = 12.1025
+  ghost atom cutoff = 12.1025
+  binsize = 6.05125, bins = 4 7 10
+  1 neighbor lists, perpetual/occasional/extra = 1 0 0
+  (1) pair eam/alloy, perpetual
+      attributes: half, newton on
+      pair build: half/bin/atomonly/newton
+      stencil: half/bin/3d
+      bin: standard
+Per MPI rank memory allocation (min/avg/max) = 7.064 | 7.064 | 7.064 Mbytes
+   Step          Temp          E_pair         E_mol          TotEng         Press          Volume    
+         0   0             -11355.881      0             -11355.881     -4163.1452      52234.251    
+        22   0             -11357.266      0             -11357.266     -3745.5693      52234.251    
+Loop time of 0.534989 on 1 procs for 22 steps with 3200 atoms
+
+99.5% CPU use with 1 MPI tasks x 1 OpenMP threads
+
+Minimization stats:
+  Stopping criterion = energy tolerance
+  Energy initial, next-to-last, final = 
+     -11355.8810066257  -11357.2662051229  -11357.2662724253
+  Force two-norm initial, final = 2.6813262 0.010364868
+  Force max component initial, final = 0.11332981 0.00037015985
+  Final line search alpha, max atom move = 1 0.00037015985
+  Iterations, force evaluations = 22 44
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 0.53111    | 0.53111    | 0.53111    |   0.0 | 99.28
+Neigh   | 0          | 0          | 0          |   0.0 |  0.00
+Comm    | 0.0014276  | 0.0014276  | 0.0014276  |   0.0 |  0.27
+Output  | 0          | 0          | 0          |   0.0 |  0.00
+Modify  | 0.00056702 | 0.00056702 | 0.00056702 |   0.0 |  0.11
+Other   |            | 0.001882   |            |       |  0.35
+
+Nlocal:           3200 ave        3200 max        3200 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Nghost:           7397 ave        7397 max        7397 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Neighs:         633856 ave      633856 max      633856 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+
+Total # of neighbors = 633856
+Ave neighs/atom = 198.08
+Neighbor list builds = 0
+Dangerous builds = 0
+
+  variable area equal lx*ly
+  print "- {shift: $(v_shift:%.4f), pe: $(pe:%.6f), area: $(v_area:%.4f)}"       append gsfe.yaml screen no
+  next k
+  jump SELF loop
+  clear
+OMP_NUM_THREADS environment is not set. Defaulting to 1 thread.
+  using 1 OpenMP thread(s) per MPI task
+  units metal
+  boundary p p s
+  atom_style atomic
+  read_data slab.data
+Reading data file ...
+  orthogonal box = (0 0 -0.0056557001) to (23.089299 39.991839 56.562657)
+  1 by 1 by 1 MPI processor grid
+  reading atoms ...
+  3200 atoms
+  reading velocities ...
+  3200 velocities
+  read_data CPU = 0.006 seconds
+  pair_style eam/alloy
+  pair_coeff * * ${pot} ${elem}
+  pair_coeff * * Al_zhou.eam.alloy ${elem}
+  pair_coeff * * Al_zhou.eam.alloy Al
+Reading eam/alloy potential file Al_zhou.eam.alloy with DATE: 2007-10-12
+
+  # upper half: everything above a (111) gap near the middle of the slab
+  region rup block INF INF INF INF ${zcut} INF units box
+  region rup block INF INF INF INF 27.1002298517351 INF units box
+  group upper region rup
+1664 atoms in group upper
+
+  # rigid shift of the upper half by the total displacement for this step
+  variable shift equal ${k}*${period}/${np}
+  variable shift equal 9*${period}/${np}
+  variable shift equal 9*4.99897990431548/${np}
+  variable shift equal 9*4.99897990431548/25
+  displace_atoms upper move 0.0 ${shift} 0.0 units box
+  displace_atoms upper move 0.0 1.79963276555357 0.0 units box
+Displacing atoms ...
+
+  # relax atoms perpendicular to the fault only (zero the in-plane forces)
+  fix frz all setforce 0.0 0.0 NULL
+  min_style cg
+  minimize 1.0e-8 1.0e-8 1000 10000
+Neighbor list info ...
+  update: every = 1 steps, delay = 0 steps, check = yes
+  max neighbors/atom: 2000, page size: 100000
+  master list distance cutoff = 12.1025
+  ghost atom cutoff = 12.1025
+  binsize = 6.05125, bins = 4 7 10
+  1 neighbor lists, perpetual/occasional/extra = 1 0 0
+  (1) pair eam/alloy, perpetual
+      attributes: half, newton on
+      pair build: half/bin/atomonly/newton
+      stencil: half/bin/3d
+      bin: standard
+Per MPI rank memory allocation (min/avg/max) = 7.069 | 7.069 | 7.069 Mbytes
+   Step          Temp          E_pair         E_mol          TotEng         Press          Volume    
+         0   0             -11355.524      0             -11355.524     -4127.009       52234.251    
+        22   0             -11356.97       0             -11356.97      -3730.5065      52234.251    
+Loop time of 0.52145 on 1 procs for 22 steps with 3200 atoms
+
+99.6% CPU use with 1 MPI tasks x 1 OpenMP threads
+
+Minimization stats:
+  Stopping criterion = energy tolerance
+  Energy initial, next-to-last, final = 
+     -11355.5243571766  -11356.9695687697   -11356.969642551
+  Force two-norm initial, final = 2.7271499 0.011244495
+  Force max component initial, final = 0.11332981 0.00039886768
+  Final line search alpha, max atom move = 1 0.00039886768
+  Iterations, force evaluations = 22 44
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 0.51909    | 0.51909    | 0.51909    |   0.0 | 99.55
+Neigh   | 0          | 0          | 0          |   0.0 |  0.00
+Comm    | 0.00078448 | 0.00078448 | 0.00078448 |   0.0 |  0.15
+Output  | 0          | 0          | 0          |   0.0 |  0.00
+Modify  | 0.00038597 | 0.00038597 | 0.00038597 |   0.0 |  0.07
+Other   |            | 0.001193   |            |       |  0.23
+
+Nlocal:           3200 ave        3200 max        3200 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Nghost:           7397 ave        7397 max        7397 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Neighs:         633856 ave      633856 max      633856 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+
+Total # of neighbors = 633856
+Ave neighs/atom = 198.08
+Neighbor list builds = 0
+Dangerous builds = 0
+
+  variable area equal lx*ly
+  print "- {shift: $(v_shift:%.4f), pe: $(pe:%.6f), area: $(v_area:%.4f)}"       append gsfe.yaml screen no
+  next k
+  jump SELF loop
+  clear
+OMP_NUM_THREADS environment is not set. Defaulting to 1 thread.
+  using 1 OpenMP thread(s) per MPI task
+  units metal
+  boundary p p s
+  atom_style atomic
+  read_data slab.data
+Reading data file ...
+  orthogonal box = (0 0 -0.0056557001) to (23.089299 39.991839 56.562657)
+  1 by 1 by 1 MPI processor grid
+  reading atoms ...
+  3200 atoms
+  reading velocities ...
+  3200 velocities
+  read_data CPU = 0.006 seconds
+  pair_style eam/alloy
+  pair_coeff * * ${pot} ${elem}
+  pair_coeff * * Al_zhou.eam.alloy ${elem}
+  pair_coeff * * Al_zhou.eam.alloy Al
+Reading eam/alloy potential file Al_zhou.eam.alloy with DATE: 2007-10-12
+
+  # upper half: everything above a (111) gap near the middle of the slab
+  region rup block INF INF INF INF ${zcut} INF units box
+  region rup block INF INF INF INF 27.1002298517351 INF units box
+  group upper region rup
+1664 atoms in group upper
+
+  # rigid shift of the upper half by the total displacement for this step
+  variable shift equal ${k}*${period}/${np}
+  variable shift equal 10*${period}/${np}
+  variable shift equal 10*4.99897990431548/${np}
+  variable shift equal 10*4.99897990431548/25
+  displace_atoms upper move 0.0 ${shift} 0.0 units box
+  displace_atoms upper move 0.0 1.99959196172619 0.0 units box
+Displacing atoms ...
+
+  # relax atoms perpendicular to the fault only (zero the in-plane forces)
+  fix frz all setforce 0.0 0.0 NULL
+  min_style cg
+  minimize 1.0e-8 1.0e-8 1000 10000
+Neighbor list info ...
+  update: every = 1 steps, delay = 0 steps, check = yes
+  max neighbors/atom: 2000, page size: 100000
+  master list distance cutoff = 12.1025
+  ghost atom cutoff = 12.1025
+  binsize = 6.05125, bins = 4 7 10
+  1 neighbor lists, perpetual/occasional/extra = 1 0 0
+  (1) pair eam/alloy, perpetual
+      attributes: half, newton on
+      pair build: half/bin/atomonly/newton
+      stencil: half/bin/3d
+      bin: standard
+Per MPI rank memory allocation (min/avg/max) = 7.069 | 7.069 | 7.069 Mbytes
+   Step          Temp          E_pair         E_mol          TotEng         Press          Volume    
+         0   0             -11353.21       0             -11353.21      -3903.4067      52234.251    
+        22   0             -11355.157      0             -11355.157     -3661.6026      52234.251    
+Loop time of 0.532861 on 1 procs for 22 steps with 3200 atoms
+
+99.6% CPU use with 1 MPI tasks x 1 OpenMP threads
+
+Minimization stats:
+  Stopping criterion = energy tolerance
+  Energy initial, next-to-last, final = 
+     -11353.2099136626  -11355.1566919716  -11355.1567485796
+  Force two-norm initial, final = 3.1673773 0.0097767729
+  Force max component initial, final = 0.12643335 0.00042008375
+  Final line search alpha, max atom move = 1 0.00042008375
+  Iterations, force evaluations = 22 44
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 0.53013    | 0.53013    | 0.53013    |   0.0 | 99.49
+Neigh   | 0          | 0          | 0          |   0.0 |  0.00
+Comm    | 0.00088983 | 0.00088983 | 0.00088983 |   0.0 |  0.17
+Output  | 0          | 0          | 0          |   0.0 |  0.00
+Modify  | 0.00044116 | 0.00044116 | 0.00044116 |   0.0 |  0.08
+Other   |            | 0.001401   |            |       |  0.26
+
+Nlocal:           3200 ave        3200 max        3200 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Nghost:           7397 ave        7397 max        7397 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Neighs:         635136 ave      635136 max      635136 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+
+Total # of neighbors = 635136
+Ave neighs/atom = 198.48
+Neighbor list builds = 0
+Dangerous builds = 0
+
+  variable area equal lx*ly
+  print "- {shift: $(v_shift:%.4f), pe: $(pe:%.6f), area: $(v_area:%.4f)}"       append gsfe.yaml screen no
+  next k
+  jump SELF loop
+  clear
+OMP_NUM_THREADS environment is not set. Defaulting to 1 thread.
+  using 1 OpenMP thread(s) per MPI task
+  units metal
+  boundary p p s
+  atom_style atomic
+  read_data slab.data
+Reading data file ...
+  orthogonal box = (0 0 -0.0056557001) to (23.089299 39.991839 56.562657)
+  1 by 1 by 1 MPI processor grid
+  reading atoms ...
+  3200 atoms
+  reading velocities ...
+  3200 velocities
+  read_data CPU = 0.006 seconds
+  pair_style eam/alloy
+  pair_coeff * * ${pot} ${elem}
+  pair_coeff * * Al_zhou.eam.alloy ${elem}
+  pair_coeff * * Al_zhou.eam.alloy Al
+Reading eam/alloy potential file Al_zhou.eam.alloy with DATE: 2007-10-12
+
+  # upper half: everything above a (111) gap near the middle of the slab
+  region rup block INF INF INF INF ${zcut} INF units box
+  region rup block INF INF INF INF 27.1002298517351 INF units box
+  group upper region rup
+1664 atoms in group upper
+
+  # rigid shift of the upper half by the total displacement for this step
+  variable shift equal ${k}*${period}/${np}
+  variable shift equal 11*${period}/${np}
+  variable shift equal 11*4.99897990431548/${np}
+  variable shift equal 11*4.99897990431548/25
+  displace_atoms upper move 0.0 ${shift} 0.0 units box
+  displace_atoms upper move 0.0 2.19955115789881 0.0 units box
+Displacing atoms ...
+
+  # relax atoms perpendicular to the fault only (zero the in-plane forces)
+  fix frz all setforce 0.0 0.0 NULL
+  min_style cg
+  minimize 1.0e-8 1.0e-8 1000 10000
+Neighbor list info ...
+  update: every = 1 steps, delay = 0 steps, check = yes
+  max neighbors/atom: 2000, page size: 100000
+  master list distance cutoff = 12.1025
+  ghost atom cutoff = 12.1025
+  binsize = 6.05125, bins = 4 7 10
+  1 neighbor lists, perpetual/occasional/extra = 1 0 0
+  (1) pair eam/alloy, perpetual
+      attributes: half, newton on
+      pair build: half/bin/atomonly/newton
+      stencil: half/bin/3d
+      bin: standard
+Per MPI rank memory allocation (min/avg/max) = 7.064 | 7.064 | 7.064 Mbytes
+   Step          Temp          E_pair         E_mol          TotEng         Press          Volume    
+         0   0             -11349.453      0             -11349.453     -3613.9012      52234.251    
+        23   0             -11352.533      0             -11352.533     -3655.6785      52234.251    
+Loop time of 0.556529 on 1 procs for 23 steps with 3200 atoms
+
+99.5% CPU use with 1 MPI tasks x 1 OpenMP threads
+
+Minimization stats:
+  Stopping criterion = energy tolerance
+  Energy initial, next-to-last, final = 
+     -11349.4527581826  -11352.5331399652  -11352.5331884663
+  Force two-norm initial, final = 4.2503077 0.010571184
+  Force max component initial, final = 0.21992699 0.00035353176
+  Final line search alpha, max atom move = 1 0.00035353176
+  Iterations, force evaluations = 23 46
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 0.55349    | 0.55349    | 0.55349    |   0.0 | 99.45
+Neigh   | 0          | 0          | 0          |   0.0 |  0.00
+Comm    | 0.0010307  | 0.0010307  | 0.0010307  |   0.0 |  0.19
+Output  | 0          | 0          | 0          |   0.0 |  0.00
+Modify  | 0.00043546 | 0.00043546 | 0.00043546 |   0.0 |  0.08
+Other   |            | 0.001575   |            |       |  0.28
+
+Nlocal:           3200 ave        3200 max        3200 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Nghost:           7376 ave        7376 max        7376 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Neighs:         635136 ave      635136 max      635136 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+
+Total # of neighbors = 635136
+Ave neighs/atom = 198.48
+Neighbor list builds = 0
+Dangerous builds = 0
+
+  variable area equal lx*ly
+  print "- {shift: $(v_shift:%.4f), pe: $(pe:%.6f), area: $(v_area:%.4f)}"       append gsfe.yaml screen no
+  next k
+  jump SELF loop
+  clear
+OMP_NUM_THREADS environment is not set. Defaulting to 1 thread.
+  using 1 OpenMP thread(s) per MPI task
+  units metal
+  boundary p p s
+  atom_style atomic
+  read_data slab.data
+Reading data file ...
+  orthogonal box = (0 0 -0.0056557001) to (23.089299 39.991839 56.562657)
+  1 by 1 by 1 MPI processor grid
+  reading atoms ...
+  3200 atoms
+  reading velocities ...
+  3200 velocities
+  read_data CPU = 0.006 seconds
+  pair_style eam/alloy
+  pair_coeff * * ${pot} ${elem}
+  pair_coeff * * Al_zhou.eam.alloy ${elem}
+  pair_coeff * * Al_zhou.eam.alloy Al
+Reading eam/alloy potential file Al_zhou.eam.alloy with DATE: 2007-10-12
+
+  # upper half: everything above a (111) gap near the middle of the slab
+  region rup block INF INF INF INF ${zcut} INF units box
+  region rup block INF INF INF INF 27.1002298517351 INF units box
+  group upper region rup
+1664 atoms in group upper
+
+  # rigid shift of the upper half by the total displacement for this step
+  variable shift equal ${k}*${period}/${np}
+  variable shift equal 12*${period}/${np}
+  variable shift equal 12*4.99897990431548/${np}
+  variable shift equal 12*4.99897990431548/25
+  displace_atoms upper move 0.0 ${shift} 0.0 units box
+  displace_atoms upper move 0.0 2.39951035407143 0.0 units box
+Displacing atoms ...
+
+  # relax atoms perpendicular to the fault only (zero the in-plane forces)
+  fix frz all setforce 0.0 0.0 NULL
+  min_style cg
+  minimize 1.0e-8 1.0e-8 1000 10000
+Neighbor list info ...
+  update: every = 1 steps, delay = 0 steps, check = yes
+  max neighbors/atom: 2000, page size: 100000
+  master list distance cutoff = 12.1025
+  ghost atom cutoff = 12.1025
+  binsize = 6.05125, bins = 4 7 10
+  1 neighbor lists, perpetual/occasional/extra = 1 0 0
+  (1) pair eam/alloy, perpetual
+      attributes: half, newton on
+      pair build: half/bin/atomonly/newton
+      stencil: half/bin/3d
+      bin: standard
+Per MPI rank memory allocation (min/avg/max) = 7.064 | 7.064 | 7.064 Mbytes
+   Step          Temp          E_pair         E_mol          TotEng         Press          Volume    
+         0   0             -11344.643      0             -11344.643     -3340.563       52234.251    
+        23   0             -11349.553      0             -11349.553     -3734.6628      52234.251    
+Loop time of 0.552644 on 1 procs for 23 steps with 3200 atoms
+
+99.6% CPU use with 1 MPI tasks x 1 OpenMP threads
+
+Minimization stats:
+  Stopping criterion = energy tolerance
+  Energy initial, next-to-last, final = 
+     -11344.6429576235  -11349.5529872119  -11349.5530700567
+  Force two-norm initial, final = 5.9604328 0.014173068
+  Force max component initial, final = 0.34264523 0.00074750342
+  Final line search alpha, max atom move = 1 0.00074750342
+  Iterations, force evaluations = 23 46
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 0.5498     | 0.5498     | 0.5498     |   0.0 | 99.49
+Neigh   | 0          | 0          | 0          |   0.0 |  0.00
+Comm    | 0.00097127 | 0.00097127 | 0.00097127 |   0.0 |  0.18
+Output  | 0          | 0          | 0          |   0.0 |  0.00
+Modify  | 0.00044609 | 0.00044609 | 0.00044609 |   0.0 |  0.08
+Other   |            | 0.001425   |            |       |  0.26
+
+Nlocal:           3200 ave        3200 max        3200 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Nghost:           7376 ave        7376 max        7376 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Neighs:         634368 ave      634368 max      634368 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+
+Total # of neighbors = 634368
+Ave neighs/atom = 198.24
+Neighbor list builds = 0
+Dangerous builds = 0
+
+  variable area equal lx*ly
+  print "- {shift: $(v_shift:%.4f), pe: $(pe:%.6f), area: $(v_area:%.4f)}"       append gsfe.yaml screen no
+  next k
+  jump SELF loop
+  clear
+OMP_NUM_THREADS environment is not set. Defaulting to 1 thread.
+  using 1 OpenMP thread(s) per MPI task
+  units metal
+  boundary p p s
+  atom_style atomic
+  read_data slab.data
+Reading data file ...
+  orthogonal box = (0 0 -0.0056557001) to (23.089299 39.991839 56.562657)
+  1 by 1 by 1 MPI processor grid
+  reading atoms ...
+  3200 atoms
+  reading velocities ...
+  3200 velocities
+  read_data CPU = 0.006 seconds
+  pair_style eam/alloy
+  pair_coeff * * ${pot} ${elem}
+  pair_coeff * * Al_zhou.eam.alloy ${elem}
+  pair_coeff * * Al_zhou.eam.alloy Al
+Reading eam/alloy potential file Al_zhou.eam.alloy with DATE: 2007-10-12
+
+  # upper half: everything above a (111) gap near the middle of the slab
+  region rup block INF INF INF INF ${zcut} INF units box
+  region rup block INF INF INF INF 27.1002298517351 INF units box
+  group upper region rup
+1664 atoms in group upper
+
+  # rigid shift of the upper half by the total displacement for this step
+  variable shift equal ${k}*${period}/${np}
+  variable shift equal 13*${period}/${np}
+  variable shift equal 13*4.99897990431548/${np}
+  variable shift equal 13*4.99897990431548/25
+  displace_atoms upper move 0.0 ${shift} 0.0 units box
+  displace_atoms upper move 0.0 2.59946955024405 0.0 units box
+Displacing atoms ...
+
+  # relax atoms perpendicular to the fault only (zero the in-plane forces)
+  fix frz all setforce 0.0 0.0 NULL
+  min_style cg
+  minimize 1.0e-8 1.0e-8 1000 10000
+Neighbor list info ...
+  update: every = 1 steps, delay = 0 steps, check = yes
+  max neighbors/atom: 2000, page size: 100000
+  master list distance cutoff = 12.1025
+  ghost atom cutoff = 12.1025
+  binsize = 6.05125, bins = 4 7 10
+  1 neighbor lists, perpetual/occasional/extra = 1 0 0
+  (1) pair eam/alloy, perpetual
+      attributes: half, newton on
+      pair build: half/bin/atomonly/newton
+      stencil: half/bin/3d
+      bin: standard
+Per MPI rank memory allocation (min/avg/max) = 7.068 | 7.068 | 7.068 Mbytes
+   Step          Temp          E_pair         E_mol          TotEng         Press          Volume    
+         0   0             -11339.047      0             -11339.047     -3035.3455      52234.251    
+        24   0             -11346.475      0             -11346.475     -3864.8695      52234.251    
+Loop time of 0.573806 on 1 procs for 24 steps with 3200 atoms
+
+99.6% CPU use with 1 MPI tasks x 1 OpenMP threads
+
+Minimization stats:
+  Stopping criterion = energy tolerance
+  Energy initial, next-to-last, final = 
+     -11339.0469412472   -11346.475308703  -11346.4753319257
+  Force two-norm initial, final = 8.1682527 0.006169505
+  Force max component initial, final = 0.48961888 0.00028682349
+  Final line search alpha, max atom move = 1 0.00028682349
+  Iterations, force evaluations = 24 48
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 0.57122    | 0.57122    | 0.57122    |   0.0 | 99.55
+Neigh   | 0          | 0          | 0          |   0.0 |  0.00
+Comm    | 0.0008507  | 0.0008507  | 0.0008507  |   0.0 |  0.15
+Output  | 0          | 0          | 0          |   0.0 |  0.00
+Modify  | 0.0004266  | 0.0004266  | 0.0004266  |   0.0 |  0.07
+Other   |            | 0.001305   |            |       |  0.23
+
+Nlocal:           3200 ave        3200 max        3200 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Nghost:           7376 ave        7376 max        7376 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Neighs:         633856 ave      633856 max      633856 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+
+Total # of neighbors = 633856
+Ave neighs/atom = 198.08
+Neighbor list builds = 0
+Dangerous builds = 0
+
+  variable area equal lx*ly
+  print "- {shift: $(v_shift:%.4f), pe: $(pe:%.6f), area: $(v_area:%.4f)}"       append gsfe.yaml screen no
+  next k
+  jump SELF loop
+  clear
+OMP_NUM_THREADS environment is not set. Defaulting to 1 thread.
+  using 1 OpenMP thread(s) per MPI task
+  units metal
+  boundary p p s
+  atom_style atomic
+  read_data slab.data
+Reading data file ...
+  orthogonal box = (0 0 -0.0056557001) to (23.089299 39.991839 56.562657)
+  1 by 1 by 1 MPI processor grid
+  reading atoms ...
+  3200 atoms
+  reading velocities ...
+  3200 velocities
+  read_data CPU = 0.006 seconds
+  pair_style eam/alloy
+  pair_coeff * * ${pot} ${elem}
+  pair_coeff * * Al_zhou.eam.alloy ${elem}
+  pair_coeff * * Al_zhou.eam.alloy Al
+Reading eam/alloy potential file Al_zhou.eam.alloy with DATE: 2007-10-12
+
+  # upper half: everything above a (111) gap near the middle of the slab
+  region rup block INF INF INF INF ${zcut} INF units box
+  region rup block INF INF INF INF 27.1002298517351 INF units box
+  group upper region rup
+1664 atoms in group upper
+
+  # rigid shift of the upper half by the total displacement for this step
+  variable shift equal ${k}*${period}/${np}
+  variable shift equal 14*${period}/${np}
+  variable shift equal 14*4.99897990431548/${np}
+  variable shift equal 14*4.99897990431548/25
+  displace_atoms upper move 0.0 ${shift} 0.0 units box
+  displace_atoms upper move 0.0 2.79942874641667 0.0 units box
+Displacing atoms ...
+
+  # relax atoms perpendicular to the fault only (zero the in-plane forces)
+  fix frz all setforce 0.0 0.0 NULL
+  min_style cg
+  minimize 1.0e-8 1.0e-8 1000 10000
+Neighbor list info ...
+  update: every = 1 steps, delay = 0 steps, check = yes
+  max neighbors/atom: 2000, page size: 100000
+  master list distance cutoff = 12.1025
+  ghost atom cutoff = 12.1025
+  binsize = 6.05125, bins = 4 7 10
+  1 neighbor lists, perpetual/occasional/extra = 1 0 0
+  (1) pair eam/alloy, perpetual
+      attributes: half, newton on
+      pair build: half/bin/atomonly/newton
+      stencil: half/bin/3d
+      bin: standard
+Per MPI rank memory allocation (min/avg/max) = 7.068 | 7.068 | 7.068 Mbytes
+   Step          Temp          E_pair         E_mol          TotEng         Press          Volume    
+         0   0             -11333.067      0             -11333.067     -2614.4718      52234.251    
+        23   0             -11343.785      0             -11343.785     -3952.6653      52234.251    
+Loop time of 0.545686 on 1 procs for 23 steps with 3200 atoms
+
+99.6% CPU use with 1 MPI tasks x 1 OpenMP threads
+
+Minimization stats:
+  Stopping criterion = energy tolerance
+  Energy initial, next-to-last, final = 
+     -11333.0671693768  -11343.7846339124  -11343.7847323509
+  Force two-norm initial, final = 10.686343 0.0089256429
+  Force max component initial, final = 0.65221048 0.00033452272
+  Final line search alpha, max atom move = 1 0.00033452272
+  Iterations, force evaluations = 23 46
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 0.54317    | 0.54317    | 0.54317    |   0.0 | 99.54
+Neigh   | 0          | 0          | 0          |   0.0 |  0.00
+Comm    | 0.00083143 | 0.00083143 | 0.00083143 |   0.0 |  0.15
+Output  | 0          | 0          | 0          |   0.0 |  0.00
+Modify  | 0.00040518 | 0.00040518 | 0.00040518 |   0.0 |  0.07
+Other   |            | 0.001282   |            |       |  0.23
+
+Nlocal:           3200 ave        3200 max        3200 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Nghost:           7376 ave        7376 max        7376 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Neighs:         633856 ave      633856 max      633856 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+
+Total # of neighbors = 633856
+Ave neighs/atom = 198.08
+Neighbor list builds = 0
+Dangerous builds = 0
+
+  variable area equal lx*ly
+  print "- {shift: $(v_shift:%.4f), pe: $(pe:%.6f), area: $(v_area:%.4f)}"       append gsfe.yaml screen no
+  next k
+  jump SELF loop
+  clear
+OMP_NUM_THREADS environment is not set. Defaulting to 1 thread.
+  using 1 OpenMP thread(s) per MPI task
+  units metal
+  boundary p p s
+  atom_style atomic
+  read_data slab.data
+Reading data file ...
+  orthogonal box = (0 0 -0.0056557001) to (23.089299 39.991839 56.562657)
+  1 by 1 by 1 MPI processor grid
+  reading atoms ...
+  3200 atoms
+  reading velocities ...
+  3200 velocities
+  read_data CPU = 0.006 seconds
+  pair_style eam/alloy
+  pair_coeff * * ${pot} ${elem}
+  pair_coeff * * Al_zhou.eam.alloy ${elem}
+  pair_coeff * * Al_zhou.eam.alloy Al
+Reading eam/alloy potential file Al_zhou.eam.alloy with DATE: 2007-10-12
+
+  # upper half: everything above a (111) gap near the middle of the slab
+  region rup block INF INF INF INF ${zcut} INF units box
+  region rup block INF INF INF INF 27.1002298517351 INF units box
+  group upper region rup
+1664 atoms in group upper
+
+  # rigid shift of the upper half by the total displacement for this step
+  variable shift equal ${k}*${period}/${np}
+  variable shift equal 15*${period}/${np}
+  variable shift equal 15*4.99897990431548/${np}
+  variable shift equal 15*4.99897990431548/25
+  displace_atoms upper move 0.0 ${shift} 0.0 units box
+  displace_atoms upper move 0.0 2.99938794258929 0.0 units box
+Displacing atoms ...
+
+  # relax atoms perpendicular to the fault only (zero the in-plane forces)
+  fix frz all setforce 0.0 0.0 NULL
+  min_style cg
+  minimize 1.0e-8 1.0e-8 1000 10000
+Neighbor list info ...
+  update: every = 1 steps, delay = 0 steps, check = yes
+  max neighbors/atom: 2000, page size: 100000
+  master list distance cutoff = 12.1025
+  ghost atom cutoff = 12.1025
+  binsize = 6.05125, bins = 4 7 10
+  1 neighbor lists, perpetual/occasional/extra = 1 0 0
+  (1) pair eam/alloy, perpetual
+      attributes: half, newton on
+      pair build: half/bin/atomonly/newton
+      stencil: half/bin/3d
+      bin: standard
+Per MPI rank memory allocation (min/avg/max) = 7.064 | 7.064 | 7.064 Mbytes
+   Step          Temp          E_pair         E_mol          TotEng         Press          Volume    
+         0   0             -11327.601      0             -11327.601     -2083.0776      52234.251    
+        24   0             -11342.244      0             -11342.244     -3987.0572      52234.251    
+Loop time of 0.568235 on 1 procs for 24 steps with 3200 atoms
+
+99.6% CPU use with 1 MPI tasks x 1 OpenMP threads
+
+Minimization stats:
+  Stopping criterion = energy tolerance
+  Energy initial, next-to-last, final = 
+     -11327.6011850622  -11342.2442995172  -11342.2443172467
+  Force two-norm initial, final = 13.102309 0.0069639016
+  Force max component initial, final = 0.80618913 0.0002976605
+  Final line search alpha, max atom move = 1 0.0002976605
+  Iterations, force evaluations = 24 48
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 0.56555    | 0.56555    | 0.56555    |   0.0 | 99.53
+Neigh   | 0          | 0          | 0          |   0.0 |  0.00
+Comm    | 0.0009133  | 0.0009133  | 0.0009133  |   0.0 |  0.16
+Output  | 0          | 0          | 0          |   0.0 |  0.00
+Modify  | 0.00045171 | 0.00045171 | 0.00045171 |   0.0 |  0.08
+Other   |            | 0.001321   |            |       |  0.23
+
+Nlocal:           3200 ave        3200 max        3200 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Nghost:           7397 ave        7397 max        7397 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Neighs:         633088 ave      633088 max      633088 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+
+Total # of neighbors = 633088
+Ave neighs/atom = 197.84
+Neighbor list builds = 0
+Dangerous builds = 0
+
+  variable area equal lx*ly
+  print "- {shift: $(v_shift:%.4f), pe: $(pe:%.6f), area: $(v_area:%.4f)}"       append gsfe.yaml screen no
+  next k
+  jump SELF loop
+  clear
+OMP_NUM_THREADS environment is not set. Defaulting to 1 thread.
+  using 1 OpenMP thread(s) per MPI task
+  units metal
+  boundary p p s
+  atom_style atomic
+  read_data slab.data
+Reading data file ...
+  orthogonal box = (0 0 -0.0056557001) to (23.089299 39.991839 56.562657)
+  1 by 1 by 1 MPI processor grid
+  reading atoms ...
+  3200 atoms
+  reading velocities ...
+  3200 velocities
+  read_data CPU = 0.006 seconds
+  pair_style eam/alloy
+  pair_coeff * * ${pot} ${elem}
+  pair_coeff * * Al_zhou.eam.alloy ${elem}
+  pair_coeff * * Al_zhou.eam.alloy Al
+Reading eam/alloy potential file Al_zhou.eam.alloy with DATE: 2007-10-12
+
+  # upper half: everything above a (111) gap near the middle of the slab
+  region rup block INF INF INF INF ${zcut} INF units box
+  region rup block INF INF INF INF 27.1002298517351 INF units box
+  group upper region rup
+1664 atoms in group upper
+
+  # rigid shift of the upper half by the total displacement for this step
+  variable shift equal ${k}*${period}/${np}
+  variable shift equal 16*${period}/${np}
+  variable shift equal 16*4.99897990431548/${np}
+  variable shift equal 16*4.99897990431548/25
+  displace_atoms upper move 0.0 ${shift} 0.0 units box
+  displace_atoms upper move 0.0 3.19934713876191 0.0 units box
+Displacing atoms ...
+
+  # relax atoms perpendicular to the fault only (zero the in-plane forces)
+  fix frz all setforce 0.0 0.0 NULL
+  min_style cg
+  minimize 1.0e-8 1.0e-8 1000 10000
+Neighbor list info ...
+  update: every = 1 steps, delay = 0 steps, check = yes
+  max neighbors/atom: 2000, page size: 100000
+  master list distance cutoff = 12.1025
+  ghost atom cutoff = 12.1025
+  binsize = 6.05125, bins = 4 7 10
+  1 neighbor lists, perpetual/occasional/extra = 1 0 0
+  (1) pair eam/alloy, perpetual
+      attributes: half, newton on
+      pair build: half/bin/atomonly/newton
+      stencil: half/bin/3d
+      bin: standard
+Per MPI rank memory allocation (min/avg/max) = 7.064 | 7.064 | 7.064 Mbytes
+   Step          Temp          E_pair         E_mol          TotEng         Press          Volume    
+         0   0             -11324.093      0             -11324.093     -1706.7295      52234.251    
+        26   0             -11341.807      0             -11341.807     -4015.9589      52234.251    
+Loop time of 0.599132 on 1 procs for 26 steps with 3200 atoms
+
+99.6% CPU use with 1 MPI tasks x 1 OpenMP threads
+
+Minimization stats:
+  Stopping criterion = energy tolerance
+  Energy initial, next-to-last, final = 
+     -11324.0927595501  -11341.8071052733  -11341.8072170011
+  Force two-norm initial, final = 14.642026 0.021024105
+  Force max component initial, final = 0.90378367 0.00068166683
+  Final line search alpha, max atom move = 1 0.00068166683
+  Iterations, force evaluations = 26 51
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 0.59624    | 0.59624    | 0.59624    |   0.0 | 99.52
+Neigh   | 0          | 0          | 0          |   0.0 |  0.00
+Comm    | 0.00091025 | 0.00091025 | 0.00091025 |   0.0 |  0.15
+Output  | 0          | 0          | 0          |   0.0 |  0.00
+Modify  | 0.00046709 | 0.00046709 | 0.00046709 |   0.0 |  0.08
+Other   |            | 0.001515   |            |       |  0.25
+
+Nlocal:           3200 ave        3200 max        3200 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Nghost:           7397 ave        7397 max        7397 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Neighs:         632576 ave      632576 max      632576 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+
+Total # of neighbors = 632576
+Ave neighs/atom = 197.68
+Neighbor list builds = 0
+Dangerous builds = 0
+
+  variable area equal lx*ly
+  print "- {shift: $(v_shift:%.4f), pe: $(pe:%.6f), area: $(v_area:%.4f)}"       append gsfe.yaml screen no
+  next k
+  jump SELF loop
+  clear
+OMP_NUM_THREADS environment is not set. Defaulting to 1 thread.
+  using 1 OpenMP thread(s) per MPI task
+  units metal
+  boundary p p s
+  atom_style atomic
+  read_data slab.data
+Reading data file ...
+  orthogonal box = (0 0 -0.0056557001) to (23.089299 39.991839 56.562657)
+  1 by 1 by 1 MPI processor grid
+  reading atoms ...
+  3200 atoms
+  reading velocities ...
+  3200 velocities
+  read_data CPU = 0.006 seconds
+  pair_style eam/alloy
+  pair_coeff * * ${pot} ${elem}
+  pair_coeff * * Al_zhou.eam.alloy ${elem}
+  pair_coeff * * Al_zhou.eam.alloy Al
+Reading eam/alloy potential file Al_zhou.eam.alloy with DATE: 2007-10-12
+
+  # upper half: everything above a (111) gap near the middle of the slab
+  region rup block INF INF INF INF ${zcut} INF units box
+  region rup block INF INF INF INF 27.1002298517351 INF units box
+  group upper region rup
+1664 atoms in group upper
+
+  # rigid shift of the upper half by the total displacement for this step
+  variable shift equal ${k}*${period}/${np}
+  variable shift equal 17*${period}/${np}
+  variable shift equal 17*4.99897990431548/${np}
+  variable shift equal 17*4.99897990431548/25
+  displace_atoms upper move 0.0 ${shift} 0.0 units box
+  displace_atoms upper move 0.0 3.39930633493453 0.0 units box
+Displacing atoms ...
+
+  # relax atoms perpendicular to the fault only (zero the in-plane forces)
+  fix frz all setforce 0.0 0.0 NULL
+  min_style cg
+  minimize 1.0e-8 1.0e-8 1000 10000
+Neighbor list info ...
+  update: every = 1 steps, delay = 0 steps, check = yes
+  max neighbors/atom: 2000, page size: 100000
+  master list distance cutoff = 12.1025
+  ghost atom cutoff = 12.1025
+  binsize = 6.05125, bins = 4 7 10
+  1 neighbor lists, perpetual/occasional/extra = 1 0 0
+  (1) pair eam/alloy, perpetual
+      attributes: half, newton on
+      pair build: half/bin/atomonly/newton
+      stencil: half/bin/3d
+      bin: standard
+Per MPI rank memory allocation (min/avg/max) = 7.069 | 7.069 | 7.069 Mbytes
+   Step          Temp          E_pair         E_mol          TotEng         Press          Volume    
+         0   0             -11323.56       0             -11323.56      -1652.4736      52234.251    
+        26   0             -11341.78       0             -11341.78      -4019.4562      52234.251    
+Loop time of 0.598494 on 1 procs for 26 steps with 3200 atoms
+
+99.6% CPU use with 1 MPI tasks x 1 OpenMP threads
+
+Minimization stats:
+  Stopping criterion = energy tolerance
+  Energy initial, next-to-last, final = 
+     -11323.5598730603  -11341.7798915241  -11341.7800016447
+  Force two-norm initial, final = 14.868269 0.020453239
+  Force max component initial, final = 0.91809936 0.00069314084
+  Final line search alpha, max atom move = 1 0.00069314084
+  Iterations, force evaluations = 26 51
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 0.59575    | 0.59575    | 0.59575    |   0.0 | 99.54
+Neigh   | 0          | 0          | 0          |   0.0 |  0.00
+Comm    | 0.00088338 | 0.00088338 | 0.00088338 |   0.0 |  0.15
+Output  | 0          | 0          | 0          |   0.0 |  0.00
+Modify  | 0.00045001 | 0.00045001 | 0.00045001 |   0.0 |  0.08
+Other   |            | 0.00141    |            |       |  0.24
+
+Nlocal:           3200 ave        3200 max        3200 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Nghost:           7397 ave        7397 max        7397 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Neighs:         631552 ave      631552 max      631552 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+
+Total # of neighbors = 631552
+Ave neighs/atom = 197.36
+Neighbor list builds = 0
+Dangerous builds = 0
+
+  variable area equal lx*ly
+  print "- {shift: $(v_shift:%.4f), pe: $(pe:%.6f), area: $(v_area:%.4f)}"       append gsfe.yaml screen no
+  next k
+  jump SELF loop
+  clear
+OMP_NUM_THREADS environment is not set. Defaulting to 1 thread.
+  using 1 OpenMP thread(s) per MPI task
+  units metal
+  boundary p p s
+  atom_style atomic
+  read_data slab.data
+Reading data file ...
+  orthogonal box = (0 0 -0.0056557001) to (23.089299 39.991839 56.562657)
+  1 by 1 by 1 MPI processor grid
+  reading atoms ...
+  3200 atoms
+  reading velocities ...
+  3200 velocities
+  read_data CPU = 0.006 seconds
+  pair_style eam/alloy
+  pair_coeff * * ${pot} ${elem}
+  pair_coeff * * Al_zhou.eam.alloy ${elem}
+  pair_coeff * * Al_zhou.eam.alloy Al
+Reading eam/alloy potential file Al_zhou.eam.alloy with DATE: 2007-10-12
+
+  # upper half: everything above a (111) gap near the middle of the slab
+  region rup block INF INF INF INF ${zcut} INF units box
+  region rup block INF INF INF INF 27.1002298517351 INF units box
+  group upper region rup
+1664 atoms in group upper
+
+  # rigid shift of the upper half by the total displacement for this step
+  variable shift equal ${k}*${period}/${np}
+  variable shift equal 18*${period}/${np}
+  variable shift equal 18*4.99897990431548/${np}
+  variable shift equal 18*4.99897990431548/25
+  displace_atoms upper move 0.0 ${shift} 0.0 units box
+  displace_atoms upper move 0.0 3.59926553110714 0.0 units box
+Displacing atoms ...
+
+  # relax atoms perpendicular to the fault only (zero the in-plane forces)
+  fix frz all setforce 0.0 0.0 NULL
+  min_style cg
+  minimize 1.0e-8 1.0e-8 1000 10000
+Neighbor list info ...
+  update: every = 1 steps, delay = 0 steps, check = yes
+  max neighbors/atom: 2000, page size: 100000
+  master list distance cutoff = 12.1025
+  ghost atom cutoff = 12.1025
+  binsize = 6.05125, bins = 4 7 10
+  1 neighbor lists, perpetual/occasional/extra = 1 0 0
+  (1) pair eam/alloy, perpetual
+      attributes: half, newton on
+      pair build: half/bin/atomonly/newton
+      stencil: half/bin/3d
+      bin: standard
+Per MPI rank memory allocation (min/avg/max) = 7.069 | 7.069 | 7.069 Mbytes
+   Step          Temp          E_pair         E_mol          TotEng         Press          Volume    
+         0   0             -11326.18       0             -11326.18      -1920.4952      52234.251    
+        24   0             -11341.996      0             -11341.996     -4009.2649      52234.251    
+Loop time of 0.552878 on 1 procs for 24 steps with 3200 atoms
+
+99.5% CPU use with 1 MPI tasks x 1 OpenMP threads
+
+Minimization stats:
+  Stopping criterion = energy tolerance
+  Energy initial, next-to-last, final = 
+     -11326.1801909776   -11341.996260252  -11341.9962910688
+  Force two-norm initial, final = 13.751937 0.010173569
+  Force max component initial, final = 0.84740302 0.00035732515
+  Final line search alpha, max atom move = 1 0.00035732515
+  Iterations, force evaluations = 24 47
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 0.55033    | 0.55033    | 0.55033    |   0.0 | 99.54
+Neigh   | 0          | 0          | 0          |   0.0 |  0.00
+Comm    | 0.00083225 | 0.00083225 | 0.00083225 |   0.0 |  0.15
+Output  | 0          | 0          | 0          |   0.0 |  0.00
+Modify  | 0.0004356  | 0.0004356  | 0.0004356  |   0.0 |  0.08
+Other   |            | 0.001279   |            |       |  0.23
+
+Nlocal:           3200 ave        3200 max        3200 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Nghost:           7397 ave        7397 max        7397 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Neighs:         633600 ave      633600 max      633600 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+
+Total # of neighbors = 633600
+Ave neighs/atom = 198
+Neighbor list builds = 0
+Dangerous builds = 0
+
+  variable area equal lx*ly
+  print "- {shift: $(v_shift:%.4f), pe: $(pe:%.6f), area: $(v_area:%.4f)}"       append gsfe.yaml screen no
+  next k
+  jump SELF loop
+  clear
+OMP_NUM_THREADS environment is not set. Defaulting to 1 thread.
+  using 1 OpenMP thread(s) per MPI task
+  units metal
+  boundary p p s
+  atom_style atomic
+  read_data slab.data
+Reading data file ...
+  orthogonal box = (0 0 -0.0056557001) to (23.089299 39.991839 56.562657)
+  1 by 1 by 1 MPI processor grid
+  reading atoms ...
+  3200 atoms
+  reading velocities ...
+  3200 velocities
+  read_data CPU = 0.006 seconds
+  pair_style eam/alloy
+  pair_coeff * * ${pot} ${elem}
+  pair_coeff * * Al_zhou.eam.alloy ${elem}
+  pair_coeff * * Al_zhou.eam.alloy Al
+Reading eam/alloy potential file Al_zhou.eam.alloy with DATE: 2007-10-12
+
+  # upper half: everything above a (111) gap near the middle of the slab
+  region rup block INF INF INF INF ${zcut} INF units box
+  region rup block INF INF INF INF 27.1002298517351 INF units box
+  group upper region rup
+1664 atoms in group upper
+
+  # rigid shift of the upper half by the total displacement for this step
+  variable shift equal ${k}*${period}/${np}
+  variable shift equal 19*${period}/${np}
+  variable shift equal 19*4.99897990431548/${np}
+  variable shift equal 19*4.99897990431548/25
+  displace_atoms upper move 0.0 ${shift} 0.0 units box
+  displace_atoms upper move 0.0 3.79922472727976 0.0 units box
+Displacing atoms ...
+
+  # relax atoms perpendicular to the fault only (zero the in-plane forces)
+  fix frz all setforce 0.0 0.0 NULL
+  min_style cg
+  minimize 1.0e-8 1.0e-8 1000 10000
+Neighbor list info ...
+  update: every = 1 steps, delay = 0 steps, check = yes
+  max neighbors/atom: 2000, page size: 100000
+  master list distance cutoff = 12.1025
+  ghost atom cutoff = 12.1025
+  binsize = 6.05125, bins = 4 7 10
+  1 neighbor lists, perpetual/occasional/extra = 1 0 0
+  (1) pair eam/alloy, perpetual
+      attributes: half, newton on
+      pair build: half/bin/atomonly/newton
+      stencil: half/bin/3d
+      bin: standard
+Per MPI rank memory allocation (min/avg/max) = 7.064 | 7.064 | 7.064 Mbytes
+   Step          Temp          E_pair         E_mol          TotEng         Press          Volume    
+         0   0             -11331.311      0             -11331.311     -2426.9097      52234.251    
+        24   0             -11343.082      0             -11343.082     -3929.6849      52234.251    
+Loop time of 0.566036 on 1 procs for 24 steps with 3200 atoms
+
+99.6% CPU use with 1 MPI tasks x 1 OpenMP threads
+
+Minimization stats:
+  Stopping criterion = energy tolerance
+  Energy initial, next-to-last, final = 
+     -11331.3105946798  -11343.0821057131  -11343.0821203811
+  Force two-norm initial, final = 11.542 0.0070365096
+  Force max component initial, final = 0.70689325 0.00027103592
+  Final line search alpha, max atom move = 1 0.00027103592
+  Iterations, force evaluations = 24 48
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 0.56348    | 0.56348    | 0.56348    |   0.0 | 99.55
+Neigh   | 0          | 0          | 0          |   0.0 |  0.00
+Comm    | 0.00081677 | 0.00081677 | 0.00081677 |   0.0 |  0.14
+Output  | 0          | 0          | 0          |   0.0 |  0.00
+Modify  | 0.00042867 | 0.00042867 | 0.00042867 |   0.0 |  0.08
+Other   |            | 0.001313   |            |       |  0.23
+
+Nlocal:           3200 ave        3200 max        3200 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Nghost:           7393 ave        7393 max        7393 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Neighs:         633600 ave      633600 max      633600 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+
+Total # of neighbors = 633600
+Ave neighs/atom = 198
+Neighbor list builds = 0
+Dangerous builds = 0
+
+  variable area equal lx*ly
+  print "- {shift: $(v_shift:%.4f), pe: $(pe:%.6f), area: $(v_area:%.4f)}"       append gsfe.yaml screen no
+  next k
+  jump SELF loop
+  clear
+OMP_NUM_THREADS environment is not set. Defaulting to 1 thread.
+  using 1 OpenMP thread(s) per MPI task
+  units metal
+  boundary p p s
+  atom_style atomic
+  read_data slab.data
+Reading data file ...
+  orthogonal box = (0 0 -0.0056557001) to (23.089299 39.991839 56.562657)
+  1 by 1 by 1 MPI processor grid
+  reading atoms ...
+  3200 atoms
+  reading velocities ...
+  3200 velocities
+  read_data CPU = 0.006 seconds
+  pair_style eam/alloy
+  pair_coeff * * ${pot} ${elem}
+  pair_coeff * * Al_zhou.eam.alloy ${elem}
+  pair_coeff * * Al_zhou.eam.alloy Al
+Reading eam/alloy potential file Al_zhou.eam.alloy with DATE: 2007-10-12
+
+  # upper half: everything above a (111) gap near the middle of the slab
+  region rup block INF INF INF INF ${zcut} INF units box
+  region rup block INF INF INF INF 27.1002298517351 INF units box
+  group upper region rup
+1664 atoms in group upper
+
+  # rigid shift of the upper half by the total displacement for this step
+  variable shift equal ${k}*${period}/${np}
+  variable shift equal 20*${period}/${np}
+  variable shift equal 20*4.99897990431548/${np}
+  variable shift equal 20*4.99897990431548/25
+  displace_atoms upper move 0.0 ${shift} 0.0 units box
+  displace_atoms upper move 0.0 3.99918392345238 0.0 units box
+Displacing atoms ...
+
+  # relax atoms perpendicular to the fault only (zero the in-plane forces)
+  fix frz all setforce 0.0 0.0 NULL
+  min_style cg
+  minimize 1.0e-8 1.0e-8 1000 10000
+Neighbor list info ...
+  update: every = 1 steps, delay = 0 steps, check = yes
+  max neighbors/atom: 2000, page size: 100000
+  master list distance cutoff = 12.1025
+  ghost atom cutoff = 12.1025
+  binsize = 6.05125, bins = 4 7 10
+  1 neighbor lists, perpetual/occasional/extra = 1 0 0
+  (1) pair eam/alloy, perpetual
+      attributes: half, newton on
+      pair build: half/bin/atomonly/newton
+      stencil: half/bin/3d
+      bin: standard
+Per MPI rank memory allocation (min/avg/max) = 7.064 | 7.064 | 7.064 Mbytes
+   Step          Temp          E_pair         E_mol          TotEng         Press          Volume    
+         0   0             -11337.63       0             -11337.63      -2917.4167      52234.251    
+        24   0             -11345.51       0             -11345.51      -3786.5621      52234.251    
+Loop time of 0.567972 on 1 procs for 24 steps with 3200 atoms
+
+99.6% CPU use with 1 MPI tasks x 1 OpenMP threads
+
+Minimization stats:
+  Stopping criterion = energy tolerance
+  Energy initial, next-to-last, final = 
+     -11337.6302438199  -11345.5101231587  -11345.5101362072
+  Force two-norm initial, final = 8.9445025 0.0047136149
+  Force max component initial, final = 0.54015133 0.00017231567
+  Final line search alpha, max atom move = 1 0.00017231567
+  Iterations, force evaluations = 24 48
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 0.56526    | 0.56526    | 0.56526    |   0.0 | 99.52
+Neigh   | 0          | 0          | 0          |   0.0 |  0.00
+Comm    | 0.00090597 | 0.00090597 | 0.00090597 |   0.0 |  0.16
+Output  | 0          | 0          | 0          |   0.0 |  0.00
+Modify  | 0.00042854 | 0.00042854 | 0.00042854 |   0.0 |  0.08
+Other   |            | 0.001374   |            |       |  0.24
+
+Nlocal:           3200 ave        3200 max        3200 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Nghost:           7393 ave        7393 max        7393 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Neighs:         634240 ave      634240 max      634240 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+
+Total # of neighbors = 634240
+Ave neighs/atom = 198.2
+Neighbor list builds = 0
+Dangerous builds = 0
+
+  variable area equal lx*ly
+  print "- {shift: $(v_shift:%.4f), pe: $(pe:%.6f), area: $(v_area:%.4f)}"       append gsfe.yaml screen no
+  next k
+  jump SELF loop
+  clear
+OMP_NUM_THREADS environment is not set. Defaulting to 1 thread.
+  using 1 OpenMP thread(s) per MPI task
+  units metal
+  boundary p p s
+  atom_style atomic
+  read_data slab.data
+Reading data file ...
+  orthogonal box = (0 0 -0.0056557001) to (23.089299 39.991839 56.562657)
+  1 by 1 by 1 MPI processor grid
+  reading atoms ...
+  3200 atoms
+  reading velocities ...
+  3200 velocities
+  read_data CPU = 0.006 seconds
+  pair_style eam/alloy
+  pair_coeff * * ${pot} ${elem}
+  pair_coeff * * Al_zhou.eam.alloy ${elem}
+  pair_coeff * * Al_zhou.eam.alloy Al
+Reading eam/alloy potential file Al_zhou.eam.alloy with DATE: 2007-10-12
+
+  # upper half: everything above a (111) gap near the middle of the slab
+  region rup block INF INF INF INF ${zcut} INF units box
+  region rup block INF INF INF INF 27.1002298517351 INF units box
+  group upper region rup
+1664 atoms in group upper
+
+  # rigid shift of the upper half by the total displacement for this step
+  variable shift equal ${k}*${period}/${np}
+  variable shift equal 21*${period}/${np}
+  variable shift equal 21*4.99897990431548/${np}
+  variable shift equal 21*4.99897990431548/25
+  displace_atoms upper move 0.0 ${shift} 0.0 units box
+  displace_atoms upper move 0.0 4.199143119625 0.0 units box
+Displacing atoms ...
+
+  # relax atoms perpendicular to the fault only (zero the in-plane forces)
+  fix frz all setforce 0.0 0.0 NULL
+  min_style cg
+  minimize 1.0e-8 1.0e-8 1000 10000
+Neighbor list info ...
+  update: every = 1 steps, delay = 0 steps, check = yes
+  max neighbors/atom: 2000, page size: 100000
+  master list distance cutoff = 12.1025
+  ghost atom cutoff = 12.1025
+  binsize = 6.05125, bins = 4 7 10
+  1 neighbor lists, perpetual/occasional/extra = 1 0 0
+  (1) pair eam/alloy, perpetual
+      attributes: half, newton on
+      pair build: half/bin/atomonly/newton
+      stencil: half/bin/3d
+      bin: standard
+Per MPI rank memory allocation (min/avg/max) = 7.068 | 7.068 | 7.068 Mbytes
+   Step          Temp          E_pair         E_mol          TotEng         Press          Volume    
+         0   0             -11344.039      0             -11344.039     -3352.1066      52234.251    
+        24   0             -11348.754      0             -11348.754     -3538.5896      52234.251    
+Loop time of 0.568084 on 1 procs for 24 steps with 3200 atoms
+
+99.6% CPU use with 1 MPI tasks x 1 OpenMP threads
+
+Minimization stats:
+  Stopping criterion = energy tolerance
+  Energy initial, next-to-last, final = 
+     -11344.0389091118   -11348.753526818  -11348.7535545102
+  Force two-norm initial, final = 6.461386 0.007085662
+  Force max component initial, final = 0.37725134 0.00037634329
+  Final line search alpha, max atom move = 1 0.00037634329
+  Iterations, force evaluations = 24 48
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 0.56549    | 0.56549    | 0.56549    |   0.0 | 99.54
+Neigh   | 0          | 0          | 0          |   0.0 |  0.00
+Comm    | 0.00086177 | 0.00086177 | 0.00086177 |   0.0 |  0.15
+Output  | 0          | 0          | 0          |   0.0 |  0.00
+Modify  | 0.00042026 | 0.00042026 | 0.00042026 |   0.0 |  0.07
+Other   |            | 0.001316   |            |       |  0.23
+
+Nlocal:           3200 ave        3200 max        3200 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Nghost:           7393 ave        7393 max        7393 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Neighs:         633728 ave      633728 max      633728 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+
+Total # of neighbors = 633728
+Ave neighs/atom = 198.04
+Neighbor list builds = 0
+Dangerous builds = 0
+
+  variable area equal lx*ly
+  print "- {shift: $(v_shift:%.4f), pe: $(pe:%.6f), area: $(v_area:%.4f)}"       append gsfe.yaml screen no
+  next k
+  jump SELF loop
+  clear
+OMP_NUM_THREADS environment is not set. Defaulting to 1 thread.
+  using 1 OpenMP thread(s) per MPI task
+  units metal
+  boundary p p s
+  atom_style atomic
+  read_data slab.data
+Reading data file ...
+  orthogonal box = (0 0 -0.0056557001) to (23.089299 39.991839 56.562657)
+  1 by 1 by 1 MPI processor grid
+  reading atoms ...
+  3200 atoms
+  reading velocities ...
+  3200 velocities
+  read_data CPU = 0.006 seconds
+  pair_style eam/alloy
+  pair_coeff * * ${pot} ${elem}
+  pair_coeff * * Al_zhou.eam.alloy ${elem}
+  pair_coeff * * Al_zhou.eam.alloy Al
+Reading eam/alloy potential file Al_zhou.eam.alloy with DATE: 2007-10-12
+
+  # upper half: everything above a (111) gap near the middle of the slab
+  region rup block INF INF INF INF ${zcut} INF units box
+  region rup block INF INF INF INF 27.1002298517351 INF units box
+  group upper region rup
+1664 atoms in group upper
+
+  # rigid shift of the upper half by the total displacement for this step
+  variable shift equal ${k}*${period}/${np}
+  variable shift equal 22*${period}/${np}
+  variable shift equal 22*4.99897990431548/${np}
+  variable shift equal 22*4.99897990431548/25
+  displace_atoms upper move 0.0 ${shift} 0.0 units box
+  displace_atoms upper move 0.0 4.39910231579762 0.0 units box
+Displacing atoms ...
+
+  # relax atoms perpendicular to the fault only (zero the in-plane forces)
+  fix frz all setforce 0.0 0.0 NULL
+  min_style cg
+  minimize 1.0e-8 1.0e-8 1000 10000
+Neighbor list info ...
+  update: every = 1 steps, delay = 0 steps, check = yes
+  max neighbors/atom: 2000, page size: 100000
+  master list distance cutoff = 12.1025
+  ghost atom cutoff = 12.1025
+  binsize = 6.05125, bins = 4 7 10
+  1 neighbor lists, perpetual/occasional/extra = 1 0 0
+  (1) pair eam/alloy, perpetual
+      attributes: half, newton on
+      pair build: half/bin/atomonly/newton
+      stencil: half/bin/3d
+      bin: standard
+Per MPI rank memory allocation (min/avg/max) = 7.068 | 7.068 | 7.068 Mbytes
+   Step          Temp          E_pair         E_mol          TotEng         Press          Volume    
+         0   0             -11349.943      0             -11349.943     -3811.5529      52234.251    
+        23   0             -11352.302      0             -11352.302     -3280.2964      52234.251    
+Loop time of 0.559298 on 1 procs for 23 steps with 3200 atoms
+
+99.5% CPU use with 1 MPI tasks x 1 OpenMP threads
+
+Minimization stats:
+  Stopping criterion = energy tolerance
+  Energy initial, next-to-last, final = 
+     -11349.9431234209  -11352.3022159063  -11352.3022957093
+  Force two-norm initial, final = 4.3408227 0.01151131
+  Force max component initial, final = 0.23002003 0.00058111473
+  Final line search alpha, max atom move = 1 0.00058111473
+  Iterations, force evaluations = 23 46
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 0.55666    | 0.55666    | 0.55666    |   0.0 | 99.53
+Neigh   | 0          | 0          | 0          |   0.0 |  0.00
+Comm    | 0.00088278 | 0.00088278 | 0.00088278 |   0.0 |  0.16
+Output  | 0          | 0          | 0          |   0.0 |  0.00
+Modify  | 0.00042205 | 0.00042205 | 0.00042205 |   0.0 |  0.08
+Other   |            | 0.001335   |            |       |  0.24
+
+Nlocal:           3200 ave        3200 max        3200 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Nghost:           7393 ave        7393 max        7393 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Neighs:         632960 ave      632960 max      632960 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+
+Total # of neighbors = 632960
+Ave neighs/atom = 197.8
+Neighbor list builds = 0
+Dangerous builds = 0
+
+  variable area equal lx*ly
+  print "- {shift: $(v_shift:%.4f), pe: $(pe:%.6f), area: $(v_area:%.4f)}"       append gsfe.yaml screen no
+  next k
+  jump SELF loop
+  clear
+OMP_NUM_THREADS environment is not set. Defaulting to 1 thread.
+  using 1 OpenMP thread(s) per MPI task
+  units metal
+  boundary p p s
+  atom_style atomic
+  read_data slab.data
+Reading data file ...
+  orthogonal box = (0 0 -0.0056557001) to (23.089299 39.991839 56.562657)
+  1 by 1 by 1 MPI processor grid
+  reading atoms ...
+  3200 atoms
+  reading velocities ...
+  3200 velocities
+  read_data CPU = 0.006 seconds
+  pair_style eam/alloy
+  pair_coeff * * ${pot} ${elem}
+  pair_coeff * * Al_zhou.eam.alloy ${elem}
+  pair_coeff * * Al_zhou.eam.alloy Al
+Reading eam/alloy potential file Al_zhou.eam.alloy with DATE: 2007-10-12
+
+  # upper half: everything above a (111) gap near the middle of the slab
+  region rup block INF INF INF INF ${zcut} INF units box
+  region rup block INF INF INF INF 27.1002298517351 INF units box
+  group upper region rup
+1664 atoms in group upper
+
+  # rigid shift of the upper half by the total displacement for this step
+  variable shift equal ${k}*${period}/${np}
+  variable shift equal 23*${period}/${np}
+  variable shift equal 23*4.99897990431548/${np}
+  variable shift equal 23*4.99897990431548/25
+  displace_atoms upper move 0.0 ${shift} 0.0 units box
+  displace_atoms upper move 0.0 4.59906151197024 0.0 units box
+Displacing atoms ...
+
+  # relax atoms perpendicular to the fault only (zero the in-plane forces)
+  fix frz all setforce 0.0 0.0 NULL
+  min_style cg
+  minimize 1.0e-8 1.0e-8 1000 10000
+Neighbor list info ...
+  update: every = 1 steps, delay = 0 steps, check = yes
+  max neighbors/atom: 2000, page size: 100000
+  master list distance cutoff = 12.1025
+  ghost atom cutoff = 12.1025
+  binsize = 6.05125, bins = 4 7 10
+  1 neighbor lists, perpetual/occasional/extra = 1 0 0
+  (1) pair eam/alloy, perpetual
+      attributes: half, newton on
+      pair build: half/bin/atomonly/newton
+      stencil: half/bin/3d
+      bin: standard
+Per MPI rank memory allocation (min/avg/max) = 7.069 | 7.069 | 7.069 Mbytes
+   Step          Temp          E_pair         E_mol          TotEng         Press          Volume    
+         0   0             -11354.872      0             -11354.872     -4300.0735      52234.251    
+        17   0             -11355.949      0             -11355.949     -3041.0641      52234.251    
+Loop time of 0.406413 on 1 procs for 17 steps with 3200 atoms
+
+99.5% CPU use with 1 MPI tasks x 1 OpenMP threads
+
+Minimization stats:
+  Stopping criterion = energy tolerance
+  Energy initial, next-to-last, final = 
+     -11354.8722387036  -11355.9493805441  -11355.9494803938
+  Force two-norm initial, final = 2.8869059 0.018872309
+  Force max component initial, final = 0.11332981 0.00064704588
+  Final line search alpha, max atom move = 1 0.00064704588
+  Iterations, force evaluations = 17 34
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 0.4043     | 0.4043     | 0.4043     |   0.0 | 99.48
+Neigh   | 0          | 0          | 0          |   0.0 |  0.00
+Comm    | 0.00069686 | 0.00069686 | 0.00069686 |   0.0 |  0.17
+Output  | 0          | 0          | 0          |   0.0 |  0.00
+Modify  | 0.00033361 | 0.00033361 | 0.00033361 |   0.0 |  0.08
+Other   |            | 0.001084   |            |       |  0.27
+
+Nlocal:           3200 ave        3200 max        3200 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Nghost:           7461 ave        7461 max        7461 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Neighs:         633600 ave      633600 max      633600 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+
+Total # of neighbors = 633600
+Ave neighs/atom = 198
+Neighbor list builds = 0
+Dangerous builds = 0
+
+  variable area equal lx*ly
+  print "- {shift: $(v_shift:%.4f), pe: $(pe:%.6f), area: $(v_area:%.4f)}"       append gsfe.yaml screen no
+  next k
+  jump SELF loop
+  clear
+OMP_NUM_THREADS environment is not set. Defaulting to 1 thread.
+  using 1 OpenMP thread(s) per MPI task
+  units metal
+  boundary p p s
+  atom_style atomic
+  read_data slab.data
+Reading data file ...
+  orthogonal box = (0 0 -0.0056557001) to (23.089299 39.991839 56.562657)
+  1 by 1 by 1 MPI processor grid
+  reading atoms ...
+  3200 atoms
+  reading velocities ...
+  3200 velocities
+  read_data CPU = 0.006 seconds
+  pair_style eam/alloy
+  pair_coeff * * ${pot} ${elem}
+  pair_coeff * * Al_zhou.eam.alloy ${elem}
+  pair_coeff * * Al_zhou.eam.alloy Al
+Reading eam/alloy potential file Al_zhou.eam.alloy with DATE: 2007-10-12
+
+  # upper half: everything above a (111) gap near the middle of the slab
+  region rup block INF INF INF INF ${zcut} INF units box
+  region rup block INF INF INF INF 27.1002298517351 INF units box
+  group upper region rup
+1664 atoms in group upper
+
+  # rigid shift of the upper half by the total displacement for this step
+  variable shift equal ${k}*${period}/${np}
+  variable shift equal 24*${period}/${np}
+  variable shift equal 24*4.99897990431548/${np}
+  variable shift equal 24*4.99897990431548/25
+  displace_atoms upper move 0.0 ${shift} 0.0 units box
+  displace_atoms upper move 0.0 4.79902070814286 0.0 units box
+Displacing atoms ...
+
+  # relax atoms perpendicular to the fault only (zero the in-plane forces)
+  fix frz all setforce 0.0 0.0 NULL
+  min_style cg
+  minimize 1.0e-8 1.0e-8 1000 10000
+Neighbor list info ...
+  update: every = 1 steps, delay = 0 steps, check = yes
+  max neighbors/atom: 2000, page size: 100000
+  master list distance cutoff = 12.1025
+  ghost atom cutoff = 12.1025
+  binsize = 6.05125, bins = 4 7 10
+  1 neighbor lists, perpetual/occasional/extra = 1 0 0
+  (1) pair eam/alloy, perpetual
+      attributes: half, newton on
+      pair build: half/bin/atomonly/newton
+      stencil: half/bin/3d
+      bin: standard
+Per MPI rank memory allocation (min/avg/max) = 7.064 | 7.064 | 7.064 Mbytes
+   Step          Temp          E_pair         E_mol          TotEng         Press          Volume    
+         0   0             -11358.307      0             -11358.307     -4705.1647      52234.251    
+        10   0             -11359.023      0             -11359.023     -3004.9605      52234.251    
+Loop time of 0.244853 on 1 procs for 10 steps with 3200 atoms
+
+99.6% CPU use with 1 MPI tasks x 1 OpenMP threads
+
+Minimization stats:
+  Stopping criterion = energy tolerance
+  Energy initial, next-to-last, final = 
+     -11358.3068865123  -11359.0225675661  -11359.0226759059
+  Force two-norm initial, final = 2.3406936 0.0088300716
+  Force max component initial, final = 0.11332981 0.00035619115
+  Final line search alpha, max atom move = 1 0.00035619115
+  Iterations, force evaluations = 10 20
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 0.24377    | 0.24377    | 0.24377    |   0.0 | 99.56
+Neigh   | 0          | 0          | 0          |   0.0 |  0.00
+Comm    | 0.00035458 | 0.00035458 | 0.00035458 |   0.0 |  0.14
+Output  | 0          | 0          | 0          |   0.0 |  0.00
+Modify  | 0.00018252 | 0.00018252 | 0.00018252 |   0.0 |  0.07
+Other   |            | 0.0005455  |            |       |  0.22
+
+Nlocal:           3200 ave        3200 max        3200 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Nghost:           7381 ave        7381 max        7381 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Neighs:         633600 ave      633600 max      633600 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+
+Total # of neighbors = 633600
+Ave neighs/atom = 198
+Neighbor list builds = 0
+Dangerous builds = 0
+
+  variable area equal lx*ly
+  print "- {shift: $(v_shift:%.4f), pe: $(pe:%.6f), area: $(v_area:%.4f)}"       append gsfe.yaml screen no
+  next k
+  jump SELF loop
+  clear
+OMP_NUM_THREADS environment is not set. Defaulting to 1 thread.
+  using 1 OpenMP thread(s) per MPI task
+  units metal
+  boundary p p s
+  atom_style atomic
+  read_data slab.data
+Reading data file ...
+  orthogonal box = (0 0 -0.0056557001) to (23.089299 39.991839 56.562657)
+  1 by 1 by 1 MPI processor grid
+  reading atoms ...
+  3200 atoms
+  reading velocities ...
+  3200 velocities
+  read_data CPU = 0.006 seconds
+  pair_style eam/alloy
+  pair_coeff * * ${pot} ${elem}
+  pair_coeff * * Al_zhou.eam.alloy ${elem}
+  pair_coeff * * Al_zhou.eam.alloy Al
+Reading eam/alloy potential file Al_zhou.eam.alloy with DATE: 2007-10-12
+
+  # upper half: everything above a (111) gap near the middle of the slab
+  region rup block INF INF INF INF ${zcut} INF units box
+  region rup block INF INF INF INF 27.1002298517351 INF units box
+  group upper region rup
+1664 atoms in group upper
+
+  # rigid shift of the upper half by the total displacement for this step
+  variable shift equal ${k}*${period}/${np}
+  variable shift equal 25*${period}/${np}
+  variable shift equal 25*4.99897990431548/${np}
+  variable shift equal 25*4.99897990431548/25
+  displace_atoms upper move 0.0 ${shift} 0.0 units box
+  displace_atoms upper move 0.0 4.99897990431548 0.0 units box
+Displacing atoms ...
+
+  # relax atoms perpendicular to the fault only (zero the in-plane forces)
+  fix frz all setforce 0.0 0.0 NULL
+  min_style cg
+  minimize 1.0e-8 1.0e-8 1000 10000
+Neighbor list info ...
+  update: every = 1 steps, delay = 0 steps, check = yes
+  max neighbors/atom: 2000, page size: 100000
+  master list distance cutoff = 12.1025
+  ghost atom cutoff = 12.1025
+  binsize = 6.05125, bins = 4 7 10
+  1 neighbor lists, perpetual/occasional/extra = 1 0 0
+  (1) pair eam/alloy, perpetual
+      attributes: half, newton on
+      pair build: half/bin/atomonly/newton
+      stencil: half/bin/3d
+      bin: standard
+Per MPI rank memory allocation (min/avg/max) = 7.069 | 7.069 | 7.069 Mbytes
+   Step          Temp          E_pair         E_mol          TotEng         Press          Volume    
+         0   0             -11359.555      0             -11359.555     -4860.5261      52234.251    
+        11   0             -11360.245      0             -11360.245     -3155.9826      52234.251    
+Loop time of 0.273118 on 1 procs for 11 steps with 3200 atoms
+
+99.6% CPU use with 1 MPI tasks x 1 OpenMP threads
+
+Minimization stats:
+  Stopping criterion = energy tolerance
+  Energy initial, next-to-last, final = 
+     -11359.5551308342  -11360.2451794638  -11360.2452556644
+  Force two-norm initial, final = 2.2975434 0.024704683
+  Force max component initial, final = 0.11332981 0.0011857869
+  Final line search alpha, max atom move = 1 0.0011857869
+  Iterations, force evaluations = 11 22
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 0.27183    | 0.27183    | 0.27183    |   0.0 | 99.53
+Neigh   | 0          | 0          | 0          |   0.0 |  0.00
+Comm    | 0.00041343 | 0.00041343 | 0.00041343 |   0.0 |  0.15
+Output  | 0          | 0          | 0          |   0.0 |  0.00
+Modify  | 0.00020169 | 0.00020169 | 0.00020169 |   0.0 |  0.07
+Other   |            | 0.0006697  |            |       |  0.25
+
+Nlocal:           3200 ave        3200 max        3200 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Nghost:           7381 ave        7381 max        7381 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Neighs:         632960 ave      632960 max      632960 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+
+Total # of neighbors = 632960
+Ave neighs/atom = 197.8
+Neighbor list builds = 0
+Dangerous builds = 0
+
+  variable area equal lx*ly
+  print "- {shift: $(v_shift:%.4f), pe: $(pe:%.6f), area: $(v_area:%.4f)}"       append gsfe.yaml screen no
+  next k
+  jump SELF loop
+
+print "gamma-line scan complete; results written to gsfe.yaml"
+gamma-line scan complete; results written to gsfe.yaml
+Total wall time: 0:00:13

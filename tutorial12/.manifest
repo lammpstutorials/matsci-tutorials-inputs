@@ -2,43 +2,26 @@
 # comments start with a # as the first character.
 # comments and empty lines are ignored
 ##############################################################################
-# Tutorial 12: Melting point determination (fcc aluminum)
+# Tutorial 12: Thermal conductivity by reverse NEMD (crystalline silicon)
 #
 # 1) input file templates
 # the first file will be automatically loaded
-hysteresis.lmp
+kappa.lmp
 plot.py
-coexist.lmp
-velocity.lmp
-coexist-plot.py
-nucleate.lmp
-nucleate-plot.py
 
 # 2) support files
-Al_mm.eam.fs
+Si.sw
 
 # 3) solution files
 # only downloaded on request
-solution/hysteresis.log
-solution/heat.dat
-solution/cool.dat
+solution/kappa.log
+solution/kappa.yaml
+solution/profile_20.dat
+solution/profile_40.dat
+solution/profile_60.dat
+solution/profile_80.dat
 solution/plot-output.txt
-solution/hysteresis.png
-solution/coexist.log
-solution/velocity.log
-solution/fcc_vs_T.dat
-solution/coexist.png
-solution/nucleate.log
-solution/seeded-heat.dat
-solution/seeded-cool.dat
-solution/seeded-plot-output.txt
-solution/seeded.png
-solution/meltviz.lmp
-solution/coexistviz.lmp
-solution/evolution.lmp
-solution/seed-cutaway.png
-solution/coexist-grown.png
-solution/evolution.png
-solution/coexistviz.log
-solution/meltviz.log
-solution/evolution.log
+solution/kappa-profile.png
+solution/kappa-size.png
+solution/visualize.lmp
+solution/regions.png

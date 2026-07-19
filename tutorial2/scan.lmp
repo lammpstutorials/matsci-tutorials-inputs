@@ -2,19 +2,25 @@
 # Licensed under CC BY 4.0
 # A Set of Materials-Science Tutorials for the LAMMPS Simulation Package
 # Modernized recreation of the MSU/CAVS tutorials by Mark A. Tschopp
-# Tutorial 2: energy-volume scan of fcc aluminum, looping entirely inside
-# LAMMPS. An index variable holds the list of lattice constants; the "next"
-# and "jump" commands iterate over them and "clear" resets the state between
-# iterations. The results are written to a structured YAML file that can be
-# loaded directly (e.g. with Python/pandas), without writing a parser.
 
-# list of lattice constants to scan (in Angstrom)
-variable a index 3.90 3.925 3.95 3.975 4.00 4.025 4.05 4.075 4.10 &
-                 4.125 4.15 4.175 4.20 4.225 4.25 4.275 4.30
+# Tutorial 2: energy-volume scan of fcc aluminum, using a loop in LAMMPS.
+# An equal style variable holds the lattice constants computed from a loop
+# style variable; the "next" and "jump" commands iterate over them and "clear"
+# resets the state between iterations. The results are written to a structured
+# YAML file that can be loaded directly (e.g. with Python/pandas)
+
+# define variables for loop count and lattice constant (in Angstrom)
+variable  i  loop 17
+variable  a0 equal 3.875+v_i*0.025
+
+# derived per-atom quantities (equal-style variables are evaluated when used)
+variable  vat  equal vol/count(all)
+variable  ecoh equal pe/count(all)
 
 # start the YAML output file with a short comment header (overwrites old file)
 print "# energy-volume curve of fcc Al; lengths in Angstrom, energy in eV" file ev.yaml screen no
 
+# input continues from here after jump
 label loop
 
 clear
@@ -23,9 +29,9 @@ dimension 3
 boundary p p p
 atom_style atomic
 
-lattice fcc ${a} origin 0.25 0.25 0.25
-region box block 0 4 0 4 0 4
-create_box 1 box
+lattice  fcc ${a0} origin 0.25 0.25 0.25
+region   box block 0 4 0 4 0 4
+create_box   1 box
 create_atoms 1 box
 
 pair_style eam/alloy
@@ -33,15 +39,12 @@ pair_coeff * * Al_zhou.eam.alloy Al
 
 run 0
 
-# derived per-atom quantities (equal-style variables are evaluated when used)
-variable vat equal vol/count(all)
-variable ecoh  equal pe/count(all)
-
 # append one YAML record (a mapping) per lattice constant
-print "- {lattice_constant: ${a}, volume_per_atom: $(v_vat:%.6f), &
+print "- {lattice_constant: ${a0}, volume_per_atom: $(v_vat:%.6f), &
       cohesive_energy: $(v_ecoh:%.6f)}" append ev.yaml screen no
 
-next a
+# increment and repeat calculation until max loop count
+next i
 jump SELF loop
 
 print "Energy-volume scan complete; results written to ev.yaml"

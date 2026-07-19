@@ -2,22 +2,30 @@
 # comments start with a # as the first character.
 # comments and empty lines are ignored
 ##############################################################################
-# Tutorial 6: Elastic constants of crystalline silicon
+# Tutorial 6: Nanowires -- surfaces, solutes, and failure
 #
 # 1) input file templates
 # the first file will be automatically loaded
-elastic.lmp
-plot.py
+wire.lmp
+wire-alloy.lmp
 
 # 2) support files
-Si.sw
+Al_zhou.eam.alloy
+AlCu.adp
 
 # 3) solution files
 # only downloaded on request
-solution/elastic.log
-solution/scan.yaml
-solution/plot-output.txt
-solution/elastic-stress-strain.png
-solution/visualize.lmp
-solution/diamond-c11.png
-solution/diamond-c44.png
+solution/wire-plot.py
+solution/wireviz.lmp
+solution/wire.log
+solution/stress-wire.csv
+solution/stress-wire-0.csv
+solution/stress-wire-10.csv
+solution/wire-0.dump
+solution/wire-10.dump
+solution/wire-0-50000.png
+solution/wire-10-50000.png
+solution/wire-stress-strain.png
+solution/wire-failure.png
+# bulk reference curve from Tutorial 5 for the comparison plot
+solution/stress-tension.csv

@@ -1,0 +1,160 @@
+LAMMPS (30 Mar 2026 - Development - patch_30Mar2026-1178-g5f8b8984a-modified)
+OMP_NUM_THREADS environment is not set. Defaulting to 1 thread.
+  using 1 OpenMP thread(s) per MPI task
+# LAMMPS Input File
+# Licensed under CC BY 4.0
+# A Set of Materials-Science Tutorials for the LAMMPS Simulation Package: 2. Materials Science
+# By Simon Gravelle, Mark A. Tschopp, Jacob R. Gissinger, and Axel Kohlmeyer
+# Tutorial 18: 4. One oxide, three potentials -- alpha-quartz SiO2
+#
+# Run alpha-quartz with three bundled potentials that treat charges in
+# three different ways: COMB (self-consistent charge equilibration), the
+# SiO Tersoff of Munetoh et al. (no charges at all -- charge transfer is
+# folded into the bond order), and the Vashishta potential (fixed effective
+# charges baked into the parameters).  Select with the index variables:
+#     lmp -in quartz.lmp -var pot tersoff
+#     lmp -in quartz.lmp -var pot comb -var mode surface
+# mode = bulk    : relax the cell, report lattice constants and density
+# mode = surface : cleave a (0001) slab at the potential's own bulk lattice
+#                  constants, relax, report the surface energy
+# Structure: Levien et al., Am. Mineral. 65, 920 (1980), as in the LAMMPS
+# alpha-quartz qtb example; the hexagonal cell is doubled along y into an
+# orthorhombic 18-atom supercell so the box stays orthogonal.
+
+# 1) Initialization
+variable pot  index comb        # comb | tersoff | vashishta
+variable mode index bulk        # bulk | surface
+units metal
+dimension 3
+atom_style charge
+if "${mode} == bulk" then "boundary p p p" else "boundary p p s"
+boundary p p p
+
+# 2) System definition
+# per-potential relaxed bulk lattice constants and cohesive energies
+# (from the bulk runs of this input; experiment: a = 4.916, c = 5.405)
+if "${pot} == comb" then   "variable qa equal 4.9210" "variable qc equal 5.4078" "variable eb equal -6.9228" elif "${pot} == tersoff"   "variable qa equal 5.0820" "variable qc equal 5.5277" "variable eb equal -6.6979" else   "variable qa equal 4.8291" "variable qc equal 5.3087" "variable eb equal -9.1804"
+variable qa equal 5.0820
+variable qc equal 5.5277
+variable eb equal -6.6979
+# in bulk mode, start from the experimental cell instead and let it relax
+if "${mode} == bulk" then "variable qa equal 4.916" "variable qc equal 5.4054"
+variable qa equal 4.916
+variable qc equal 5.4054
+variable qb equal ${qa}*0.8660254
+variable qb equal 4.916*0.8660254
+lattice custom 1.0     a1 ${qa} 0.0 0.0  a2 $(-0.5*v_qa) $(v_qb) 0.0  a3 0.0 0.0 ${qc}     basis 0.469700 0.000000 0.000000     basis 0.000000 0.469700 0.666667     basis 0.530300 0.530300 0.333333     basis 0.413500 0.266900 0.119100     basis 0.266900 0.413500 0.547567     basis 0.733100 0.146600 0.785767     basis 0.586500 0.853400 0.214233     basis 0.853400 0.586500 0.452433     basis 0.146600 0.733100 0.880900     origin 0.0 0.0 0.05
+lattice custom 1.0     a1 4.916 0.0 0.0  a2 $(-0.5*v_qa) $(v_qb) 0.0  a3 0.0 0.0 ${qc}     basis 0.469700 0.000000 0.000000     basis 0.000000 0.469700 0.666667     basis 0.530300 0.530300 0.333333     basis 0.413500 0.266900 0.119100     basis 0.266900 0.413500 0.547567     basis 0.733100 0.146600 0.785767     basis 0.586500 0.853400 0.214233     basis 0.853400 0.586500 0.452433     basis 0.146600 0.733100 0.880900     origin 0.0 0.0 0.05
+lattice custom 1.0     a1 4.916 0.0 0.0  a2 -2.4580000000000001847 $(v_qb) 0.0  a3 0.0 0.0 ${qc}     basis 0.469700 0.000000 0.000000     basis 0.000000 0.469700 0.666667     basis 0.530300 0.530300 0.333333     basis 0.413500 0.266900 0.119100     basis 0.266900 0.413500 0.547567     basis 0.733100 0.146600 0.785767     basis 0.586500 0.853400 0.214233     basis 0.853400 0.586500 0.452433     basis 0.146600 0.733100 0.880900     origin 0.0 0.0 0.05
+lattice custom 1.0     a1 4.916 0.0 0.0  a2 -2.4580000000000001847 4.2573808664000001301 0.0  a3 0.0 0.0 ${qc}     basis 0.469700 0.000000 0.000000     basis 0.000000 0.469700 0.666667     basis 0.530300 0.530300 0.333333     basis 0.413500 0.266900 0.119100     basis 0.266900 0.413500 0.547567     basis 0.733100 0.146600 0.785767     basis 0.586500 0.853400 0.214233     basis 0.853400 0.586500 0.452433     basis 0.146600 0.733100 0.880900     origin 0.0 0.0 0.05
+lattice custom 1.0     a1 4.916 0.0 0.0  a2 -2.4580000000000001847 4.2573808664000001301 0.0  a3 0.0 0.0 5.4054     basis 0.469700 0.000000 0.000000     basis 0.000000 0.469700 0.666667     basis 0.530300 0.530300 0.333333     basis 0.413500 0.266900 0.119100     basis 0.266900 0.413500 0.547567     basis 0.733100 0.146600 0.785767     basis 0.586500 0.853400 0.214233     basis 0.853400 0.586500 0.452433     basis 0.146600 0.733100 0.880900     origin 0.0 0.0 0.05
+Lattice spacing in x,y,z = 7.374 4.2573809 5.4054
+region box block 0 $(2*v_qa) 0 $(2*v_qb) 0 $(2*v_qc) units box
+region box block 0 9.832000000000000739 0 $(2*v_qb) 0 $(2*v_qc) units box
+region box block 0 9.832000000000000739 0 8.5147617328000002601 0 $(2*v_qc) units box
+region box block 0 9.832000000000000739 0 8.5147617328000002601 0 10.810800000000000409 units box
+create_box 2 box
+Created orthogonal box = (0 0 0) to (9.832 8.5147617 10.8108)
+  1 by 1 by 1 MPI processor grid
+create_atoms 1 box basis 1 1 basis 2 1 basis 3 1     basis 4 2 basis 5 2 basis 6 2 basis 7 2 basis 8 2 basis 9 2
+Created 72 atoms
+  using lattice units in orthogonal box = (0 0 0) to (9.832 8.5147617 10.8108)
+  create_atoms CPU = 0.000 seconds
+mass 1 28.0855
+mass 2 15.999
+
+# 3) Settings: three potentials, three treatments of the charges
+if "${pot} == comb" then   "set type 1 charge  1.2"   "set type 2 charge -0.6"   "pair_style comb"   "pair_coeff * * ffield.comb Si O"   "fix q all qeq/comb 1 0.0001" elif "${pot} == tersoff"   "pair_style tersoff"   "pair_coeff * * SiO.tersoff Si O" else   "pair_style vashishta"   "pair_coeff * * SiO.1990.vashishta Si O"
+pair_style tersoff
+pair_coeff * * SiO.tersoff Si O
+Reading tersoff potential file SiO.tersoff with DATE: 2010-08-16
+neighbor 0.5 bin
+
+# 4) Monitoring
+group si type 1
+24 atoms in group si
+group ox type 2
+48 atoms in group ox
+compute qsi si property/atom q
+compute qavsi si reduce ave c_qsi
+thermo 100
+thermo_style custom step pe press lx lz c_qavsi
+
+# 5) Relax: full cell in bulk mode, atoms only in surface mode
+if "${mode} == bulk" then "fix relax all box/relax aniso 0.0 vmax 0.001"
+fix relax all box/relax aniso 0.0 vmax 0.001
+min_style cg
+min_modify dmax 0.005 line quadratic
+minimize 1.0e-10 1.0e-10 2000 10000
+Neighbor list info ...
+  update: every = 1 steps, delay = 0 steps, check = yes
+  max neighbors/atom: 2000, page size: 100000
+  master list distance cutoff = 3.3
+  ghost atom cutoff = 3.3
+  binsize = 1.65, bins = 6 6 7
+  1 neighbor lists, perpetual/occasional/extra = 1 0 0
+  (1) pair tersoff, perpetual
+      attributes: full, newton on
+      pair build: full/bin/atomonly
+      stencil: full/bin/3d
+      bin: standard
+WARNING: Energy due to 3 extra global DOFs will be included in minimizer energies
+ (src/min.cpp:222)
+Per MPI rank memory allocation (min/avg/max) = 4.314 | 4.314 | 4.314 Mbytes
+   Step         PotEng         Press            Lx             Lz          c_qavsi    
+         0  -480.16287      95922.748      9.832          10.8108        0            
+       100  -482.23692     -578.34127      10.15216       11.034738      0            
+       200  -482.25123     -2.7731027      10.163832      11.054976      0            
+       208  -482.25123     -5.5826994      10.163947      11.055162      0            
+Loop time of 0.0136873 on 1 procs for 208 steps with 72 atoms
+
+99.7% CPU use with 1 MPI tasks x 1 OpenMP threads
+
+Minimization stats:
+  Stopping criterion = energy tolerance
+  Energy initial, next-to-last, final = 
+     -480.162865133343  -482.251228217589  -482.251228265265
+  Force two-norm initial, final = 94.139147 0.0098512521
+  Force max component initial, final = 57.00402 0.0094926246
+  Final line search alpha, max atom move = 0.13768366 0.0013069793
+  Iterations, force evaluations = 208 341
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 0.012148   | 0.012148   | 0.012148   |   0.0 | 88.76
+Neigh   | 3.9956e-05 | 3.9956e-05 | 3.9956e-05 |   0.0 |  0.29
+Comm    | 0.0001995  | 0.0001995  | 0.0001995  |   0.0 |  1.46
+Output  | 7.253e-06  | 7.253e-06  | 7.253e-06  |   0.0 |  0.05
+Modify  | 0          | 0          | 0          |   0.0 |  0.00
+Other   |            | 0.001292   |            |       |  9.44
+
+Nlocal:             72 ave          72 max          72 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Nghost:            271 ave         271 max         271 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Neighs:              0 ave           0 max           0 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+FullNghs:          576 ave         576 max         576 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+
+Total # of neighbors = 576
+Ave neighs/atom = 8
+Neighbor list builds = 2
+Dangerous builds = 0
+
+# 6) Report
+if "${mode} == bulk" then   "variable arel equal lx/2"   "variable crel equal lz/2"   "variable dens equal mass(all)/vol*1.66054"   "print '--------------------------------------------------'"   "print 'QUARTZ ${pot}: a = $(v_arel:%.4f)  c = $(v_crel:%.4f)  (exp. 4.916, 5.405)'"   "print '  density = $(v_dens:%.3f) g/cm^3 (exp. 2.65)  E/atom = $(pe/count(all):%.4f) eV'"   "print '--------------------------------------------------'" else   "variable gam equal (pe-count(all)*v_eb)/(2*lx*ly)*16021.766"   "print '--------------------------------------------------'"   "print 'QUARTZ ${pot}: cleaved (0001) surface energy = $(v_gam:%.0f) mJ/m^2'"   "print '--------------------------------------------------'"
+variable arel equal lx/2
+variable crel equal lz/2
+variable dens equal mass(all)/vol*1.66054
+print '--------------------------------------------------'
+--------------------------------------------------
+print 'QUARTZ ${pot}: a = $(v_arel:%.4f)  c = $(v_crel:%.4f)  (exp. 4.916, 5.405)'
+QUARTZ tersoff: a = 5.0820  c = 5.5276  (exp. 4.916, 5.405)
+print '  density = $(v_dens:%.3f) g/cm^3 (exp. 2.65)  E/atom = $(pe/count(all):%.4f) eV'
+  density = 2.421 g/cm^3 (exp. 2.65)  E/atom = -6.6979 eV
+print '--------------------------------------------------'
+--------------------------------------------------
+if "${mode} == surface && ${pot} == comb" then "write_data qsurface.data"
+Total wall time: 0:00:00

@@ -2,26 +2,24 @@
 # comments start with a # as the first character.
 # comments and empty lines are ignored
 ##############################################################################
-# Tutorial 8: Thermal conductivity by reverse NEMD (crystalline silicon)
+# Tutorial 8: Nanoindentation and nano-stamping
 #
 # 1) input file templates
 # the first file will be automatically loaded
-kappa.lmp
+indent.lmp
+stamp.lmp
+generate_tool.py
 plot.py
 
-# 2) support files
-Si.sw
+# 2) support files (bundled potential and the tool geometry)
+Al_zhou.eam.alloy
+tool.stl
 
 # 3) solution files
 # only downloaded on request
-solution/kappa.log
-solution/kappa.yaml
-solution/profile_20.dat
-solution/profile_40.dat
-solution/profile_60.dat
-solution/profile_80.dat
-solution/plot-output.txt
-solution/kappa-profile.png
-solution/kappa-size.png
-solution/visualize.lmp
-solution/regions.png
+solution/visualize_indent.lmp
+solution/indent_viz_advanced.lmp
+solution/visualize_stamp.lmp
+solution/load-displacement.png
+solution/indent-defects.png
+solution/smiley-imprint.png

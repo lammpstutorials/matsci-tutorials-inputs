@@ -1,0 +1,34 @@
+# LAMMPS Input File
+# Licensed under CC BY 4.0
+# A Set of Materials-Science Tutorials for the LAMMPS Simulation Package
+# Tutorial 12: illustrate the reverse-NEMD geometry -- a silicon bar with the
+# hot (central) and cold (edge) momentum-exchange slabs highlighted as
+# transparent regions, using the dump image "region" draw style.
+# Open in LAMMPS-GUI and run, or:  lmp -in visualize.lmp
+
+units metal
+boundary p p p
+atom_style atomic
+lattice diamond 5.431
+region box block 0 4 0 4 0 16
+create_box 1 box
+create_atoms 1 box
+mass 1 28.0855
+pair_style sw
+pair_coeff * * ../Si.sw Si
+
+# fix thermal/conductivity divides z into 20 slabs; slab 1 (the periodic edge)
+# is the cold sink and the central slab is the hot source.
+variable w equal lz/20.0
+region cold block INF INF INF INF $(0.0)        $(v_w)         units box
+region hot  block INF INF INF INF $(10.0*v_w)   $(11.0*v_w)    units box
+run 0
+
+# Si atoms at the covalent radius (~1.1 Ang); the exchange slabs are shown as
+# 50%-transparent pale blue (cold) and pale red (hot) boxes.
+write_dump all image regions.png type type adiam 2.5 &
+    view 85 10 up 0 1 0 zoom 5.3 size 1400 500 shiny 0.2 fsaa yes &
+    box yes 0.02 axes no 0.0 0.0 ssao yes 32345 0.6 &
+    region cold skyblue transparent 0.75 &
+    region hot  lightcoral transparent 0.75 &
+    modify backcolor white boxcolor midnightblue acolor 1 goldenrod

@@ -1,0 +1,157 @@
+LAMMPS (30 Mar 2026 - Development - patch_30Mar2026-1178-g5f8b8984a-modified)
+OMP_NUM_THREADS environment is not set. Defaulting to 1 thread.
+  using 1 OpenMP thread(s) per MPI task
+# LAMMPS Input File
+# Licensed under CC BY 4.0
+# A Set of Materials-Science Tutorials for the LAMMPS Simulation Package: 2. Materials Science
+# By Simon Gravelle, Mark A. Tschopp, Jacob R. Gissinger, and Axel Kohlmeyer
+# Tutorial 18: 3. A stepped TiO2 (110) surface -- charge redistribution at edges
+#
+# Same (110) slab as surface110.lmp, but wider, and with the top O-Ti2O2-O
+# trilayer removed over half of the surface.  This carves two terraces
+# joined by monatomic steps along [001].  Because the cut plane lies in the
+# gap between trilayers and a trilayer is charge neutral, the deleted patch
+# is exactly stoichiometric.  After relaxation, the charges at the step
+# edges differ from both the flat terrace and the bulk -- local chemistry
+# made visible by the charge-transfer potential.
+
+# 1) Initialization
+units metal
+dimension 3
+boundary p p s
+atom_style charge
+
+# 2) System definition (see surface110.lmp for the rotated-cell derivation)
+lattice custom 1.0     a1 6.5062 0.0 0.0  a2 0.0 2.9646 0.0  a3 0.0 0.0 6.5062     basis 0.0    0.0  0.0    basis 0.5    0.0  0.5     basis 0.0    0.5  0.5    basis 0.5    0.5  0.0     basis 0.0    0.0  0.3048 basis 0.5    0.0  0.8048     basis 0.0    0.0  0.6952 basis 0.5    0.0  0.1952     basis 0.3048 0.5  0.5    basis 0.8048 0.5  0.0     basis 0.6952 0.5  0.5    basis 0.1952 0.5  0.0     origin 0.0 0.0 0.25
+Lattice spacing in x,y,z = 6.5062 2.9646 6.5062
+region box block 0 4 0 6 0 3
+create_box 2 box
+Created orthogonal box = (0 0 0) to (26.0248 17.7876 19.5186)
+  1 by 1 by 1 MPI processor grid
+create_atoms 1 box basis 1 1 basis 2 1 basis 3 1 basis 4 1     basis 5 2 basis 6 2 basis 7 2 basis 8 2 basis 9 2 basis 10 2     basis 11 2 basis 12 2
+Created 864 atoms
+  using lattice units in orthogonal box = (0 0 -0.00195186) to (26.0248 17.7876 19.520552)
+  create_atoms CPU = 0.000 seconds
+mass 1 47.867
+mass 2 15.999
+
+# 3) Carve the step: remove the top trilayer over half the surface.  The
+#    z-cut at ztop-2.75 lies in the inter-trilayer gap, the x-cut at lx/2
+#    creates two step edges running along y = [001].
+variable ztop equal bound(all,zmax)
+region terrace block $(lx/2) INF INF INF $(v_ztop-2.75) INF units box
+region terrace block 13.012399999999999523 INF INF INF $(v_ztop-2.75) INF units box
+region terrace block 13.012399999999999523 INF INF INF 16.412060239999998856 INF units box
+delete_atoms region terrace
+Deleted 72 atoms, new total = 792
+
+# 4) Settings
+set type 1 charge  2.4
+Setting atom values ...
+  264 settings made for charge
+set type 2 charge -1.2
+Setting atom values ...
+  528 settings made for charge
+pair_style comb
+pair_coeff * * ffield.comb Ti O
+Reading comb potential file ffield.comb with DATE: 2011-02-22
+neighbor 0.5 bin
+neigh_modify every 1 delay 0 check yes
+fix q all qeq/comb 1 0.0001
+
+# 5) Monitoring
+thermo 50
+thermo_style custom step pe fnorm
+
+# 6) Relax
+min_style cg
+min_modify dmax 0.005 line quadratic
+minimize 1.0e-10 1.0e-10 2000 10000
+Neighbor list info ...
+  update: every = 1 steps, delay = 0 steps, check = yes
+  max neighbors/atom: 2000, page size: 100000
+  master list distance cutoff = 12.5
+  ghost atom cutoff = 12.5
+  binsize = 6.25, bins = 5 3 4
+  1 neighbor lists, perpetual/occasional/extra = 1 0 0
+  (1) pair comb, perpetual
+      attributes: full, newton on
+      pair build: full/bin/atomonly
+      stencil: full/bin/3d
+      bin: standard
+Per MPI rank memory allocation (min/avg/max) = 10.03 | 10.03 | 10.03 Mbytes
+   Step         PotEng         Fnorm     
+         0  -5647.7929      38.677559    
+        50  -7030.3711      7.4160305    
+        88  -7034.7413      1.0046227    
+Loop time of 61.4106 on 1 procs for 88 steps with 792 atoms
+
+99.6% CPU use with 1 MPI tasks x 1 OpenMP threads
+
+Minimization stats:
+  Stopping criterion = linesearch alpha is zero
+  Energy initial, next-to-last, final = 
+     -5647.79294220424  -7034.74297759921  -7034.74133719486
+  Force two-norm initial, final = 38.677559 1.0046227
+  Force max component initial, final = 3.5800999 0.095829285
+  Final line search alpha, max atom move = 6.2766446e-09 6.0148637e-10
+  Iterations, force evaluations = 88 118
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 2.2296     | 2.2296     | 2.2296     |   0.0 |  3.63
+Neigh   | 0.0045116  | 0.0045116  | 0.0045116  |   0.0 |  0.01
+Comm    | 0.0011464  | 0.0011464  | 0.0011464  |   0.0 |  0.00
+Output  | 1.9787e-05 | 1.9787e-05 | 1.9787e-05 |   0.0 |  0.00
+Modify  | 59.173     | 59.173     | 59.173     |   0.0 | 96.36
+Other   |            | 0.002112   |            |       |  0.00
+
+Nlocal:            792 ave         792 max         792 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Nghost:           2903 ave        2903 max        2903 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Neighs:              0 ave           0 max           0 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+FullNghs:       454500 ave      454500 max      454500 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+
+Total # of neighbors = 454500
+Ave neighs/atom = 573.86364
+Neighbor list builds = 1
+Dangerous builds = 0
+
+# 7) Charge extremes among the oxygens of the surface region
+group ox type 2
+528 atoms in group ox
+variable zhi2 equal bound(all,zmax)
+region rtopo block INF INF INF INF $(v_zhi2-6.0) INF units box
+region rtopo block INF INF INF INF 13.247913573269599397 INF units box
+group gtopo region rtopo
+216 atoms in group gtopo
+group otop intersect gtopo ox
+144 atoms in group otop
+compute qt otop property/atom q
+compute qmin otop reduce min c_qt
+compute qmax otop reduce max c_qt
+run 0 post no
+WARNING: No fixes with time integration, atoms won't move
+For more information see https://docs.lammps.org/err0028 (src/verlet.cpp:60)
+Per MPI rank memory allocation (min/avg/max) = 8.906 | 8.906 | 8.906 Mbytes
+   Step         PotEng         Fnorm     
+        88  -7034.7413      1.0046227    
+Loop time of 1.022e-06 on 1 procs for 0 steps with 792 atoms
+
+print "--------------------------------------------------"
+--------------------------------------------------
+print "Atoms: $(count(all));  O charges near the surface span"
+Atoms: 792;  O charges near the surface span
+print "  q(O) = $(c_qmin:%.3f) ... $(c_qmax:%.3f) e  (interior: -1.60 e)"
+  q(O) = -1.681 ... -1.344 e  (interior: -1.60 e)
+print "--------------------------------------------------"
+--------------------------------------------------
+
+# 8) Save the relaxed stepped slab (with charges) for visualization
+write_data step110.data
+System init for write_data ...
+Total wall time: 0:01:01

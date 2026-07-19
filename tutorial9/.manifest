@@ -2,35 +2,22 @@
 # comments start with a # as the first character.
 # comments and empty lines are ignored
 ##############################################################################
-# Tutorial 9: Phonon dispersion from MD (fcc copper, fix phonon)
+# Tutorial 9: Elastic constants of crystalline silicon
 #
 # 1) input file templates
 # the first file will be automatically loaded
-phonon.lmp
-dispersion.in
-phonon-plot.py
-vacfdos.lmp
-dos-plot.py
+elastic.lmp
+plot.py
 
 # 2) support files
-Cu_mishin1.eam.alloy
-map.in
-Cu_exp.dat
+Si.sw
 
 # 3) solution files
 # only downloaded on request
-solution/phonon.log
-solution/Cu_mishin1.eam.alloy
-solution/Cu_exp.dat
-solution/dispersion.in
-solution/map.in
-solution/phonon-plot.py
-solution/Cu.bin.3030000
-solution/disp.dat
-solution/phana.log
-solution/phonon.png
-solution/cellviz.lmp
-solution/cu-cell.png
-solution/vacf.dat
-solution/vacfdos.log
-solution/dos-cv.png
+solution/elastic.log
+solution/scan.yaml
+solution/plot-output.txt
+solution/elastic-stress-strain.png
+solution/visualize.lmp
+solution/diamond-c11.png
+solution/diamond-c44.png

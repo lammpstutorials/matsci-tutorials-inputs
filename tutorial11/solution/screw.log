@@ -1,0 +1,184 @@
+LAMMPS (30 Mar 2026 - Development - patch_30Mar2026-1178-g5f8b8984a-modified)
+OMP_NUM_THREADS environment is not set. Defaulting to 1 thread.
+  using 1 OpenMP thread(s) per MPI task
+# LAMMPS Input File
+# Licensed under CC BY 4.0
+# A Set of Materials-Science Tutorials for the LAMMPS Simulation Package: 2. Materials Science
+# By Simon Gravelle, Mark A. Tschopp, Jacob R. Gissinger, and Axel Kohlmeyer
+# Tutorial 11: A screw dislocation from its elastic displacement field
+#
+# Create an isolated 1/2<110> screw dislocation in fcc aluminum by imprinting
+# the Volterra solution of elasticity theory,
+#     u_z(x,y) = (b/2*pi) * atan2(y-yc, x-xc),
+# on a perfect cylinder of atoms with a single displace_atoms command driven
+# by an atom-style variable.  The outer shell of the cylinder is then frozen
+# (it carries the correct elastic far field) and the interior is relaxed:
+# the core dissociates into two Shockley partial dislocations bounding a
+# ribbon of stacking fault, which is identified with common neighbor
+# analysis and measured with the bound() group function.
+#
+# Frame: x = [-1 1 -2], y = [-1 1 1] (glide-plane normal), z = [1 1 0]
+# (dislocation line and Burgers vector).  The dislocation is periodic along
+# its line (boundary p in z) and the cylinder is shrink-wrapped in x and y.
+
+# 1) Initialization
+units metal
+dimension 3
+boundary s s p
+atom_style atomic
+
+# 2) System definition
+variable a0 index 4.08165          # Zhou EAM equilibrium value (Tutorial 1)
+variable R  index 30.0             # cylinder radius (Angstrom)
+variable b  equal ${a0}/sqrt(2.0)  # Burgers vector |1/2<110>| = 2.886 A
+variable b  equal 4.08165/sqrt(2.0)  
+lattice fcc ${a0} orient x -1 1 -2 orient y -1 1 1 orient z 1 1 0         origin 0.1 0.1 0.1
+lattice fcc 4.08165 orient x -1 1 -2 orient y -1 1 1 orient z 1 1 0         origin 0.1 0.1 0.1
+Lattice spacing in x,y,z = 6.6653065 7.0696252 5.7723248
+region cyl cylinder z 0.0 0.0 ${R} 0 $(3*v_b) units box
+region cyl cylinder z 0.0 0.0 30.0 0 $(3*v_b) units box
+region cyl cylinder z 0.0 0.0 30.0 0 8.658487180290210361 units box
+create_box 1 cyl
+Created orthogonal box = (-30 -30 0) to (30 30 8.6584872)
+  1 by 1 by 1 MPI processor grid
+create_atoms 1 region cyl
+Created 1437 atoms
+  using lattice units in orthogonal box = (-30.006 -30.006 0) to (30.006 30.006 8.6584872)
+  create_atoms CPU = 0.001 seconds
+
+# 3) Settings
+pair_style eam/alloy
+pair_coeff * * Al_zhou.eam.alloy Al
+Reading eam/alloy potential file Al_zhou.eam.alloy with DATE: 2007-10-12
+
+# 4) Imprint the Volterra field of a screw dislocation along the cylinder
+#    axis.  Every atom computes its own displacement from its own position;
+#    the center (xc,yc) is placed off any atom row.  The atan2() branch cut
+#    makes u_z jump by exactly b across the half-plane y=yc, x<xc -- which
+#    is harmless, because b is a lattice vector: this multivaluedness IS the
+#    dislocation.
+variable xc equal 0.31
+variable yc equal 0.47
+variable uz atom (v_b/(2*PI))*atan2(y-v_yc,x-v_xc)
+displace_atoms all move 0.0 0.0 v_uz units box
+Displacing atoms ...
+
+# 5) Freeze the outer shell AFTER the displacement, so it holds the elastic
+#    far-field solution in place (cf. the rigid grips of Tutorial 7)
+variable Rin equal ${R}-8.0
+variable Rin equal 30.0-8.0
+region rin cylinder z 0.0 0.0 ${Rin} INF INF units box
+region rin cylinder z 0.0 0.0 22 INF INF units box
+group core region rin
+768 atoms in group core
+group ring subtract all core
+669 atoms in group ring
+fix hold ring setforce 0.0 0.0 0.0
+
+# 6) Monitoring
+thermo 100
+thermo_style custom step pe fnorm
+
+# 7) Relax the interior: the core dissociates into two Shockley partials
+min_style cg
+minimize 1.0e-10 1.0e-12 10000 100000
+Neighbor list info ...
+  update: every = 1 steps, delay = 0 steps, check = yes
+  max neighbors/atom: 2000, page size: 100000
+  master list distance cutoff = 12.1025
+  ghost atom cutoff = 12.1025
+  binsize = 6.05125, bins = 10 10 2
+  1 neighbor lists, perpetual/occasional/extra = 1 0 0
+  (1) pair eam/alloy, perpetual
+      attributes: half, newton on
+      pair build: half/bin/atomonly/newton
+      stencil: half/bin/3d
+      bin: standard
+Per MPI rank memory allocation (min/avg/max) = 5.42 | 5.42 | 5.42 Mbytes
+   Step         PotEng         Fnorm     
+         0  -5041.4872      1.329092     
+        52  -5042.0237      0.001318898  
+Loop time of 0.532612 on 1 procs for 52 steps with 1437 atoms
+
+99.6% CPU use with 1 MPI tasks x 1 OpenMP threads
+
+Minimization stats:
+  Stopping criterion = energy tolerance
+  Energy initial, next-to-last, final = 
+     -5041.48718114013  -5042.02366864487  -5042.02366914709
+  Force two-norm initial, final = 1.329092 0.001318898
+  Force max component initial, final = 0.48385486 9.7896425e-05
+  Final line search alpha, max atom move = 1 9.7896425e-05
+  Iterations, force evaluations = 52 103
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 0.52995    | 0.52995    | 0.52995    |   0.0 | 99.50
+Neigh   | 0          | 0          | 0          |   0.0 |  0.00
+Comm    | 0.0010388  | 0.0010388  | 0.0010388  |   0.0 |  0.20
+Output  | 0          | 0          | 0          |   0.0 |  0.00
+Modify  | 0.00027313 | 0.00027313 | 0.00027313 |   0.0 |  0.05
+Other   |            | 0.001347   |            |       |  0.25
+
+Nlocal:           1437 ave        1437 max        1437 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Nghost:           4017 ave        4017 max        4017 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Neighs:         261792 ave      261792 max      261792 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+
+Total # of neighbors = 261792
+Ave neighs/atom = 182.17954
+Neighbor list builds = 0
+Dangerous builds = 0
+
+# 8) Identify the stacking-fault ribbon between the partials (CNA code 2 =
+#    hcp coordination) and measure its extent in the glide plane.  Note the
+# screw can dissociate on either of the two {111} planes that contain its
+#    line; the in-plane extent below is measured plane-agnostically.
+compute cna all cna/atom 3.45
+run 0 post no
+WARNING: No fixes with time integration, atoms won't move
+For more information see https://docs.lammps.org/err0028 (src/verlet.cpp:60)
+Neighbor list info ...
+  update: every = 1 steps, delay = 0 steps, check = yes
+  max neighbors/atom: 2000, page size: 100000
+  master list distance cutoff = 12.1025
+  ghost atom cutoff = 12.1025
+  binsize = 6.05125, bins = 10 10 2
+  2 neighbor lists, perpetual/occasional/extra = 1 1 0
+  (1) pair eam/alloy, perpetual
+      attributes: half, newton on
+      pair build: half/bin/atomonly/newton
+      stencil: half/bin/3d
+      bin: standard
+  (2) compute cna/atom, occasional
+      attributes: full, newton on
+      pair build: full/bin/atomonly
+      stencil: full/bin/3d
+      bin: standard
+Per MPI rank memory allocation (min/avg/max) = 4.926 | 4.926 | 4.926 Mbytes
+   Step         PotEng         Fnorm     
+        52  -5042.0237      0.001318898  
+Loop time of 1.153e-06 on 1 procs for 0 steps with 1437 atoms
+
+variable ishcp atom "c_cna == 2"
+group hcp variable ishcp
+15 atoms in group hcp
+variable dwid equal sqrt((bound(hcp,xmax)-bound(hcp,xmin))^2+(bound(hcp,ymax)-bound(hcp,ymin))^2)
+print "--------------------------------------------------"
+--------------------------------------------------
+print "Atoms total                    = $(count(all))"
+Atoms total                    = 1437
+print "Stacking-fault (hcp) atoms     = $(count(hcp))"
+Stacking-fault (hcp) atoms     = 15
+print "Fault ribbon extent            = $(v_dwid:%.2f) Ang"
+Fault ribbon extent            = 5.90 Ang
+print "--------------------------------------------------"
+--------------------------------------------------
+
+# 9) Save the relaxed configuration for visualization
+write_data screw.data
+System init for write_data ...
+Total wall time: 0:00:00

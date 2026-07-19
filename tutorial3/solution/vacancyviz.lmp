@@ -1,0 +1,37 @@
+# LAMMPS Input File
+# Licensed under CC BY 4.0
+# Tutorial 3 -- interactive visualization sandbox for the vacancy figure.
+
+units metal
+
+variable ncell index 3           # half the supercell size in conventional fcc cells
+variable a0 index 4.08165        # Zhou EAM equilibrium value from Tutorial 1
+lattice fcc ${a0} origin 0.25 0.25 0.25
+region box block -${ncell} ${ncell} -${ncell} ${ncell} -${ncell} ${ncell}
+create_box 1 box
+create_atoms 1 box
+
+pair_style eam/alloy
+pair_coeff * * Al_zhou.eam.alloy Al
+
+# Create the vacancy: delete a random atom near the box center
+region vac sphere 0.25 0.25 0.25 ${a0} units box
+delete_atoms random count 1 no all vac 131212345
+
+# visualization group
+region viz sphere 0 0 0 $(2*v_a0) units box
+group viz region viz
+
+# for coloring by displacement
+compute dist all displace/atom
+
+min_style cg
+minimize 1.0e-10 1.0e-12 10000 100000
+
+write_dump viz image vacancy.png c_dist[4] type size 1000 1000 zoom 2.8 &
+           shiny 0.2 fsaa yes view 50 50 ssao yes 453983 0.6 box no 0.0 &
+           modify backcolor white  adiam 1 1.6 &
+           color map1 0.267 0.005 0.329 color map2 0.191 0.407 0.556 &
+           color map3 0.208 0.719 0.473 color map4 0.993 0.906 0.144 &
+           amap min max cf 0.0 4 min map1 0.333 map2 0.667 map3 max map4
+

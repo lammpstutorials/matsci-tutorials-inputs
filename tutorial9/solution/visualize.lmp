@@ -1,0 +1,78 @@
+# LAMMPS Input File
+# Licensed under CC BY 4.0
+# A Set of Materials-Science Tutorials for the LAMMPS Simulation Package
+# Tutorial 9: render the two deformation modes used to extract the elastic
+# constants of diamond-cubic silicon, each as its OWN deformed cell:
+#   * diamond-c11.png -- an (exaggerated) uniaxial tensile strain along z,
+#                        whose stress response gives C11 (and C12)
+#   * diamond-c44.png -- an (exaggerated) yz shear strain, whose stress
+#                        response gives C44
+# The strains are enlarged well beyond the +/-1% used in elastic.lmp so the
+# distortion is visible.  Illustrates change_box (remap), and the LAMMPS-GUI
+# rendering features autobond / graphics/objects / graphics/labels.
+# Open in LAMMPS-GUI and run, or:  lmp -in visualize.lmp
+
+# ---------------------------------------------------------------------------
+# Panel 1: uniaxial tensile strain along z  ->  C11
+# ---------------------------------------------------------------------------
+units metal
+boundary p p p
+atom_style atomic
+# quarter-cell origin shift (as in Tutorial 1) so no atoms sit on box faces
+lattice diamond 5.431 origin 0.125 0.125 0.125
+region box block 0 2 0 2 0 2
+create_box 1 box
+create_atoms 1 box
+mass 1 28.0855
+pair_style sw
+pair_coeff * * ../Si.sw Si
+
+# exaggerated 15% tensile strain along z (atoms remapped affinely)
+change_box all z scale 1.15 remap
+
+# red tensile arrows along +/- z, centered on the cell
+fix fnorm all graphics/objects 1 &
+    arrow 1  5.43 5.43 13.5  5.43 5.43 19.0  0.6 0.3
+run 0
+write_dump all image diamond-c11.png type type adiam 1.45 &
+    autobond 3.0 0.45 &
+    view 80 -14 center s 0.5 0.5 0.7 zoom 1.1 size 1000 1200 &
+    shiny 0.2 ssao yes 4539 0.3 fsaa yes &
+    fix fnorm const 0 0 &
+    modify backcolor white boxcolor midnightblue &
+    color goldsi 0.83 0.66 0.22 acolor 1 goldsi &
+    fcolor fnorm firebrick
+
+clear
+
+# ---------------------------------------------------------------------------
+# Panel 2: yz shear strain  ->  C44
+# ---------------------------------------------------------------------------
+units metal
+boundary p p p
+atom_style atomic
+lattice diamond 5.431 origin 0.125 0.125 0.125
+region box block 0 2 0 2 0 2
+create_box 1 box
+create_atoms 1 box
+mass 1 28.0855
+pair_style sw
+pair_coeff * * ../Si.sw Si
+
+# exaggerated yz shear: tilt the box by ~15% of its height (atoms remapped).
+# NOTE: change_box tilt defaults to LATTICE units -- use "units box" for Ang.
+change_box all triclinic
+change_box all yz final 1.3 remap units box
+
+# green shear couple in front of the crystal (top -> +y, bottom -> -y)
+fix fshear all graphics/objects 1 &
+    arrow 1  5.43 4.0 15.0   5.43 11.0 15.0   0.6 0.3 
+run 0
+write_dump all image diamond-c44.png type type adiam 1.45 &
+    autobond 3.0 0.45 &
+    view 80 -14 center s 0.5 0.5 0.7 zoom 1.1 size 1000 1200 &
+    shiny 0.2 ssao yes 4539 0.3 fsaa yes &
+    fix fshear const 0 0 &
+    modify backcolor white boxcolor midnightblue &
+    color goldsi 0.83 0.66 0.22 acolor 1 goldsi &
+    fcolor fshear forestgreen

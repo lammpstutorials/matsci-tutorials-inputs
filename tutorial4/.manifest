@@ -2,30 +2,27 @@
 # comments start with a # as the first character.
 # comments and empty lines are ignored
 ##############################################################################
-# Tutorial 4: Grain boundaries -- construction and fracture
-#
-# Part A: Al Sigma5(310) symmetric tilt grain boundary
-# Part B: Fe Sigma3(111) grain-boundary fracture
+# Tutorial 4: Surfaces -- energy, relaxation, and reconstruction
 #
 # 1) input file templates
 # the first file will be automatically loaded
-gb.lmp
-makegb.lmp
-fracture.lmp
-plot.py
+alsurf.lmp
+si100.lmp
 
 # 2) support files
 Al_zhou.eam.alloy
-Fe_mm.eam.fs
-Fe_gb.data
+Si.sw
+Si.tersoff
 
 # 3) solution files
 # only downloaded on request
-solution/gb.log
-solution/gb-structure.png
-solution/visualize.lmp
-solution/makegb.log
-solution/fracture.log
-solution/stress-fracture.csv
-solution/fracture-stress-strain.png
-solution/gb-fracture.png
+solution/alsurf-100.log
+solution/alsurf-110.log
+solution/alsurf-111.log
+solution/si100.log
+solution/si1x1.data
+solution/si2x1.data
+# interactive dimer-figure sandbox (loads the relaxed configurations)
+solution/dimerviz.lmp
+solution/dimer-1x1.png
+solution/dimer-2x1.png

@@ -1,0 +1,187 @@
+LAMMPS (30 Mar 2026 - Development - patch_30Mar2026-1178-g5f8b8984a-modified)
+OMP_NUM_THREADS environment is not set. Defaulting to 1 thread.
+  using 1 OpenMP thread(s) per MPI task
+# LAMMPS Input File
+# Licensed under CC BY 4.0
+# A Set of Materials-Science Tutorials for the LAMMPS Simulation Package: 2. Materials Science
+# By Simon Gravelle, Mark A. Tschopp, Jacob R. Gissinger, and Axel Kohlmeyer
+# Tutorial 18: 2. The rutile TiO2 (110) surface -- charges follow geometry
+#
+# Build a rutile slab exposing the (110) surface, relax it with
+# self-consistent charges, and measure how the charges of the
+# undercoordinated surface atoms differ from the bulk.
+#
+# lattice custom has no orient keyword, so the (110) orientation is built
+# by re-expressing the crystal in a rotated frame: x = [1-10], y = [001],
+# z = [110].  The new cell contains 12 atoms (twice the conventional cell);
+# its fractional coordinates follow from the conventional ones (fx,fy,fz)
+# as U = (fx-fy)/2, V = fz, W = (fx+fy)/2.  Along z = [110] the crystal is
+# a stack of charge-neutral O-Ti2O2-O "trilayers"; the origin shift of 1/4
+# places the cell boundary in the gap BETWEEN trilayers, so the shrink-
+# wrapped slab terminates in the standard stoichiometric way, with rows of
+# twofold-coordinated "bridging" oxygens on top.
+# Lattice constants are the RELAXED COMB values from rutile.lmp.
+
+# 1) Initialization
+units metal
+dimension 3
+boundary p p s
+atom_style charge
+
+# 2) System definition
+lattice custom 1.0     a1 6.5062 0.0 0.0  a2 0.0 2.9646 0.0  a3 0.0 0.0 6.5062     basis 0.0    0.0  0.0    basis 0.5    0.0  0.5     basis 0.0    0.5  0.5    basis 0.5    0.5  0.0     basis 0.0    0.0  0.3048 basis 0.5    0.0  0.8048     basis 0.0    0.0  0.6952 basis 0.5    0.0  0.1952     basis 0.3048 0.5  0.5    basis 0.8048 0.5  0.0     basis 0.6952 0.5  0.5    basis 0.1952 0.5  0.0     origin 0.0 0.0 0.25
+Lattice spacing in x,y,z = 6.5062 2.9646 6.5062
+region box block 0 3 0 6 0 3
+create_box 2 box
+Created orthogonal box = (0 0 0) to (19.5186 17.7876 19.5186)
+  1 by 1 by 1 MPI processor grid
+create_atoms 1 box basis 1 1 basis 2 1 basis 3 1 basis 4 1     basis 5 2 basis 6 2 basis 7 2 basis 8 2 basis 9 2 basis 10 2     basis 11 2 basis 12 2
+Created 648 atoms
+  using lattice units in orthogonal box = (0 0 -0.00195186) to (19.5186 17.7876 19.520552)
+  create_atoms CPU = 0.000 seconds
+mass 1 47.867
+mass 2 15.999
+
+# 3) Settings
+set type 1 charge  2.4
+Setting atom values ...
+  216 settings made for charge
+set type 2 charge -1.2
+Setting atom values ...
+  432 settings made for charge
+pair_style comb
+pair_coeff * * ffield.comb Ti O
+Reading comb potential file ffield.comb with DATE: 2011-02-22
+neighbor 0.5 bin
+neigh_modify every 1 delay 0 check yes
+fix q all qeq/comb 1 0.0001
+
+# 4) Monitoring
+group ti type 1
+216 atoms in group ti
+group ox type 2
+432 atoms in group ox
+thermo 50
+thermo_style custom step pe fnorm
+
+# 5) Relax the slab at fixed box
+min_style cg
+min_modify dmax 0.005 line quadratic
+minimize 1.0e-10 1.0e-10 2000 10000
+Neighbor list info ...
+  update: every = 1 steps, delay = 0 steps, check = yes
+  max neighbors/atom: 2000, page size: 100000
+  master list distance cutoff = 12.5
+  ghost atom cutoff = 12.5
+  binsize = 6.25, bins = 4 3 4
+  1 neighbor lists, perpetual/occasional/extra = 1 0 0
+  (1) pair comb, perpetual
+      attributes: full, newton on
+      pair build: full/bin/atomonly
+      stencil: full/bin/3d
+      bin: standard
+Per MPI rank memory allocation (min/avg/max) = 9.637 | 9.637 | 9.637 Mbytes
+   Step         PotEng         Fnorm     
+         0  -4626.7677      34.143558    
+        50  -5759.6914      3.1229645    
+        67  -5761.0486      1.2899874    
+Loop time of 41.6882 on 1 procs for 67 steps with 648 atoms
+
+99.6% CPU use with 1 MPI tasks x 1 OpenMP threads
+
+Minimization stats:
+  Stopping criterion = linesearch alpha is zero
+  Energy initial, next-to-last, final = 
+     -4626.76767479628  -5761.04866748432  -5761.04861531288
+  Force two-norm initial, final = 34.143558 1.2899874
+  Force max component initial, final = 3.1560168 0.090177934
+  Final line search alpha, max atom move = 6.6037244e-09 5.9551022e-10
+  Iterations, force evaluations = 67 106
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 1.6206     | 1.6206     | 1.6206     |   0.0 |  3.89
+Neigh   | 0.0034906  | 0.0034906  | 0.0034906  |   0.0 |  0.01
+Comm    | 0.0010972  | 0.0010972  | 0.0010972  |   0.0 |  0.00
+Output  | 1.8846e-05 | 1.8846e-05 | 1.8846e-05 |   0.0 |  0.00
+Modify  | 40.061     | 40.061     | 40.061     |   0.0 | 96.10
+Other   |            | 0.001787   |            |       |  0.00
+
+Nlocal:            648 ave         648 max         648 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Nghost:           2829 ave        2829 max        2829 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Neighs:              0 ave           0 max           0 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+FullNghs:       386352 ave      386352 max      386352 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+
+Total # of neighbors = 386352
+Ave neighs/atom = 596.22222
+Neighbor list builds = 1
+Dangerous builds = 0
+
+# 6) Surface energy (bulk cohesive energy per atom from rutile.lmp)
+variable ebulk equal -8.9212
+variable gam equal (pe-count(all)*v_ebulk)/(2*lx*ly)*16021.766
+
+# 7) Charge analysis: bridging O rows, surface Ti layer, slab interior
+variable ztop equal bound(all,zmax)
+region rbrig block INF INF INF INF $(v_ztop-0.5) INF units box
+region rbrig block INF INF INF INF 18.745606492502201235 INF units box
+group gbrig region rbrig
+18 atoms in group gbrig
+group obrig intersect gbrig ox
+18 atoms in group obrig
+region rsurf block INF INF INF INF $(v_ztop-2.0) INF units box
+region rsurf block INF INF INF INF 17.245606492502201235 INF units box
+group gsurf region rsurf
+90 atoms in group gsurf
+group tisurf intersect gsurf ti
+36 atoms in group tisurf
+region rmid block INF INF INF INF $(zlo+7.0) $(v_ztop-7.0) units box
+region rmid block INF INF INF INF 7.3127318095875999404 $(v_ztop-7.0) units box
+region rmid block INF INF INF INF 7.3127318095875999404 12.245606492502201235 units box
+group gmid region rmid
+180 atoms in group gmid
+group omid intersect gmid ox
+108 atoms in group omid
+group timid intersect gmid ti
+72 atoms in group timid
+compute q1 obrig property/atom q
+compute qbrig obrig reduce ave c_q1
+compute q2 tisurf property/atom q
+compute qtis tisurf reduce ave c_q2
+compute q3 omid property/atom q
+compute qob omid reduce ave c_q3
+compute q4 timid property/atom q
+compute qtib timid reduce ave c_q4
+run 0 post no
+WARNING: No fixes with time integration, atoms won't move
+For more information see https://docs.lammps.org/err0028 (src/verlet.cpp:60)
+Per MPI rank memory allocation (min/avg/max) = 8.512 | 8.512 | 8.512 Mbytes
+   Step         PotEng         Fnorm     
+        67  -5761.0486      1.2899874    
+Loop time of 1.122e-06 on 1 procs for 0 steps with 648 atoms
+
+
+print "--------------------------------------------------"
+--------------------------------------------------
+print "Surface energy (110)     = $(v_gam:%.0f) mJ/m^2"
+Surface energy (110)     = 459 mJ/m^2
+print "Bridging O   ($(count(obrig)) atoms): q = $(c_qbrig:%.3f) e"
+Bridging O   (18 atoms): q = -1.389 e
+print "Surface Ti   ($(count(tisurf)) atoms): q = $(c_qtis:%.3f) e"
+Surface Ti   (36 atoms): q = 3.156 e
+print "Interior O   ($(count(omid)) atoms): q = $(c_qob:%.3f) e"
+Interior O   (108 atoms): q = -1.587 e
+print "Interior Ti  ($(count(timid)) atoms): q = $(c_qtib:%.3f) e"
+Interior Ti  (72 atoms): q = 3.204 e
+print "--------------------------------------------------"
+--------------------------------------------------
+
+# 8) Save the relaxed slab (with its charges) for visualization
+write_data surface110.data
+System init for write_data ...
+Total wall time: 0:00:41

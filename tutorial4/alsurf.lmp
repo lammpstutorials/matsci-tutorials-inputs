@@ -1,0 +1,85 @@
+# LAMMPS Input File
+# Licensed under CC BY 4.0
+# A Set of Materials-Science Tutorials for the LAMMPS Simulation Package: 2. Materials Science
+# By Simon Gravelle, Mark A. Tschopp, Jacob R. Gissinger, and Axel Kohlmeyer
+# Tutorial 4: 1. Surface energy and relaxation of the low-index aluminum surfaces
+#
+# Build an fcc aluminum slab with free surfaces normal to z, relax it, and
+# evaluate the surface energy from the energy balance
+#     gamma = (E_slab - N*Ecoh) / (2*A)
+# The exposed face is selected with the index variable "face":
+#     lmp -in alsurf.lmp -var face 110
+# or via the Set Variables dialog of LAMMPS-GUI.  The reported interlayer
+# relaxation d12 compares the spacing of the two outermost layers with the
+# bulk layer spacing of the chosen face.
+#
+# NOTE the in-plane box spans: for the (111) face the number of cells along
+# y MUST be a multiple of three, or the periodic images do not join up and
+# the "surface" energy comes out several times too large (see the note in
+# the tutorial text -- the same commensurability rule as for the stacking
+# fault and grain boundary constructions).
+
+# 1) Initialization
+units metal
+dimension 3
+boundary p p s
+atom_style atomic
+
+# 2) System definition
+variable face index 100          # exposed surface: 100 | 110 | 111
+variable a0   index 4.08165      # Zhou EAM equilibrium value from Tutorial 1
+variable ecoh index -3.5799987   # Zhou EAM cohesive energy from Tutorial 1
+if "${face} == 100" then &
+  "lattice fcc ${a0} orient x 1 0 0 orient y 0 1 0 orient z 0 0 1 origin 0.25 0.25 0.25" &
+  "variable dlay equal ${a0}/2" &
+  "variable ny equal 4" &
+elif "${face} == 110" &
+  "lattice fcc ${a0} orient x 0 0 1 orient y 1 -1 0 orient z 1 1 0 origin 0.25 0.25 0.25" &
+  "variable dlay equal ${a0}/(2*sqrt(2.0))" &
+  "variable ny equal 4" &
+elif "${face} == 111" &
+  "lattice fcc ${a0} orient x 1 -1 0 orient y 1 1 -2 orient z 1 1 1 origin 0.25 0.25 0.05" &
+  "variable dlay equal ${a0}/sqrt(3.0)" &
+  "variable ny equal 3" &
+else &
+  "print 'ERROR: face must be 100, 110, or 111'" &
+  "quit 1"
+region box block 0 4 0 ${ny} 0 5
+create_box 1 box
+create_atoms 1 box
+
+# 3) Settings
+pair_style eam/alloy
+pair_coeff * * Al_zhou.eam.alloy Al
+
+# 4) Monitoring
+thermo 50
+thermo_style custom step pe press fnorm
+
+# 5) Surface energy of the bulk-terminated (unrelaxed) slab
+run 0 post no
+variable natoms equal $(count(all))
+variable area   equal lx*ly
+# convert from eV/Angstrom^2 to mJ/m^2; note the $(...) expansion: it freezes
+# the unrelaxed value NOW, before the minimizer changes pe (cf. Tutorial 9)
+variable gam0 equal $((pe-v_natoms*v_ecoh)/(2*v_area)*16021.766)
+
+# 6) Relax the atomic positions and re-evaluate
+min_style cg
+minimize 1.0e-10 1.0e-12 10000 100000
+variable gam equal (pe-v_natoms*v_ecoh)/(2*v_area)*16021.766
+
+# 7) Interlayer relaxation of the two outermost layers
+variable ztop equal bound(all,zmax)
+region r1 block INF INF INF INF $(v_ztop-0.5*v_dlay) INF units box
+region r2 block INF INF INF INF $(v_ztop-1.5*v_dlay) $(v_ztop-0.5*v_dlay) units box
+group L1 region r1
+group L2 region r2
+variable d12 equal (xcm(L1,z)-xcm(L2,z)-v_dlay)/v_dlay*100
+
+print "--------------------------------------------------"
+print "Face (${face}): ${natoms} atoms, area = $(v_area:%.2f) Ang^2"
+print "Surface energy unrelaxed = $(v_gam0:%.1f) mJ/m^2"
+print "Surface energy relaxed   = $(v_gam:%.1f) mJ/m^2"
+print "Interlayer relaxation    = $(v_d12:%.2f) %"
+print "--------------------------------------------------"

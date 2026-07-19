@@ -1,0 +1,42 @@
+# LAMMPS Input File
+# Licensed under CC BY 4.0
+# Tutorial 18 -- interactive visualization sandbox for the stepped-surface
+# charge figure.
+#
+# Loads the relaxed stepped slab written by step110.lmp, INCLUDING the
+# equilibrated per-atom charges stored in the data file, and colors every
+# atom by how much its charge deviates from the interior reference value of
+# its species, +3.204 for Ti and -1.60 for O (an atom-style variable computes it).  No pair
+# evaluation is needed: pair_style zero provides a neighbor list for the
+# rendering and nothing else.
+#   1. Run step110.lmp first (writes step110.data), or fetch it from the
+#      solution folder.
+#   2. Open this file in LAMMPS-GUI and run it; use the Image Viewer to
+#      rotate/zoom, or edit the write_dump line and re-run.
+variable ghost index 1.0        # opacity of atoms with near-bulk charges
+
+units metal
+dimension 3
+boundary p p s
+atom_style charge
+
+read_data step110.data
+pair_style zero 6.0
+pair_coeff * *
+
+# charge deviation from the interior values (+3.204 for Ti, -1.66 for O)
+variable dq atom q-3.204*(type==1)+1.60*(type==2)
+thermo 1
+run 0 post no
+
+# perspective view of the stepped surface, colored by charge deviation:
+# red = less negative / more positive than the bulk (undercoordinated),
+# blue = more negative, white = bulk-like
+write_dump all image step-charge.png v_dq type &
+    view 65 -35 zoom 1.5 box no 0.0 size 1200 900 &
+    shiny 0.15 ssao no 4539 0.5 fsaa yes &
+    modify backcolor white &
+    adiam 1 1.7 adiam 2 2.3 &
+    color mblue 0.227 0.427 0.690 &
+    amap -0.35 0.35 cf 0.0 3 min mblue 0.5 white max red &
+    atrans 1 ${ghost} atrans 2 ${ghost}

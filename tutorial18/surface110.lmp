@@ -1,0 +1,101 @@
+# LAMMPS Input File
+# Licensed under CC BY 4.0
+# A Set of Materials-Science Tutorials for the LAMMPS Simulation Package: 2. Materials Science
+# By Simon Gravelle, Mark A. Tschopp, Jacob R. Gissinger, and Axel Kohlmeyer
+# Tutorial 18: 2. The rutile TiO2 (110) surface -- charges follow geometry
+#
+# Build a rutile slab exposing the (110) surface, relax it with
+# self-consistent charges, and measure how the charges of the
+# undercoordinated surface atoms differ from the bulk.
+#
+# lattice custom has no orient keyword, so the (110) orientation is built
+# by re-expressing the crystal in a rotated frame: x = [1-10], y = [001],
+# z = [110].  The new cell contains 12 atoms (twice the conventional cell);
+# its fractional coordinates follow from the conventional ones (fx,fy,fz)
+# as U = (fx-fy)/2, V = fz, W = (fx+fy)/2.  Along z = [110] the crystal is
+# a stack of charge-neutral O-Ti2O2-O "trilayers"; the origin shift of 1/4
+# places the cell boundary in the gap BETWEEN trilayers, so the shrink-
+# wrapped slab terminates in the standard stoichiometric way, with rows of
+# twofold-coordinated "bridging" oxygens on top.
+# Lattice constants are the RELAXED COMB values from rutile.lmp.
+
+# 1) Initialization
+units metal
+dimension 3
+boundary p p s
+atom_style charge
+
+# 2) System definition
+lattice custom 1.0 &
+    a1 6.5062 0.0 0.0  a2 0.0 2.9646 0.0  a3 0.0 0.0 6.5062 &
+    basis 0.0    0.0  0.0    basis 0.5    0.0  0.5 &
+    basis 0.0    0.5  0.5    basis 0.5    0.5  0.0 &
+    basis 0.0    0.0  0.3048 basis 0.5    0.0  0.8048 &
+    basis 0.0    0.0  0.6952 basis 0.5    0.0  0.1952 &
+    basis 0.3048 0.5  0.5    basis 0.8048 0.5  0.0 &
+    basis 0.6952 0.5  0.5    basis 0.1952 0.5  0.0 &
+    origin 0.0 0.0 0.25
+region box block 0 3 0 6 0 3
+create_box 2 box
+create_atoms 1 box basis 1 1 basis 2 1 basis 3 1 basis 4 1 &
+    basis 5 2 basis 6 2 basis 7 2 basis 8 2 basis 9 2 basis 10 2 &
+    basis 11 2 basis 12 2
+mass 1 47.867
+mass 2 15.999
+
+# 3) Settings
+set type 1 charge  2.4
+set type 2 charge -1.2
+pair_style comb
+pair_coeff * * ffield.comb Ti O
+neighbor 0.5 bin
+neigh_modify every 1 delay 0 check yes
+fix q all qeq/comb 1 0.0001
+
+# 4) Monitoring
+group ti type 1
+group ox type 2
+thermo 50
+thermo_style custom step pe fnorm
+
+# 5) Relax the slab at fixed box
+min_style cg
+min_modify dmax 0.005 line quadratic
+minimize 1.0e-10 1.0e-10 2000 10000
+
+# 6) Surface energy (bulk cohesive energy per atom from rutile.lmp)
+variable ebulk equal -8.9212
+variable gam equal (pe-count(all)*v_ebulk)/(2*lx*ly)*16021.766
+
+# 7) Charge analysis: bridging O rows, surface Ti layer, slab interior
+variable ztop equal bound(all,zmax)
+region rbrig block INF INF INF INF $(v_ztop-0.5) INF units box
+group gbrig region rbrig
+group obrig intersect gbrig ox
+region rsurf block INF INF INF INF $(v_ztop-2.0) INF units box
+group gsurf region rsurf
+group tisurf intersect gsurf ti
+region rmid block INF INF INF INF $(zlo+7.0) $(v_ztop-7.0) units box
+group gmid region rmid
+group omid intersect gmid ox
+group timid intersect gmid ti
+compute q1 obrig property/atom q
+compute qbrig obrig reduce ave c_q1
+compute q2 tisurf property/atom q
+compute qtis tisurf reduce ave c_q2
+compute q3 omid property/atom q
+compute qob omid reduce ave c_q3
+compute q4 timid property/atom q
+compute qtib timid reduce ave c_q4
+run 0 post no
+
+print "--------------------------------------------------"
+print "Surface energy (110)     = $(v_gam:%.0f) mJ/m^2"
+print "Bridging O   ($(count(obrig)) atoms): q = $(c_qbrig:%.3f) e"
+print "Surface Ti   ($(count(tisurf)) atoms): q = $(c_qtis:%.3f) e"
+print "Interior O   ($(count(omid)) atoms): q = $(c_qob:%.3f) e"
+print "Interior Ti  ($(count(timid)) atoms): q = $(c_qtib:%.3f) e"
+print "--------------------------------------------------"
+
+# 8) Save the relaxed slab (with its charges) for visualization
+write_data surface110.data

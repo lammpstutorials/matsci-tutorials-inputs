@@ -1,0 +1,85 @@
+  using 8 OpenMP thread(s) per MPI task
+using multi-threaded neighbor list subroutines
+Lattice spacing in x,y,z = 4.08165 4.08165 4.08165
+Created orthogonal box = (0 0 0) to (24.4899 24.4899 24.4899)
+  1 by 1 by 1 MPI processor grid
+Created 864 atoms
+  using lattice units in orthogonal box = (0 0 0) to (24.4899 24.4899 24.4899)
+  create_atoms CPU = 0.000 seconds
+Reading eam/alloy potential file Al_zhou.eam.alloy with DATE: 2007-10-12
+Last active /omp style is pair_style eam/alloy/omp
+Neighbor list info ...
+  update: every = 1 steps, delay = 0 steps, check = yes
+  max neighbors/atom: 2000, page size: 100000
+  master list distance cutoff = 12.1025
+  ghost atom cutoff = 12.1025
+  binsize = 6.05125, bins = 5 5 5
+  1 neighbor lists, perpetual/occasional/extra = 1 0 0
+  (1) pair eam/alloy/omp, perpetual
+      attributes: half, newton on, omp
+      pair build: half/bin/atomonly/newton/omp
+      stencil: half/bin/3d
+      bin: standard
+Setting up Verlet run ...
+  Unit style    : metal
+  Current step  : 0
+  Time step     : 0.001
+Per MPI rank memory allocation (min/avg/max) = 9.772 | 9.772 | 9.772 Mbytes
+   Step         PotEng         Press          Fnorm     
+         0  -3093.1188      3.4796678      2.1651674e-13
+Loop time of 2.665e-06 on 8 procs for 0 steps with 864 atoms
+
+1 atoms in group central
+Displacing atoms ...
+Created 1 atoms
+  using box units in orthogonal box = (0 0 0) to (24.4899 24.4899 24.4899)
+  create_atoms CPU = 0.000 seconds
+Last active /omp style is pair_style eam/alloy/omp
+Setting up cg style minimization ...
+  Unit style    : metal
+  Current step  : 0
+Per MPI rank memory allocation (min/avg/max) = 10.9 | 10.9 | 10.9 Mbytes
+   Step         PotEng         Press          Fnorm     
+         0  -3091.9631      1716.4009      9.7544033    
+        10  -3094.9324      1537.2001      0.036607503  
+        20  -3094.9326      1539.5981      0.0009678982 
+Loop time of 0.0191874 on 8 procs for 20 steps with 865 atoms
+
+835.1% CPU use with 1 MPI tasks x 8 OpenMP threads
+
+Minimization stats:
+  Stopping criterion = energy tolerance
+  Energy initial, next-to-last, final = 
+     -3091.96310285381  -3094.93261953089  -3094.93261977838
+  Force two-norm initial, final = 9.7544033 0.0009678982
+  Force max component initial, final = 6.404073 0.00038193475
+  Final line search alpha, max atom move = 1 0.00038193475
+  Iterations, force evaluations = 20 36
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 0.017761   | 0.017761   | 0.017761   |   0.0 | 92.57
+Neigh   | 0          | 0          | 0          |   0.0 |  0.00
+Comm    | 0.00071904 | 0.00071904 | 0.00071904 |   0.0 |  3.75
+Output  | 2.119e-05  | 2.119e-05  | 2.119e-05  |   0.0 |  0.11
+Modify  | 0.00033192 | 0.00033192 | 0.00033192 |   0.0 |  1.73
+Other   |            | 0.0003543  |            |       |  1.85
+
+Nlocal:            865 ave         865 max         865 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Nghost:           6055 ave        6055 max        6055 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Neighs:         185327 ave      185327 max      185327 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+
+Total # of neighbors = 185327
+Ave neighs/atom = 214.25087
+Neighbor list builds = 0
+Dangerous builds = 0
+--------------------------------------------
+Atoms in the perfect cell       = 864
+Interstitial formation energy   = 1.7662 eV
+--------------------------------------------
+System init for write_data ...
+Last active /omp style is pair_style eam/alloy/omp

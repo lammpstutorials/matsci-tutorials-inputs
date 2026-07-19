@@ -1,0 +1,39 @@
+# LAMMPS Input File
+# Licensed under CC BY 4.0
+# A Set of Materials-Science Tutorials for the LAMMPS Simulation Package
+# Tutorial 14: radiation damage cascade -- defect cluster analysis
+#
+# Re-analyze the final cascade configuration (final.lammpstrj): rebuild the
+# perfect bcc reference lattice, overlay the defective positions, and use
+# the per-cluster local output of compute frenkel to list every defect
+# cluster with its size and center.  Negative sizes are vacancy clusters,
+# positive sizes interstitial clusters.  No forces are needed for the
+# static Wigner-Seitz analysis, so pair_style zero is used.
+
+variable a0 equal 2.8553
+variable nc equal 30
+
+units metal
+atom_style atomic
+boundary p p p
+
+lattice bcc ${a0}
+region box block 0 ${nc} 0 ${nc} 0 ${nc}
+create_box 1 box
+create_atoms 1 box
+mass 1 55.845
+pair_style zero 5.0
+pair_coeff * *
+
+# overlay the defective configuration (match by atom ID, replace positions)
+read_dump final.lammpstrj 15000 x y z box yes
+
+compute fr all frenkel
+# one line per cluster: id, signed size, center (x, y, z)
+dump cl all local 1 clusters.txt index c_fr[1] c_fr[2] c_fr[3] c_fr[4] c_fr[5]
+dump_modify cl sort 1
+
+thermo_style custom step c_fr[1] c_fr[2] c_fr[3]
+run 0
+
+print "vacancies = $(c_fr[1]:%.0f)  interstitials = $(c_fr[2]:%.0f)  (see clusters.txt)"

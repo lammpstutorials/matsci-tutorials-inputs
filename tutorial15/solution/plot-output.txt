@@ -1,0 +1,5 @@
+heating: volume jumps (melts) near 1139 K
+solid branch: a(300 K) = 4.0719 A, alpha = 24.8e-6 /K (experiment: 23.1e-6 /K)
+cooling: the melt supercools strongly; in a small, defect-free cell it may
+         not recrystallize at all.  Both transitions are nucleation-limited
+         and only bracket Tm -- part 2 (two-phase) gives the true value.

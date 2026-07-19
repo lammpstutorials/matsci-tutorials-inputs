@@ -1,0 +1,60 @@
+# LAMMPS Input File
+# Licensed under CC BY 4.0
+# Tutorial 3 -- interactive visualization sandbox for the dumbbell figure.
+#
+# Loads the relaxed self-interstitial configuration written by
+# interstitial.lmp (no simulation needed), so the figure can be designed
+# interactively in LAMMPS-GUI:
+#   1. Open this file in LAMMPS-GUI and run it.
+#   2. Open the Image Viewer (palette icon in the status bar) to rotate,
+#      zoom, recolor, and adjust per-type transparency, OR edit the
+#      write_dump line below and re-run.
+#   3. Index variables (change via the "Set Variables" dialog):
+#        pairthr - centrosymmetry above which an atom is a dumbbell atom
+#        cagethr - centrosymmetry above which an atom joins the neighbor cage
+#        ghost   - opacity of the perfect-crystal (bulk) atoms
+variable pairthr index 6.0
+variable cagethr index 3.0
+variable ghost   index 0.15
+
+units metal
+dimension 3
+boundary p p p
+atom_style atomic
+
+# load the relaxed configuration; allow for two extra atom types so that the
+# dumbbell pair and its distorted neighbor cage can be drawn with different
+# size and transparency than the surrounding bulk
+read_data interstitial.data extra/atom/types 3
+
+pair_style eam/alloy
+pair_coeff * * ../Al_zhou.eam.alloy Al Al Al Al
+
+# centrosymmetry: near zero in the perfect crystal, large at the dumbbell
+compute csym all centro/atom fcc
+thermo 1
+run 0 post no
+
+# retype the dumbbell pair to type 2 and its strained neighbor cage to type 3
+variable iscage atom "c_csym > v_cagethr"
+group cage variable iscage
+variable ispair atom "c_csym > v_pairthr"
+group pair variable ispair
+region front block 0 12.0 EDGE EDGE EDGE EDGE units box
+group front region front
+set group front type 4
+group cage subtract cage pair
+set group cage type 3
+set group pair type 2
+print "pair: $(count(pair)) atoms, cage: $(count(cage)) atoms"
+
+# Current figure. Tweak anything here (view, zoom, colors, opacities) and
+# re-run, or experiment interactively in the Image Viewer instead.
+write_dump all image dumbbell.png c_csym type &
+    view 75 -25 zoom 3.6 center s 0.542 0.542 0.542 box no 0.0 size 1000 1000 &
+    shiny 0.15 ssao yes 4539 0.5 fsaa yes &
+    modify backcolor white &
+    adiam 1 1.8 adiam 2 2.7 adiam 3 2.4 adiam 4 2.4 &
+    color map1 0.000 0.227 0.427 color map2 0.459 0.055 0.075 &
+    amap 0.0 8.0 cf 0.0 3 min map1 0.5 goldenrod max map2 &
+    atrans 1 0.0 atrans 2 1.0 atrans 3 1.0 atrans 4 0.5

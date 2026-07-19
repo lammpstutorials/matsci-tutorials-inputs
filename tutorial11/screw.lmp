@@ -1,0 +1,84 @@
+# LAMMPS Input File
+# Licensed under CC BY 4.0
+# A Set of Materials-Science Tutorials for the LAMMPS Simulation Package: 2. Materials Science
+# By Simon Gravelle, Mark A. Tschopp, Jacob R. Gissinger, and Axel Kohlmeyer
+# Tutorial 11: A screw dislocation from its elastic displacement field
+#
+# Create an isolated 1/2<110> screw dislocation in fcc aluminum by imprinting
+# the Volterra solution of elasticity theory,
+#     u_z(x,y) = (b/2*pi) * atan2(y-yc, x-xc),
+# on a perfect cylinder of atoms with a single displace_atoms command driven
+# by an atom-style variable.  The outer shell of the cylinder is then frozen
+# (it carries the correct elastic far field) and the interior is relaxed:
+# the core dissociates into two Shockley partial dislocations bounding a
+# ribbon of stacking fault, which is identified with common neighbor
+# analysis and measured with the bound() group function.
+#
+# Frame: x = [-1 1 -2], y = [-1 1 1] (glide-plane normal), z = [1 1 0]
+# (dislocation line and Burgers vector).  The dislocation is periodic along
+# its line (boundary p in z) and the cylinder is shrink-wrapped in x and y.
+
+# 1) Initialization
+units metal
+dimension 3
+boundary s s p
+atom_style atomic
+
+# 2) System definition
+variable a0 index 4.08165          # Zhou EAM equilibrium value (Tutorial 1)
+variable R  index 30.0             # cylinder radius (Angstrom)
+variable b  equal ${a0}/sqrt(2.0)  # Burgers vector |1/2<110>| = 2.886 A
+lattice fcc ${a0} orient x -1 1 -2 orient y -1 1 1 orient z 1 1 0 &
+        origin 0.1 0.1 0.1
+region cyl cylinder z 0.0 0.0 ${R} 0 $(3*v_b) units box
+create_box 1 cyl
+create_atoms 1 region cyl
+
+# 3) Settings
+pair_style eam/alloy
+pair_coeff * * Al_zhou.eam.alloy Al
+
+# 4) Imprint the Volterra field of a screw dislocation along the cylinder
+#    axis.  Every atom computes its own displacement from its own position;
+#    the center (xc,yc) is placed off any atom row.  The atan2() branch cut
+#    makes u_z jump by exactly b across the half-plane y=yc, x<xc -- which
+#    is harmless, because b is a lattice vector: this multivaluedness IS the
+#    dislocation.
+variable xc equal 0.31
+variable yc equal 0.47
+variable uz atom (v_b/(2*PI))*atan2(y-v_yc,x-v_xc)
+displace_atoms all move 0.0 0.0 v_uz units box
+
+# 5) Freeze the outer shell AFTER the displacement, so it holds the elastic
+#    far-field solution in place (cf. the rigid grips of Tutorial 7)
+variable Rin equal ${R}-8.0
+region rin cylinder z 0.0 0.0 ${Rin} INF INF units box
+group core region rin
+group ring subtract all core
+fix hold ring setforce 0.0 0.0 0.0
+
+# 6) Monitoring
+thermo 100
+thermo_style custom step pe fnorm
+
+# 7) Relax the interior: the core dissociates into two Shockley partials
+min_style cg
+minimize 1.0e-10 1.0e-12 10000 100000
+
+# 8) Identify the stacking-fault ribbon between the partials (CNA code 2 =
+#    hcp coordination) and measure its extent in the glide plane.  Note the
+# screw can dissociate on either of the two {111} planes that contain its
+#    line; the in-plane extent below is measured plane-agnostically.
+compute cna all cna/atom 3.45
+run 0 post no
+variable ishcp atom "c_cna == 2"
+group hcp variable ishcp
+variable dwid equal sqrt((bound(hcp,xmax)-bound(hcp,xmin))^2+(bound(hcp,ymax)-bound(hcp,ymin))^2)
+print "--------------------------------------------------"
+print "Atoms total                    = $(count(all))"
+print "Stacking-fault (hcp) atoms     = $(count(hcp))"
+print "Fault ribbon extent            = $(v_dwid:%.2f) Ang"
+print "--------------------------------------------------"
+
+# 9) Save the relaxed configuration for visualization
+write_data screw.data

@@ -1,0 +1,79 @@
+# LAMMPS Input File
+# Licensed under CC BY 4.0
+# A Set of Materials-Science Tutorials for the LAMMPS Simulation Package
+# Modernized recreation of the MSU/CAVS tutorials by Mark A. Tschopp
+# Tutorial 12: lattice thermal conductivity of crystalline silicon by reverse
+# non-equilibrium molecular dynamics (the Mueller-Plathe momentum-swap method).
+#
+# A long silicon bar (periodic in all directions) is divided into 20 slabs
+# along z.  fix thermal/conductivity repeatedly swaps the momentum of the
+# hottest atom in a cold slab with the coldest atom in the central hot slab,
+# which drives a KNOWN heat current from the imposed kinetic-energy exchange
+# while a steady-state temperature gradient builds up.  Fourier's law then
+# gives kappa = J_z / (dT/dz).
+#
+# Because the silicon phonon mean free path far exceeds these cell lengths,
+# the apparent kappa grows with the bar length L.  The scan below repeats the
+# calculation for several L; plot.py extrapolates 1/kappa vs 1/L to the bulk
+# value (compare Tutorials 2/6/7: an in-LAMMPS loop with a structured output).
+#
+# This is the most demanding tutorial input -- the whole scan takes a few
+# minutes.  Like all tutorials here it is deliberately small/short: the cross
+# section, run length, and number of L points are modest, so treat the result
+# as illustrative rather than converged.
+
+units metal
+atom_style atomic
+boundary p p p
+variable a0   equal 5.431            # SW silicon lattice constant (Angstrom)
+variable swap equal 100              # momentum swap every 100 steps (= 0.1 ps)
+variable nz index 20 40 60 80        # bar lengths, in unit cells along z
+
+print "# finite-size RNEMD thermal conductivity of SW silicon" file kappa.yaml screen no
+print "# records: ncells length_A edelta_eV time_ps area_A2 (heat along z, 20 slabs)" &
+    append kappa.yaml screen no
+
+label loop
+clear
+units metal
+atom_style atomic
+boundary p p p
+lattice diamond ${a0}
+region box block 0 6 0 6 0 ${nz}     # 6x6 cross section, nz cells long
+create_box 1 box
+create_atoms 1 box
+mass 1 28.0855
+pair_style sw
+pair_coeff * * Si.sw Si
+velocity all create 300.0 4928459 mom yes rot yes
+timestep 0.001
+
+# 1) equilibrate at 300 K
+thermo 10000
+fix nvt all nvt temp 300.0 300.0 0.1
+run 10000
+unfix nvt
+velocity all scale 300.0
+
+# 2) switch to NVE and build the steady-state gradient
+fix nve all nve
+fix swap all thermal/conductivity ${swap} z 20
+run 40000
+
+# 3) production: reset the swap accumulator and average the temperature profile
+unfix swap
+fix swap all thermal/conductivity ${swap} z 20
+compute ke all ke/atom
+variable temp atom c_ke/(1.5*8.617333e-5)          # per-atom temperature (K)
+compute layers all chunk/atom bin/1d z lower 0.05 units reduced
+fix prof all ave/chunk 100 100 10000 layers v_temp file profile_${nz}.dat
+variable t0 equal $(time)                           # freeze the start time
+run 80000
+
+# one YAML record per length: swapped energy, elapsed time, and cross-section
+print "- {ncells: ${nz}, length_A: $(lz:%.3f), edelta_eV: $(f_swap:%.6f), &
+    time_ps: $(time-v_t0:%.3f), area_A2: $(lx*ly:%.4f)}" append kappa.yaml screen no
+next nz
+jump SELF loop
+
+print "Finite-size scan complete; results written to kappa.yaml and profile_*.dat"

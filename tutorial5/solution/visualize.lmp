@@ -1,0 +1,57 @@
+# LAMMPS Input File
+# Licensed under CC BY 4.0
+# Tutorial 5 -- interactive visualization sandbox for the dislocation figure.
+#
+# Loads a pre-recorded frame of the tension trajectory (no MD run needed) so the
+# figure can be designed interactively in LAMMPS-GUI:
+#   1. Open this file in LAMMPS-GUI and run it.
+#   2. Open the Image Viewer (palette icon in the status bar) to rotate, zoom,
+#      recolor, and adjust per-type transparency, OR edit the write_dump line
+#      below and re-run.
+#   3. The three index variables can be changed in the "Set Variables" dialog:
+#        step   - which frame to show (12000..17000 are stored in the dump;
+#                 engineering strain = step * 1.0e-5)
+#        thresh - centrosymmetry above which an atom counts as a "defect"
+#        ghost  - opacity of the perfect-crystal (bulk) atoms (0 = invisible)
+variable step   index 15000
+variable thresh index 8.0
+variable ghost  index 0.25
+
+units metal
+dimension 3
+boundary p p p
+atom_style atomic
+
+# placeholder system with TWO atom types (defect atoms are retyped below so the
+# bulk and the defects can be drawn with different transparency)
+lattice fcc 4.05 origin 0.25 0.25 0.25
+region box block 0 10 0 10 0 10
+create_box 2 box
+create_atoms 1 box
+
+pair_style eam/alloy
+pair_coeff * * ../Al_zhou.eam.alloy Al Al
+
+# load the chosen pre-recorded frame (coordinates and the deformed box)
+read_dump tension-yield.lammpstrj ${step} x y z box yes replace yes
+
+# centrosymmetry: near zero in the perfect crystal, large at defects
+compute csym all centro/atom fcc
+thermo 1
+run 0
+
+# retype the high-centrosymmetry (defect) atoms to type 2
+variable isdef atom "c_csym > v_thresh"
+group defect variable isdef
+set group defect type 2
+
+# Current figure. Tweak anything here (view, zoom, colors, opacities) and re-run,
+# or experiment interactively in the Image Viewer instead.
+write_dump all image deform-dislocations.png c_csym type adiam 2.6 &
+    view 60 -40 zoom 1.4 size 1000 1000 shiny 0.15 ssao no 4539 0.5 fsaa yes &
+    modify backcolor white boxcolor midnightblue &
+    color map1 0.000 0.227 0.427 color map2 0.459 0.055 0.075 &
+    amap 7.0 12.0 cf 0.0 3 min map1 0.5 goldenrod max map2 &
+    atrans 1 ${ghost} atrans 2 1.0
+
+print "Loaded step ${step}: $(count(all)) atoms, $(count(defect)) of them defects (csym > ${thresh})"

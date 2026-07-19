@@ -1,0 +1,58 @@
+# LAMMPS Input File
+# Licensed under CC BY 4.0
+# A Set of Materials-Science Tutorials for the LAMMPS Simulation Package: 2. Materials Science
+# By Simon Gravelle, Mark A. Tschopp, Jacob R. Gissinger, and Axel Kohlmeyer
+# Tutorial 3: 1. Vacancy formation energy
+#
+# Build a perfect fcc aluminum supercell at the equilibrium lattice constant
+# of the Zhou EAM potential (from Tutorial 1), record its energy, remove the
+# atom closest to the box center, relax the remaining atoms, and evaluate the
+# vacancy formation energy from the energy balance
+#     Ef(vac) = E(N-1) - (N-1)/N * E(N)
+# The supercell size is an index variable, so the size convergence can be
+# checked from the Set Variables dialog or the command line, e.g.
+#     lmp -in vacancy.lmp -var ncell 4
+
+# 1) Initialization
+units metal
+dimension 3
+boundary p p p
+atom_style atomic
+
+# 2) System definition
+variable ncell index 3           # half the supercell size in conventional fcc cells
+variable a0 index 4.08165        # Zhou EAM equilibrium value from Tutorial 1
+lattice fcc ${a0} origin 0.25 0.25 0.25
+region box block -${ncell} ${ncell} -${ncell} ${ncell} -${ncell} ${ncell}
+create_box 1 box
+create_atoms 1 box
+
+# 3) Settings
+pair_style eam/alloy
+pair_coeff * * Al_zhou.eam.alloy Al
+
+# 4) Monitoring
+thermo 10
+thermo_style custom step pe press fnorm
+
+# 5) Reference energy of the perfect crystal
+fix move all nve
+run 0 post no
+variable natoms0 equal $(count(all))
+variable epe0    equal $(pe)
+
+# 6) Create the vacancy: delete a random atom near the box center
+region vac sphere 0.25 0.25 0.25 ${a0} units box
+delete_atoms random count 1 no all vac 131212345
+print "Deleted $(v_natoms0-count(all)) atom(s)"
+
+# 7) Relax the atomic positions at fixed box size
+min_style cg
+minimize 1.0e-10 1.0e-12 10000 100000
+
+# 8) Formation energy from the energy balance
+variable efvac equal pe-(v_natoms0-1)/v_natoms0*v_epe0
+print "--------------------------------------------"
+print "Atoms in the perfect cell  = ${natoms0}"
+print "Vacancy formation energy   = $(v_efvac:%.4f) eV"
+print "--------------------------------------------"

@@ -1,0 +1,44 @@
+# LAMMPS Input File
+# Licensed under CC BY 4.0
+# A Set of Materials-Science Tutorials for the LAMMPS Simulation Package
+# Tutorial 10: render the intrinsic stacking fault in fcc aluminum.
+#
+# A relaxed stacking fault has essentially no residual stress (its per-atom
+# stress matches the bulk), so it is the LOCAL STRUCTURE that distinguishes it:
+# common-neighbor analysis marks the two close-packed planes of the fault as
+# hcp.  We color by structure type -- fcc bulk pale, hcp fault red, the free
+# surfaces gray -- so the fault plane stands out.
+# Open in LAMMPS-GUI and run, or:  lmp -in visualize.lmp
+
+units metal
+boundary p p s
+atom_style atomic
+variable a0 equal 4.08165
+lattice fcc ${a0} orient x 1 -1 0 orient y 1 1 -2 orient z 1 1 1
+region box block 0 6 0 6 0 8
+create_box 1 box                       # type 1 = bulk fcc, 2 = fault hcp, 3 = surface
+create_atoms 1 box
+mass * 26.98
+pair_style eam/alloy
+pair_coeff * * ../Al_zhou.eam.alloy Al
+
+# introduce the intrinsic stacking fault and relax perpendicular to it
+region rup block INF INF INF INF 27.10 INF units box
+group upper region rup
+displace_atoms upper move 0.0 1.666 0.0 units box
+fix frz all setforce 0.0 0.0 NULL
+min_style cg
+minimize 1.0e-8 1.0e-8 1000 10000
+
+# CNA cutoff 3.48 Ang = midpoint of the 1st (2.89) and 2nd (4.08) fcc shells;
+# cna = 1 fcc (bulk), 2 hcp (fault), 3 bcc (not present), 4 icosahedral not present) 5 other (free surfaces). use sequential color map to assign colors
+compute cna all cna/atom 3.48
+run 0
+
+# horizontal (landscape) layout, atoms opaque, colored by structure type
+write_dump all image stackfault.png c_cna type adiam 3.2 &
+    view 85 10 up 0 1 0 zoom 2.2 size 900 650 shiny 0.15 fsaa yes ssao yes 4539 0.6 &
+    box yes 0.02 axes no 0.0 0.0  &
+    modify backcolor white boxcolor midnightblue &
+    amap 1 5 sa 1.0 5 steelblue purple green red gray
+

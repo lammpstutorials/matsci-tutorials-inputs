@@ -1,0 +1,162 @@
+# LAMMPS Input File
+# Licensed under CC BY 4.0
+# Tutorial 8 -- advanced visualization of nanoindentation (sphere indenter).
+#
+# Self-contained alternative to indent.lmp that adds:
+#   - the indenter sphere rendered by fix indent (semi-transparent silver)
+#   - an arrow whose length is proportional to the current indentation load
+#   - text overlays showing simulation time, indentation depth, and load
+#   - a colour-scale legend for the centrosymmetry parameter
+#
+# The style follows examples/GRAPHICS/in.breakable in the LAMMPS source tree.
+# Run from LAMMPS-GUI and view the frame sequence in the Slideshow viewer;
+# use File > Save Movie to export to an MP4 or GIF.
+#
+# NOTE: only the sphere indenter shape is implemented here.  The temperature,
+# indenter speed, and run lengths can be changed through the index variables
+# below (or overridden from the LAMMPS-GUI "Set Variables" dialog).
+
+variable temp    index 300.0    # temperature (K)
+variable rate    index 0.4      # indenter speed (Angstrom/ps)
+variable radius  index 25.0     # sphere radius (Angstrom)
+variable nequil  index 10000    # equilibration steps
+variable nindent index 25000    # indentation steps
+
+# 1) Initialization
+units metal
+dimension 3
+boundary p p f
+atom_style atomic
+
+# 2) System: fcc Al slab, (100) surfaces, with vacuum above for the indenter
+variable a0 equal 4.05
+lattice fcc ${a0}
+region box   block 0 18 0 18 -0.1 20 units lattice
+create_box 1 box
+region slab  block 0 18 0 18 -0.1 12 units lattice
+create_atoms 1 region slab
+
+# 3) Interatomic potential
+pair_style eam/alloy
+pair_coeff * * ../Al_zhou.eam.alloy Al
+
+# 4) Partition the slab: fixed bottom / Langevin buffer / free surface
+variable zlo  equal bound(all,zmin)
+variable zhi  equal bound(all,zmax)
+region rbot   block INF INF INF INF INF $(v_zlo+1.5*v_a0) units box
+region rbuf   block INF INF INF INF $(v_zlo+1.5*v_a0) $(v_zlo+4.5*v_a0) units box
+group bottom  region rbot
+group mobile  subtract all bottom
+group buffer  region rbuf
+
+compute csym all centro/atom fcc
+
+# 5) Equilibration
+velocity mobile create ${temp} 8675309 mom yes rot yes dist gaussian
+fix integrate mobile nve
+fix thermostat mobile langevin ${temp} ${temp} 0.1 48279
+thermo 500
+thermo_style custom step temp pe etotal
+timestep 0.001
+run ${nequil}
+
+# switch thermostat to buffer layer only so the free surface runs pure NVE
+unfix thermostat
+fix thermostat buffer langevin ${temp} ${temp} 0.1 90210
+
+# 6) Indenter: sphere lowered from one radius above the surface
+reset_timestep 0
+variable z0   equal $(v_zhi+v_radius)    # sphere centre at start: one radius above surface
+variable zind equal v_z0-v_rate*step*0.001  # descends at constant rate
+variable xc   equal $((xlo+xhi)/2.0)
+variable yc   equal $((ylo+yhi)/2.0)
+variable depth equal v_z0-v_zind
+
+fix ind all indent 100.0 sphere v_xc v_yc v_zind ${radius} units box
+
+# --------------------------------------------------------------------------
+# Visualization variables
+# --------------------------------------------------------------------------
+
+# simulation time and indentation load (z-force on atoms from indenter)
+variable fz     equal f_ind[3]           # load; sign follows LAMMPS convention
+variable fzmag  equal sqrt(v_fz*v_fz)   # magnitude used for arrow length and display
+variable time   equal step*dt
+variable ps     format time %5.2f        # formatted time in ps
+variable dp     format depth %4.2f       # formatted depth in Angstrom
+variable fl     format fzmag %6.1f       # formatted load in eV/Angstrom
+
+# --------------------------------------------------------------------------
+# Force arrow (fix graphics/objects)
+# --------------------------------------------------------------------------
+# The arrow is placed to the right of the slab (x = xhi + 12 Angstrom) and
+# centered in y.  Its base is at the current sphere centre height and its tip
+# moves upward proportionally to the indentation load
+# (1 Angstrom per 10 eV/Ang of load).
+# Arrow type 1 is coloured via "dump_modify fcolor farrow firebrick" below.
+variable ax     equal xhi+12.0
+variable ay     equal (ylo+yhi)/2.0
+variable ascale equal 0.1               # Angstrom per eV/Angstrom of load
+variable abase  equal v_zind
+variable atip   equal v_zind+v_ascale*v_fzmag
+
+fix farrow all graphics/objects 2500 arrow 1 v_ax v_ay v_abase v_ax v_ay v_atip 2.0 0.3
+
+# --------------------------------------------------------------------------
+# Text overlays (fix graphics/labels, image-pixel coordinates)
+# --------------------------------------------------------------------------
+# fflag1=1 in the dump image "fix" keyword means positions are pixel
+# coordinates with (0,0) at the top-left corner of the 1000x800 image.
+# Two text items are added in a single fix: a title and a live data line.
+fix labels all graphics/labels 2500 &
+    text "Tutorial 8: Nanoindentation of fcc Al (100)" 500 40 0 &
+        size 26 fontcolor white backcolor 30/30/30 framecolor 30/30/30 transcolor 30/30/30 &
+    text "t = ${ps} ps   depth = ${dp} Ang   load = ${fl} eV/Ang" 500 80 0 &
+        size 22 fontcolor 220/200/0 backcolor 30/30/30 framecolor 30/30/30 transcolor 30/30/30
+
+# --------------------------------------------------------------------------
+# Colour-scale legend (fix graphics/labels, image-pixel coordinates)
+# --------------------------------------------------------------------------
+# Placed at the bottom centre of the 1000x800 image (x=500, y=720).
+# The dump-ID "viz" must match the dump command name below.
+# A fixed colour range (0 to 15) is recommended for animations so that
+# the colour-scale bar does not change width as the text changes.
+fix cscale all graphics/labels 2500 &
+    colorscale viz "Centrosymmetry parameter (0 to 15)" 500 720 0 &
+    size 20 length 700 horizontal &
+    fontcolor white backcolor 30/30/30 framecolor 30/30/30 transcolor 30/30/30
+
+# --------------------------------------------------------------------------
+# Dump image with all graphics objects
+# --------------------------------------------------------------------------
+# The indenter sphere is rendered by fix indent itself via "fix ind const 0 0".
+# fflag1=0 has no effect for a 3d sphere; fflag2=0 uses the physical radius.
+# Use a small negative fflag2 (e.g. -5) to shrink the rendered sphere so
+# that atoms in the contact zone remain visible.
+#
+# fix farrow const 0 0  -- arrow in simulation-box coordinates (fflag1=0)
+# fix labels const 1 0  -- text in image-pixel coordinates (fflag1=1)
+# fix cscale const 1 0  -- colour scale in image-pixel coordinates (fflag1=1)
+dump viz all image 2500 snap_adv.*.jpg c_csym type &
+     fix ind    const 0 0 &
+     fix farrow const 0 0 &
+     fix labels const 1 0 &
+     fix cscale const 1 0 &
+     adiam 2.6 zoom 1.3 view 60 -10 &
+     center s 0.5 0.5 0.55 box no 0.0 size 1000 800 &
+     fsaa yes ssao yes 4539 0.5
+
+dump_modify viz pad 5 &
+    backcolor 30/30/30 backcolor2 40/40/40 &
+    amap 0.0 15.0 cf 0.0 2 min blue max red &
+    fcolor ind silver ftrans ind 0.4 &
+    fcolor farrow firebrick
+
+# CSV load-displacement record (same format as indent.lmp for direct comparison)
+fix out all print 100 "$(v_depth:%.4f),$(v_fz:%.5f)" &
+    file load-sphere-adv.csv title "depth_Ang,load_eV_per_Ang" screen no
+
+thermo_style custom step temp pe v_depth v_fz
+run ${nindent}
+
+print "Indentation complete: depth $(v_depth:%.2f) Ang, load $(v_fz:%.2f) eV/Ang."

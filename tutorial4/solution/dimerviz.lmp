@@ -1,0 +1,39 @@
+# LAMMPS Input File
+# Licensed under CC BY 4.0
+# Tutorial 4 -- interactive visualization sandbox for the Si(100) dimer figure.
+#
+# Loads a relaxed configuration written by si100.lmp (no simulation needed)
+# and renders a top view of the surface, so the figure can be designed
+# interactively in LAMMPS-GUI:
+#   1. Run si100.lmp first (it writes si1x1.data and si2x1.data), or fetch
+#      both data files from the solution folder.
+#   2. Open this file in LAMMPS-GUI, pick the state in the "Set Variables"
+#      dialog (state = 1x1 or 2x1), and run.
+#   3. Open the Image Viewer to rotate/zoom interactively, or edit the
+#      write_dump line below and re-run.
+variable state index 2x1        # which configuration to show: 1x1 | 2x1
+variable depth index 4.2        # keep atoms within this depth of the surface
+
+units metal
+dimension 3
+boundary p p s
+atom_style atomic
+
+read_data si${state}.data
+
+pair_style sw
+pair_coeff * * ../Si.sw Si
+
+# keep only the top few layers so the top view stays readable
+variable zcut equal bound(all,zmax)-v_depth
+region deep block INF INF INF INF INF $(v_zcut) units box
+delete_atoms region deep
+run 0 post no
+
+# top view along -z, atoms colored by depth (surface bright, bulk dark),
+# bonds inferred from the neighbor list with autobond (cf. Tutorial 9)
+write_dump all image dimer-${state}.png z type &
+    view 0 0 zoom 3.1 box no 0.0 size 1000 1000 &
+    shiny 0.15 ssao yes 4539 0.5 fsaa yes autobond 2.7 0.5 &
+    modify backcolor white adiam * 1.5 &
+    amap $(v_zcut) $(bound(all,zmax)) ca 0.0 2 min steelblue max goldenrod

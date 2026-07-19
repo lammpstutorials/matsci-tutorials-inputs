@@ -1,0 +1,158 @@
+LAMMPS (30 Mar 2026 - Development - patch_30Mar2026-1178-g5f8b8984a-modified)
+OMP_NUM_THREADS environment is not set. Defaulting to 1 thread.
+  using 1 OpenMP thread(s) per MPI task
+# LAMMPS Input File
+# Licensed under CC BY 4.0
+# A Set of Materials-Science Tutorials for the LAMMPS Simulation Package: 2. Materials Science
+# By Simon Gravelle, Mark A. Tschopp, Jacob R. Gissinger, and Axel Kohlmeyer
+# Tutorial 4: 1. Surface energy and relaxation of the low-index aluminum surfaces
+#
+# Build an fcc aluminum slab with free surfaces normal to z, relax it, and
+# evaluate the surface energy from the energy balance
+#     gamma = (E_slab - N*Ecoh) / (2*A)
+# The exposed face is selected with the index variable "face":
+#     lmp -in alsurf.lmp -var face 110
+# or via the Set Variables dialog of LAMMPS-GUI.  The reported interlayer
+# relaxation d12 compares the spacing of the two outermost layers with the
+# bulk layer spacing of the chosen face.
+#
+# NOTE the in-plane box spans: for the (111) face the number of cells along
+# y MUST be a multiple of three, or the periodic images do not join up and
+# the "surface" energy comes out several times too large (see the note in
+# the tutorial text -- the same commensurability rule as for the stacking
+# fault and grain boundary constructions).
+
+# 1) Initialization
+units metal
+dimension 3
+boundary p p s
+atom_style atomic
+
+# 2) System definition
+variable face index 100          # exposed surface: 100 | 110 | 111
+variable a0   index 4.08165      # Zhou EAM equilibrium value from Tutorial 1
+variable ecoh index -3.5799987   # Zhou EAM cohesive energy from Tutorial 1
+if "${face} == 100" then   "lattice fcc ${a0} orient x 1 0 0 orient y 0 1 0 orient z 0 0 1 origin 0.25 0.25 0.25"   "variable dlay equal ${a0}/2"   "variable ny equal 4" elif "${face} == 110"   "lattice fcc ${a0} orient x 0 0 1 orient y 1 -1 0 orient z 1 1 0 origin 0.25 0.25 0.25"   "variable dlay equal ${a0}/(2*sqrt(2.0))"   "variable ny equal 4" elif "${face} == 111"   "lattice fcc ${a0} orient x 1 -1 0 orient y 1 1 -2 orient z 1 1 1 origin 0.25 0.25 0.05"   "variable dlay equal ${a0}/sqrt(3.0)"   "variable ny equal 3" else   "print 'ERROR: face must be 100, 110, or 111'"   "quit 1"
+lattice fcc ${a0} orient x 1 0 0 orient y 0 1 0 orient z 0 0 1 origin 0.25 0.25 0.25
+lattice fcc 4.08165 orient x 1 0 0 orient y 0 1 0 orient z 0 0 1 origin 0.25 0.25 0.25
+Lattice spacing in x,y,z = 4.08165 4.08165 4.08165
+variable dlay equal ${a0}/2
+variable dlay equal 4.08165/2
+variable ny equal 4
+region box block 0 4 0 ${ny} 0 5
+region box block 0 4 0 4 0 5
+create_box 1 box
+Created orthogonal box = (0 0 0) to (16.3266 16.3266 20.40825)
+  1 by 1 by 1 MPI processor grid
+create_atoms 1 box
+Created 320 atoms
+  using lattice units in orthogonal box = (0 0 -0.002040825) to (16.3266 16.3266 20.410291)
+  create_atoms CPU = 0.000 seconds
+
+# 3) Settings
+pair_style eam/alloy
+pair_coeff * * Al_zhou.eam.alloy Al
+Reading eam/alloy potential file Al_zhou.eam.alloy with DATE: 2007-10-12
+
+# 4) Monitoring
+thermo 50
+thermo_style custom step pe press fnorm
+
+# 5) Surface energy of the bulk-terminated (unrelaxed) slab
+run 0 post no
+WARNING: No fixes with time integration, atoms won't move
+For more information see https://docs.lammps.org/err0028 (src/verlet.cpp:60)
+Neighbor list info ...
+  update: every = 1 steps, delay = 0 steps, check = yes
+  max neighbors/atom: 2000, page size: 100000
+  master list distance cutoff = 12.1025
+  ghost atom cutoff = 12.1025
+  binsize = 6.05125, bins = 3 3 4
+  1 neighbor lists, perpetual/occasional/extra = 1 0 0
+  (1) pair eam/alloy, perpetual
+      attributes: half, newton on
+      pair build: half/bin/atomonly/newton
+      stencil: half/bin/3d
+      bin: standard
+Per MPI rank memory allocation (min/avg/max) = 3.383 | 3.383 | 3.383 Mbytes
+   Step         PotEng         Press          Fnorm     
+         0  -1116.4703     -17334.888      1.553784     
+Loop time of 1.382e-06 on 1 procs for 0 steps with 320 atoms
+
+variable natoms equal $(count(all))
+variable natoms equal 320
+variable area   equal lx*ly
+# convert from eV/Angstrom^2 to mJ/m^2; note the $(...) expansion: it freezes
+# the unrelaxed value NOW, before the minimizer changes pe (cf. Tutorial 9)
+variable gam0 equal $((pe-v_natoms*v_ecoh)/(2*v_area)*16021.766)
+variable gam0 equal 875.42550504879204709
+
+# 6) Relax the atomic positions and re-evaluate
+min_style cg
+minimize 1.0e-10 1.0e-12 10000 100000
+Per MPI rank memory allocation (min/avg/max) = 4.508 | 4.508 | 4.508 Mbytes
+   Step         PotEng         Press          Fnorm     
+         0  -1116.4703     -17334.888      1.553784     
+        10  -1116.8245     -8802.6783      0.00046056829
+Loop time of 0.0169379 on 1 procs for 10 steps with 320 atoms
+
+99.4% CPU use with 1 MPI tasks x 1 OpenMP threads
+
+Minimization stats:
+  Stopping criterion = energy tolerance
+  Energy initial, next-to-last, final = 
+     -1116.47026631636  -1116.82445932342   -1116.8244593594
+  Force two-norm initial, final = 1.553784 0.00046056829
+  Force max component initial, final = 0.15940981 4.0892766e-05
+  Final line search alpha, max atom move = 1 4.0892766e-05
+  Iterations, force evaluations = 10 19
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 0.016783   | 0.016783   | 0.016783   |   0.0 | 99.08
+Neigh   | 0          | 0          | 0          |   0.0 |  0.00
+Comm    | 6.4577e-05 | 6.4577e-05 | 6.4577e-05 |   0.0 |  0.38
+Output  | 0          | 0          | 0          |   0.0 |  0.00
+Modify  | 0          | 0          | 0          |   0.0 |  0.00
+Other   |            | 9.058e-05  |            |       |  0.53
+
+Nlocal:            320 ave         320 max         320 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Nghost:           1680 ave        1680 max        1680 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Neighs:          53440 ave       53440 max       53440 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+
+Total # of neighbors = 53440
+Ave neighs/atom = 167
+Neighbor list builds = 0
+Dangerous builds = 0
+variable gam equal (pe-v_natoms*v_ecoh)/(2*v_area)*16021.766
+
+# 7) Interlayer relaxation of the two outermost layers
+variable ztop equal bound(all,zmax)
+region r1 block INF INF INF INF $(v_ztop-0.5*v_dlay) INF units box
+region r1 block INF INF INF INF 18.29107331798019942 INF units box
+region r2 block INF INF INF INF $(v_ztop-1.5*v_dlay) $(v_ztop-0.5*v_dlay) units box
+region r2 block INF INF INF INF 16.250248317980197754 $(v_ztop-0.5*v_dlay) units box
+region r2 block INF INF INF INF 16.250248317980197754 18.29107331798019942 units box
+group L1 region r1
+32 atoms in group L1
+group L2 region r2
+32 atoms in group L2
+variable d12 equal (xcm(L1,z)-xcm(L2,z)-v_dlay)/v_dlay*100
+
+print "--------------------------------------------------"
+--------------------------------------------------
+print "Face (${face}): ${natoms} atoms, area = $(v_area:%.2f) Ang^2"
+Face (100): 320 atoms, area = 266.56 Ang^2
+print "Surface energy unrelaxed = $(v_gam0:%.1f) mJ/m^2"
+Surface energy unrelaxed = 875.4 mJ/m^2
+print "Surface energy relaxed   = $(v_gam:%.1f) mJ/m^2"
+Surface energy relaxed   = 864.8 mJ/m^2
+print "Interlayer relaxation    = $(v_d12:%.2f) %"
+Interlayer relaxation    = -2.85 %
+print "--------------------------------------------------"
+--------------------------------------------------
+Total wall time: 0:00:00

@@ -2,27 +2,48 @@
 # comments start with a # as the first character.
 # comments and empty lines are ignored
 ##############################################################################
-# Tutorial 13: Diffusion in a liquid metal (liquid aluminum)
+# Tutorial 13: Phonons -- dispersion from MD (fcc copper, fix phonon) and
+#              zone-center modes from the dynamical matrix (silicon)
 #
 # 1) input file templates
 # the first file will be automatically loaded
-diffusion.lmp
-plot.py
+phonon.lmp
+dispersion.in
+phonon-plot.py
+vacfdos.lmp
+dos-plot.py
+dynmat.lmp
+phonon-gamma.py
 
 # 2) support files
-Al_mm.eam.fs
+Cu_mishin1.eam.alloy
+map.in
+Cu_exp.dat
+Si.sw
 
 # 3) solution files
 # only downloaded on request
-solution/diffusion.log
-solution/diffusion.yaml
-solution/msd_1000.dat
-solution/msd_1100.dat
-solution/msd_1200.dat
-solution/msd_1300.dat
-solution/diffusion-vacf.lmp
-solution/Al_mm.eam.fs
-solution/vacf_1200.dat
-solution/plot-output.txt
-solution/diffusion-msd.png
-solution/diffusion-arrhenius.png
+solution/phonon.log
+solution/Cu_mishin1.eam.alloy
+solution/Cu_exp.dat
+solution/dispersion.in
+solution/map.in
+solution/phonon-plot.py
+solution/Cu.bin.3030000
+solution/disp.dat
+solution/phana.log
+solution/phonon.png
+solution/cellviz.lmp
+solution/cu-cell.png
+solution/vacf.dat
+solution/vacfdos.log
+solution/dos-cv.png
+solution/dynmat.log
+solution/Si.sw
+solution/dynmat.lmp
+solution/phonon-gamma.py
+solution/dynmat.dat
+solution/gamma-output.txt
+solution/gamma-levels.png
+solution/structviz.lmp
+solution/si-diamond.png

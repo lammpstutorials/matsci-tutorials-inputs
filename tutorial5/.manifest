@@ -2,24 +2,24 @@
 # comments start with a # as the first character.
 # comments and empty lines are ignored
 ##############################################################################
-# Tutorial 5: Nanoindentation and nano-stamping
+# Tutorial 5: Uniaxial deformation of a single crystal
 #
 # 1) input file templates
 # the first file will be automatically loaded
-indent.lmp
-stamp.lmp
-generate_tool.py
+deform.lmp
 plot.py
 
-# 2) support files (bundled potential and the tool geometry)
+# 2) support files
 Al_zhou.eam.alloy
-tool.stl
 
 # 3) solution files
 # only downloaded on request
-solution/visualize_indent.lmp
-solution/indent_viz_advanced.lmp
-solution/visualize_stamp.lmp
-solution/load-displacement.png
-solution/indent-defects.png
-solution/smiley-imprint.png
+solution/deform-tension.log
+solution/deform-compress.log
+solution/stress-tension.csv
+solution/stress-compress.csv
+solution/stress-strain.png
+solution/deform-dislocations.png
+# interactive dislocation-figure sandbox (loads a pre-recorded frame)
+solution/visualize.lmp
+solution/tension-yield.dump

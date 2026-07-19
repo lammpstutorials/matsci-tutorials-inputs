@@ -1,0 +1,141 @@
+# LAMMPS Input File
+# Licensed under CC BY 4.0
+# A Set of Materials-Science Tutorials for the LAMMPS Simulation Package
+# Tutorial 8 (nano-stamping): press a shaped rigid tool into an aluminum
+# surface to leave an imprint, demonstrating pair_style hybrid.
+#
+# The tool is built from an STL mesh (run generate_tool.py first -- it writes a
+# "winking smiley") and held rigid, so no potential is needed *within* it: only
+# its repulsion against the metal matters.  That cross interaction must be a
+# pairwise-additive style, because the metal's EAM potential is many-body and
+# is defined only among the aluminum atoms.  Two snapshots are rendered, both
+# colored by how far each atom has moved (compute displace/atom): the tool
+# pressed in (drawn dark green), and the relaxed surface after the tool is gone.
+
+variable temp   index 300.0      # substrate temperature (K)
+variable vpress index 1.5        # tool press-in speed (Angstrom/ps)
+variable vlift  index 3.0        # tool lift-off speed (Angstrom/ps)
+variable nequil index 6000       # substrate equilibration steps
+variable npress index 5000       # press-in steps
+variable nlift  index 6000       # lift-off steps
+
+# 1) Initialization
+units metal
+dimension 3
+boundary p p f
+atom_style atomic
+
+# 2) Substrate: fcc Al slab (type 1) with a free (100) top surface.
+#    The box is centered on the origin so the origin-centered STL tool fits.
+variable a0 equal 4.05
+lattice fcc ${a0}
+region box  block -10 10 -10 10 -0.1 22 units lattice
+create_box 2 box
+region slab block -10 10 -10 10 -0.1 9 units lattice
+create_atoms 1 region slab
+mass 1 26.9815
+mass 2 12.011
+
+# 3) Tool (type 2): atoms on the STL surface (mesh centered at the origin),
+#    lifted to just above the surface
+group sub type 1
+variable ztop equal bound(sub,zmax)
+create_atoms 2 mesh tool.stl meshmode bisect 2.0 units box
+group tool type 2
+displace_atoms tool move 0.0 0.0 $(v_ztop+4.0) units box
+
+# 4) Potentials: EAM for the metal + a pairwise LJ repulsion between the rigid
+#    tool and the metal.  The tool is rigid, so its internal interactions are
+#    irrelevant and the tool-tool neighbors are simply excluded.
+pair_style hybrid eam/alloy lj/cut 5.0
+pair_coeff * * eam/alloy Al_zhou.eam.alloy Al NULL
+pair_coeff 1 2 lj/cut 0.10 2.5
+pair_coeff 2 2 lj/cut 0.10 2.5
+# exclude the rigid tool's internal neighbors and allow large neighbor counts
+neigh_modify exclude group tool tool one 10000 page 200000
+
+# 5) Substrate thermostat regions: fixed bottom / Langevin buffer / free surface
+variable zlo equal bound(sub,zmin)
+region rbot block INF INF INF INF INF $(v_zlo+1.5*v_a0) units box
+region rbuf block INF INF INF INF $(v_zlo+1.5*v_a0) $(v_zlo+4.5*v_a0) units box
+group bottom region rbot
+group bottom intersect bottom sub
+group mobile subtract sub bottom
+group buffer region rbuf
+group buffer intersect buffer sub
+
+# occasional surface atoms can be ejected; warn instead of stopping
+thermo_modify lost warn
+
+# 6) Equilibrate the substrate with the tool held clear of the surface
+velocity mobile create ${temp} 581321 mom yes rot yes dist gaussian
+fix integrate mobile nve
+fix thermostat buffer langevin ${temp} ${temp} 0.1 47011
+fix hold tool move linear 0.0 0.0 0.0 units box
+thermo 1000
+thermo_style custom step temp pe
+thermo_modify lost warn
+timestep 0.001
+run ${nequil}
+
+# 7) Reference state for the displacement: the equilibrated flat surface.
+#    The min/max of the per-atom displacement (over the substrate) set the
+#    color-scale limits, so the full range of colors is always used.
+compute disp all displace/atom
+compute dmax sub reduce max c_disp[4]
+compute dmin sub reduce min c_disp[4]
+variable dhi  equal c_dmax
+variable dlo  equal c_dmin
+variable dmid equal 0.5*(c_dmin+c_dmax)
+dump traj all custom 3000 stamp.lammpstrj id type x y z c_disp[4]
+
+# 8) Press the tool into the surface
+unfix hold
+fix drive tool move linear 0.0 0.0 -${vpress} units box
+run ${npress}
+
+# snapshot (a): tool pressed in -- the tool is drawn dark green, the metal is
+# colored by how far its atoms have moved; the view is tilted to show the dent
+# the tool atoms are flagged with a sentinel value (-1) so they come out dark
+# green; the metal atoms keep their displacement, colored over its full range
+variable cola atom "(type==2)*(-1.0) + (type==1)*c_disp[4]"
+write_dump all image stamp-pressed.png v_cola type adiam 2.8 &
+    zoom 1.3 view 60 -10 center s 0.49 0.48 0.34 box no 0.0 axes yes 0.5 0.05 &
+    size 1300 1100 shiny 0.15 ssao yes 4539 0.5 fsaa yes &
+    modify backcolor white &
+    amap -1.0 ${dhi} ca 0.0 4 min darkgreen 0.0 steelblue ${dmid} gold max firebrick
+
+# a small view of the tool, turned over to show its stamping face (for an inset)
+write_dump tool image tool-inset.png type type adiam 2.4 &
+    zoom 1.6 view 168 -18 box no 0.0 size 800 800 shiny 0.15 ssao yes 4539 0.5 fsaa yes &
+    modify backcolor white acolor 2 darkgreen
+
+# 9) Lift the tool off, then relax the surface (no tool, no thermostat noise)
+unfix drive
+fix drive tool move linear 0.0 0.0 ${vlift} units box
+run ${nlift}
+unfix drive
+unfix thermostat
+fix fbot bottom setforce 0.0 0.0 0.0
+fix ftool tool setforce 0.0 0.0 0.0
+min_style cg
+minimize 1.0e-8 1.0e-8 500 5000
+
+# snapshot (b): the relaxed imprint, colored by the (now plastic) displacement.
+# fix graphics/labels draws a color-scale legend (labeled with the actual
+# displacement values) across the top of the image.
+variable colb atom c_disp[4]
+undump traj
+reset_timestep 0
+fix lbl all graphics/labels 1 colorscale imgb "displacement (Angstrom)" 650 1045 0.0 &
+    size 30 length 900 horizontal fontcolor black framecolor black backcolor white transcolor none
+dump imgb sub image 1 stamp-relaxed.*.png v_colb type adiam 2.8 &
+    zoom 1.3 view 60 -10 center s 0.49 0.48 0.34 box no 0.0 axes yes 0.5 0.05 &
+    size 1300 1100 shiny 0.15 ssao yes 4539 0.5 fsaa yes fix lbl const 1 0
+dump_modify imgb backcolor white &
+    amap ${dlo} ${dhi} ca 0.0 3 min steelblue ${dmid} gold max firebrick
+run 0
+undump imgb
+unfix lbl
+
+print "Stamping complete."

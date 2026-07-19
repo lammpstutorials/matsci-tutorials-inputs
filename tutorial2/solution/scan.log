@@ -1,51 +1,18 @@
-LAMMPS (30 Mar 2026 - Development - patch_30Mar2026-1121-g91d4111a9)
-OMP_NUM_THREADS environment is not set. Defaulting to 1 thread.
-  using 1 OpenMP thread(s) per MPI task
-# LAMMPS Input File
-# Licensed under CC BY 4.0
-# A Set of Materials-Science Tutorials for the LAMMPS Simulation Package
-# Modernized recreation of the MSU/CAVS tutorials by Mark A. Tschopp
-# Tutorial 2: energy-volume scan of fcc aluminum, looping entirely inside
-# LAMMPS. An index variable holds the list of lattice constants; the "next"
-# and "jump" commands iterate over them and "clear" resets the state between
-# iterations. The results are written to a structured YAML file that can be
-# loaded directly (e.g. with Python/pandas), without writing a parser.
-
-# list of lattice constants to scan (in Angstrom)
-variable a index 3.90 3.925 3.95 3.975 4.00 4.025 4.05 4.075 4.10                  4.125 4.15 4.175 4.20 4.225 4.25 4.275 4.30
-
-# start the YAML output file with a short comment header (overwrites old file)
-print "# energy-volume curve of fcc Al; lengths in Angstrom, energy in eV" file ev.yaml screen no
-
-label loop
-
-clear
-OMP_NUM_THREADS environment is not set. Defaulting to 1 thread.
-  using 1 OpenMP thread(s) per MPI task
-units metal
-dimension 3
-boundary p p p
-atom_style atomic
-
-lattice fcc ${a} origin 0.25 0.25 0.25
-lattice fcc 3.90 origin 0.25 0.25 0.25
+  using 8 OpenMP thread(s) per MPI task
+using multi-threaded neighbor list subroutines
+  using 16 OpenMP thread(s) per MPI task
+set 8 OpenMP thread(s) per MPI task
+using multi-threaded neighbor list subroutines
 Lattice spacing in x,y,z = 3.9 3.9 3.9
-region box block 0 4 0 4 0 4
-create_box 1 box
 Created orthogonal box = (0 0 0) to (15.6 15.6 15.6)
   1 by 1 by 1 MPI processor grid
-create_atoms 1 box
 Created 256 atoms
   using lattice units in orthogonal box = (0 0 0) to (15.6 15.6 15.6)
-  create_atoms CPU = 0.000 seconds
-
-pair_style eam/alloy
-pair_coeff * * Al_zhou.eam.alloy Al
+  create_atoms CPU = 0.001 seconds
 Reading eam/alloy potential file Al_zhou.eam.alloy with DATE: 2007-10-12
-
-run 0
 WARNING: No fixes with time integration, atoms won't move
 For more information see https://docs.lammps.org/err0028 (src/verlet.cpp:60)
+Last active /omp style is pair_style eam/alloy/omp
 Neighbor list info ...
   update: every = 1 steps, delay = 0 steps, check = yes
   max neighbors/atom: 2000, page size: 100000
@@ -53,17 +20,21 @@ Neighbor list info ...
   ghost atom cutoff = 12.1025
   binsize = 6.05125, bins = 3 3 3
   1 neighbor lists, perpetual/occasional/extra = 1 0 0
-  (1) pair eam/alloy, perpetual
-      attributes: half, newton on
-      pair build: half/bin/atomonly/newton
+  (1) pair eam/alloy/omp, perpetual
+      attributes: half, newton on, omp
+      pair build: half/bin/atomonly/newton/omp
       stencil: half/bin/3d
       bin: standard
-Per MPI rank memory allocation (min/avg/max) = 3.492 | 3.492 | 3.492 Mbytes
+Setting up Verlet run ...
+  Unit style    : metal
+  Current step  : 0
+  Time step     : 0.001
+Per MPI rank memory allocation (min/avg/max) = 9.67 | 9.67 | 9.67 Mbytes
    Step          Temp          E_pair         E_mol          TotEng         Press     
          0   0             -891.27405      0             -891.27405      155403.42    
-Loop time of 7.41e-07 on 1 procs for 0 steps with 256 atoms
+Loop time of 1.152e-06 on 8 procs for 0 steps with 256 atoms
 
-135.0% CPU use with 1 MPI tasks x 1 OpenMP threads
+173.6% CPU use with 1 MPI tasks x 8 OpenMP threads
 
 MPI task timing breakdown:
 Section |  min time  |  avg time  |  max time  |%varavg| %total
@@ -73,7 +44,7 @@ Neigh   | 0          | 0          | 0          |   0.0 |  0.00
 Comm    | 0          | 0          | 0          |   0.0 |  0.00
 Output  | 0          | 0          | 0          |   0.0 |  0.00
 Modify  | 0          | 0          | 0          |   0.0 |  0.00
-Other   |            | 7.41e-07   |            |       |100.00
+Other   |            | 1.152e-06  |            |       |100.00
 
 Nlocal:            256 ave         256 max         256 min
 Histogram: 1 0 0 0 0 0 0 0 0 0
@@ -86,44 +57,18 @@ Total # of neighbors = 67840
 Ave neighs/atom = 265
 Neighbor list builds = 0
 Dangerous builds = 0
-
-# derived per-atom quantities (equal-style variables are evaluated when used)
-variable vatom equal vol/count(all)
-variable ecoh  equal pe/count(all)
-
-# append one YAML record (a mapping) per lattice constant
-print "- {lattice_constant: ${a}, volume_per_atom: $(v_vatom:%.6f),       cohesive_energy: $(v_ecoh:%.6f)}" append ev.yaml screen no
-
-next a
-jump SELF loop
-
-clear
-OMP_NUM_THREADS environment is not set. Defaulting to 1 thread.
-  using 1 OpenMP thread(s) per MPI task
-units metal
-dimension 3
-boundary p p p
-atom_style atomic
-
-lattice fcc ${a} origin 0.25 0.25 0.25
-lattice fcc 3.925 origin 0.25 0.25 0.25
+  using 8 OpenMP thread(s) per MPI task
+using multi-threaded neighbor list subroutines
 Lattice spacing in x,y,z = 3.925 3.925 3.925
-region box block 0 4 0 4 0 4
-create_box 1 box
 Created orthogonal box = (0 0 0) to (15.7 15.7 15.7)
   1 by 1 by 1 MPI processor grid
-create_atoms 1 box
 Created 256 atoms
   using lattice units in orthogonal box = (0 0 0) to (15.7 15.7 15.7)
-  create_atoms CPU = 0.000 seconds
-
-pair_style eam/alloy
-pair_coeff * * Al_zhou.eam.alloy Al
+  create_atoms CPU = 0.001 seconds
 Reading eam/alloy potential file Al_zhou.eam.alloy with DATE: 2007-10-12
-
-run 0
 WARNING: No fixes with time integration, atoms won't move
 For more information see https://docs.lammps.org/err0028 (src/verlet.cpp:60)
+Last active /omp style is pair_style eam/alloy/omp
 Neighbor list info ...
   update: every = 1 steps, delay = 0 steps, check = yes
   max neighbors/atom: 2000, page size: 100000
@@ -131,17 +76,21 @@ Neighbor list info ...
   ghost atom cutoff = 12.1025
   binsize = 6.05125, bins = 3 3 3
   1 neighbor lists, perpetual/occasional/extra = 1 0 0
-  (1) pair eam/alloy, perpetual
-      attributes: half, newton on
-      pair build: half/bin/atomonly/newton
+  (1) pair eam/alloy/omp, perpetual
+      attributes: half, newton on, omp
+      pair build: half/bin/atomonly/newton/omp
       stencil: half/bin/3d
       bin: standard
-Per MPI rank memory allocation (min/avg/max) = 3.492 | 3.492 | 3.492 Mbytes
+Setting up Verlet run ...
+  Unit style    : metal
+  Current step  : 0
+  Time step     : 0.001
+Per MPI rank memory allocation (min/avg/max) = 9.67 | 9.67 | 9.67 Mbytes
    Step          Temp          E_pair         E_mol          TotEng         Press     
          0   0             -897.84443      0             -897.84443      131306.8     
-Loop time of 6.32e-07 on 1 procs for 0 steps with 256 atoms
+Loop time of 2.054e-06 on 8 procs for 0 steps with 256 atoms
 
-158.2% CPU use with 1 MPI tasks x 1 OpenMP threads
+97.4% CPU use with 1 MPI tasks x 8 OpenMP threads
 
 MPI task timing breakdown:
 Section |  min time  |  avg time  |  max time  |%varavg| %total
@@ -151,7 +100,7 @@ Neigh   | 0          | 0          | 0          |   0.0 |  0.00
 Comm    | 0          | 0          | 0          |   0.0 |  0.00
 Output  | 0          | 0          | 0          |   0.0 |  0.00
 Modify  | 0          | 0          | 0          |   0.0 |  0.00
-Other   |            | 6.32e-07   |            |       |100.00
+Other   |            | 2.054e-06  |            |       |100.00
 
 Nlocal:            256 ave         256 max         256 min
 Histogram: 1 0 0 0 0 0 0 0 0 0
@@ -164,44 +113,18 @@ Total # of neighbors = 67840
 Ave neighs/atom = 265
 Neighbor list builds = 0
 Dangerous builds = 0
-
-# derived per-atom quantities (equal-style variables are evaluated when used)
-variable vatom equal vol/count(all)
-variable ecoh  equal pe/count(all)
-
-# append one YAML record (a mapping) per lattice constant
-print "- {lattice_constant: ${a}, volume_per_atom: $(v_vatom:%.6f),       cohesive_energy: $(v_ecoh:%.6f)}" append ev.yaml screen no
-
-next a
-jump SELF loop
-
-clear
-OMP_NUM_THREADS environment is not set. Defaulting to 1 thread.
-  using 1 OpenMP thread(s) per MPI task
-units metal
-dimension 3
-boundary p p p
-atom_style atomic
-
-lattice fcc ${a} origin 0.25 0.25 0.25
-lattice fcc 3.95 origin 0.25 0.25 0.25
+  using 8 OpenMP thread(s) per MPI task
+using multi-threaded neighbor list subroutines
 Lattice spacing in x,y,z = 3.95 3.95 3.95
-region box block 0 4 0 4 0 4
-create_box 1 box
 Created orthogonal box = (0 0 0) to (15.8 15.8 15.8)
   1 by 1 by 1 MPI processor grid
-create_atoms 1 box
 Created 256 atoms
   using lattice units in orthogonal box = (0 0 0) to (15.8 15.8 15.8)
   create_atoms CPU = 0.000 seconds
-
-pair_style eam/alloy
-pair_coeff * * Al_zhou.eam.alloy Al
 Reading eam/alloy potential file Al_zhou.eam.alloy with DATE: 2007-10-12
-
-run 0
 WARNING: No fixes with time integration, atoms won't move
 For more information see https://docs.lammps.org/err0028 (src/verlet.cpp:60)
+Last active /omp style is pair_style eam/alloy/omp
 Neighbor list info ...
   update: every = 1 steps, delay = 0 steps, check = yes
   max neighbors/atom: 2000, page size: 100000
@@ -209,17 +132,21 @@ Neighbor list info ...
   ghost atom cutoff = 12.1025
   binsize = 6.05125, bins = 3 3 3
   1 neighbor lists, perpetual/occasional/extra = 1 0 0
-  (1) pair eam/alloy, perpetual
-      attributes: half, newton on
-      pair build: half/bin/atomonly/newton
+  (1) pair eam/alloy/omp, perpetual
+      attributes: half, newton on, omp
+      pair build: half/bin/atomonly/newton/omp
       stencil: half/bin/3d
       bin: standard
-Per MPI rank memory allocation (min/avg/max) = 3.492 | 3.492 | 3.492 Mbytes
+Setting up Verlet run ...
+  Unit style    : metal
+  Current step  : 0
+  Time step     : 0.001
+Per MPI rank memory allocation (min/avg/max) = 9.67 | 9.67 | 9.67 Mbytes
    Step          Temp          E_pair         E_mol          TotEng         Press     
          0   0             -903.39679      0             -903.39679      107938.77    
-Loop time of 7.31e-07 on 1 procs for 0 steps with 256 atoms
+Loop time of 1.143e-06 on 8 procs for 0 steps with 256 atoms
 
-136.8% CPU use with 1 MPI tasks x 1 OpenMP threads
+87.5% CPU use with 1 MPI tasks x 8 OpenMP threads
 
 MPI task timing breakdown:
 Section |  min time  |  avg time  |  max time  |%varavg| %total
@@ -229,7 +156,7 @@ Neigh   | 0          | 0          | 0          |   0.0 |  0.00
 Comm    | 0          | 0          | 0          |   0.0 |  0.00
 Output  | 0          | 0          | 0          |   0.0 |  0.00
 Modify  | 0          | 0          | 0          |   0.0 |  0.00
-Other   |            | 7.31e-07   |            |       |100.00
+Other   |            | 1.143e-06  |            |       |100.00
 
 Nlocal:            256 ave         256 max         256 min
 Histogram: 1 0 0 0 0 0 0 0 0 0
@@ -242,44 +169,18 @@ Total # of neighbors = 58624
 Ave neighs/atom = 229
 Neighbor list builds = 0
 Dangerous builds = 0
-
-# derived per-atom quantities (equal-style variables are evaluated when used)
-variable vatom equal vol/count(all)
-variable ecoh  equal pe/count(all)
-
-# append one YAML record (a mapping) per lattice constant
-print "- {lattice_constant: ${a}, volume_per_atom: $(v_vatom:%.6f),       cohesive_energy: $(v_ecoh:%.6f)}" append ev.yaml screen no
-
-next a
-jump SELF loop
-
-clear
-OMP_NUM_THREADS environment is not set. Defaulting to 1 thread.
-  using 1 OpenMP thread(s) per MPI task
-units metal
-dimension 3
-boundary p p p
-atom_style atomic
-
-lattice fcc ${a} origin 0.25 0.25 0.25
-lattice fcc 3.975 origin 0.25 0.25 0.25
+  using 8 OpenMP thread(s) per MPI task
+using multi-threaded neighbor list subroutines
 Lattice spacing in x,y,z = 3.975 3.975 3.975
-region box block 0 4 0 4 0 4
-create_box 1 box
 Created orthogonal box = (0 0 0) to (15.9 15.9 15.9)
   1 by 1 by 1 MPI processor grid
-create_atoms 1 box
 Created 256 atoms
   using lattice units in orthogonal box = (0 0 0) to (15.9 15.9 15.9)
   create_atoms CPU = 0.000 seconds
-
-pair_style eam/alloy
-pair_coeff * * Al_zhou.eam.alloy Al
 Reading eam/alloy potential file Al_zhou.eam.alloy with DATE: 2007-10-12
-
-run 0
 WARNING: No fixes with time integration, atoms won't move
 For more information see https://docs.lammps.org/err0028 (src/verlet.cpp:60)
+Last active /omp style is pair_style eam/alloy/omp
 Neighbor list info ...
   update: every = 1 steps, delay = 0 steps, check = yes
   max neighbors/atom: 2000, page size: 100000
@@ -287,17 +188,21 @@ Neighbor list info ...
   ghost atom cutoff = 12.1025
   binsize = 6.05125, bins = 3 3 3
   1 neighbor lists, perpetual/occasional/extra = 1 0 0
-  (1) pair eam/alloy, perpetual
-      attributes: half, newton on
-      pair build: half/bin/atomonly/newton
+  (1) pair eam/alloy/omp, perpetual
+      attributes: half, newton on, omp
+      pair build: half/bin/atomonly/newton/omp
       stencil: half/bin/3d
       bin: standard
-Per MPI rank memory allocation (min/avg/max) = 3.492 | 3.492 | 3.492 Mbytes
+Setting up Verlet run ...
+  Unit style    : metal
+  Current step  : 0
+  Time step     : 0.001
+Per MPI rank memory allocation (min/avg/max) = 9.67 | 9.67 | 9.67 Mbytes
    Step          Temp          E_pair         E_mol          TotEng         Press     
          0   0             -907.94521      0             -907.94521      85777.024    
-Loop time of 6.21e-07 on 1 procs for 0 steps with 256 atoms
+Loop time of 1.082e-06 on 8 procs for 0 steps with 256 atoms
 
-161.0% CPU use with 1 MPI tasks x 1 OpenMP threads
+92.4% CPU use with 1 MPI tasks x 8 OpenMP threads
 
 MPI task timing breakdown:
 Section |  min time  |  avg time  |  max time  |%varavg| %total
@@ -307,7 +212,7 @@ Neigh   | 0          | 0          | 0          |   0.0 |  0.00
 Comm    | 0          | 0          | 0          |   0.0 |  0.00
 Output  | 0          | 0          | 0          |   0.0 |  0.00
 Modify  | 0          | 0          | 0          |   0.0 |  0.00
-Other   |            | 6.21e-07   |            |       |100.00
+Other   |            | 1.082e-06  |            |       |100.00
 
 Nlocal:            256 ave         256 max         256 min
 Histogram: 1 0 0 0 0 0 0 0 0 0
@@ -320,44 +225,18 @@ Total # of neighbors = 58624
 Ave neighs/atom = 229
 Neighbor list builds = 0
 Dangerous builds = 0
-
-# derived per-atom quantities (equal-style variables are evaluated when used)
-variable vatom equal vol/count(all)
-variable ecoh  equal pe/count(all)
-
-# append one YAML record (a mapping) per lattice constant
-print "- {lattice_constant: ${a}, volume_per_atom: $(v_vatom:%.6f),       cohesive_energy: $(v_ecoh:%.6f)}" append ev.yaml screen no
-
-next a
-jump SELF loop
-
-clear
-OMP_NUM_THREADS environment is not set. Defaulting to 1 thread.
-  using 1 OpenMP thread(s) per MPI task
-units metal
-dimension 3
-boundary p p p
-atom_style atomic
-
-lattice fcc ${a} origin 0.25 0.25 0.25
-lattice fcc 4.00 origin 0.25 0.25 0.25
+  using 8 OpenMP thread(s) per MPI task
+using multi-threaded neighbor list subroutines
 Lattice spacing in x,y,z = 4 4 4
-region box block 0 4 0 4 0 4
-create_box 1 box
 Created orthogonal box = (0 0 0) to (16 16 16)
   1 by 1 by 1 MPI processor grid
-create_atoms 1 box
 Created 256 atoms
   using lattice units in orthogonal box = (0 0 0) to (16 16 16)
   create_atoms CPU = 0.000 seconds
-
-pair_style eam/alloy
-pair_coeff * * Al_zhou.eam.alloy Al
 Reading eam/alloy potential file Al_zhou.eam.alloy with DATE: 2007-10-12
-
-run 0
 WARNING: No fixes with time integration, atoms won't move
 For more information see https://docs.lammps.org/err0028 (src/verlet.cpp:60)
+Last active /omp style is pair_style eam/alloy/omp
 Neighbor list info ...
   update: every = 1 steps, delay = 0 steps, check = yes
   max neighbors/atom: 2000, page size: 100000
@@ -365,17 +244,21 @@ Neighbor list info ...
   ghost atom cutoff = 12.1025
   binsize = 6.05125, bins = 3 3 3
   1 neighbor lists, perpetual/occasional/extra = 1 0 0
-  (1) pair eam/alloy, perpetual
-      attributes: half, newton on
-      pair build: half/bin/atomonly/newton
+  (1) pair eam/alloy/omp, perpetual
+      attributes: half, newton on, omp
+      pair build: half/bin/atomonly/newton/omp
       stencil: half/bin/3d
       bin: standard
-Per MPI rank memory allocation (min/avg/max) = 3.492 | 3.492 | 3.492 Mbytes
+Setting up Verlet run ...
+  Unit style    : metal
+  Current step  : 0
+  Time step     : 0.001
+Per MPI rank memory allocation (min/avg/max) = 9.67 | 9.67 | 9.67 Mbytes
    Step          Temp          E_pair         E_mol          TotEng         Press     
          0   0             -911.51848      0             -911.51848      64372.69     
-Loop time of 7.31e-07 on 1 procs for 0 steps with 256 atoms
+Loop time of 9.62e-07 on 8 procs for 0 steps with 256 atoms
 
-136.8% CPU use with 1 MPI tasks x 1 OpenMP threads
+104.0% CPU use with 1 MPI tasks x 8 OpenMP threads
 
 MPI task timing breakdown:
 Section |  min time  |  avg time  |  max time  |%varavg| %total
@@ -385,7 +268,7 @@ Neigh   | 0          | 0          | 0          |   0.0 |  0.00
 Comm    | 0          | 0          | 0          |   0.0 |  0.00
 Output  | 0          | 0          | 0          |   0.0 |  0.00
 Modify  | 0          | 0          | 0          |   0.0 |  0.00
-Other   |            | 7.31e-07   |            |       |100.00
+Other   |            | 9.62e-07   |            |       |100.00
 
 Nlocal:            256 ave         256 max         256 min
 Histogram: 1 0 0 0 0 0 0 0 0 0
@@ -398,44 +281,18 @@ Total # of neighbors = 58624
 Ave neighs/atom = 229
 Neighbor list builds = 0
 Dangerous builds = 0
-
-# derived per-atom quantities (equal-style variables are evaluated when used)
-variable vatom equal vol/count(all)
-variable ecoh  equal pe/count(all)
-
-# append one YAML record (a mapping) per lattice constant
-print "- {lattice_constant: ${a}, volume_per_atom: $(v_vatom:%.6f),       cohesive_energy: $(v_ecoh:%.6f)}" append ev.yaml screen no
-
-next a
-jump SELF loop
-
-clear
-OMP_NUM_THREADS environment is not set. Defaulting to 1 thread.
-  using 1 OpenMP thread(s) per MPI task
-units metal
-dimension 3
-boundary p p p
-atom_style atomic
-
-lattice fcc ${a} origin 0.25 0.25 0.25
-lattice fcc 4.025 origin 0.25 0.25 0.25
+  using 8 OpenMP thread(s) per MPI task
+using multi-threaded neighbor list subroutines
 Lattice spacing in x,y,z = 4.025 4.025 4.025
-region box block 0 4 0 4 0 4
-create_box 1 box
 Created orthogonal box = (0 0 0) to (16.1 16.1 16.1)
   1 by 1 by 1 MPI processor grid
-create_atoms 1 box
 Created 256 atoms
   using lattice units in orthogonal box = (0 0 0) to (16.1 16.1 16.1)
   create_atoms CPU = 0.000 seconds
-
-pair_style eam/alloy
-pair_coeff * * Al_zhou.eam.alloy Al
 Reading eam/alloy potential file Al_zhou.eam.alloy with DATE: 2007-10-12
-
-run 0
 WARNING: No fixes with time integration, atoms won't move
 For more information see https://docs.lammps.org/err0028 (src/verlet.cpp:60)
+Last active /omp style is pair_style eam/alloy/omp
 Neighbor list info ...
   update: every = 1 steps, delay = 0 steps, check = yes
   max neighbors/atom: 2000, page size: 100000
@@ -443,17 +300,21 @@ Neighbor list info ...
   ghost atom cutoff = 12.1025
   binsize = 6.05125, bins = 3 3 3
   1 neighbor lists, perpetual/occasional/extra = 1 0 0
-  (1) pair eam/alloy, perpetual
-      attributes: half, newton on
-      pair build: half/bin/atomonly/newton
+  (1) pair eam/alloy/omp, perpetual
+      attributes: half, newton on, omp
+      pair build: half/bin/atomonly/newton/omp
       stencil: half/bin/3d
       bin: standard
-Per MPI rank memory allocation (min/avg/max) = 3.492 | 3.492 | 3.492 Mbytes
+Setting up Verlet run ...
+  Unit style    : metal
+  Current step  : 0
+  Time step     : 0.001
+Per MPI rank memory allocation (min/avg/max) = 9.67 | 9.67 | 9.67 Mbytes
    Step          Temp          E_pair         E_mol          TotEng         Press     
          0   0             -914.11771      0             -914.11771      43563.219    
-Loop time of 6.31e-07 on 1 procs for 0 steps with 256 atoms
+Loop time of 1.112e-06 on 8 procs for 0 steps with 256 atoms
 
-158.5% CPU use with 1 MPI tasks x 1 OpenMP threads
+89.9% CPU use with 1 MPI tasks x 8 OpenMP threads
 
 MPI task timing breakdown:
 Section |  min time  |  avg time  |  max time  |%varavg| %total
@@ -463,7 +324,7 @@ Neigh   | 0          | 0          | 0          |   0.0 |  0.00
 Comm    | 0          | 0          | 0          |   0.0 |  0.00
 Output  | 0          | 0          | 0          |   0.0 |  0.00
 Modify  | 0          | 0          | 0          |   0.0 |  0.00
-Other   |            | 6.31e-07   |            |       |100.00
+Other   |            | 1.112e-06  |            |       |100.00
 
 Nlocal:            256 ave         256 max         256 min
 Histogram: 1 0 0 0 0 0 0 0 0 0
@@ -476,44 +337,18 @@ Total # of neighbors = 58624
 Ave neighs/atom = 229
 Neighbor list builds = 0
 Dangerous builds = 0
-
-# derived per-atom quantities (equal-style variables are evaluated when used)
-variable vatom equal vol/count(all)
-variable ecoh  equal pe/count(all)
-
-# append one YAML record (a mapping) per lattice constant
-print "- {lattice_constant: ${a}, volume_per_atom: $(v_vatom:%.6f),       cohesive_energy: $(v_ecoh:%.6f)}" append ev.yaml screen no
-
-next a
-jump SELF loop
-
-clear
-OMP_NUM_THREADS environment is not set. Defaulting to 1 thread.
-  using 1 OpenMP thread(s) per MPI task
-units metal
-dimension 3
-boundary p p p
-atom_style atomic
-
-lattice fcc ${a} origin 0.25 0.25 0.25
-lattice fcc 4.05 origin 0.25 0.25 0.25
+  using 8 OpenMP thread(s) per MPI task
+using multi-threaded neighbor list subroutines
 Lattice spacing in x,y,z = 4.05 4.05 4.05
-region box block 0 4 0 4 0 4
-create_box 1 box
 Created orthogonal box = (0 0 0) to (16.2 16.2 16.2)
   1 by 1 by 1 MPI processor grid
-create_atoms 1 box
 Created 256 atoms
   using lattice units in orthogonal box = (0 0 0) to (16.2 16.2 16.2)
   create_atoms CPU = 0.000 seconds
-
-pair_style eam/alloy
-pair_coeff * * Al_zhou.eam.alloy Al
 Reading eam/alloy potential file Al_zhou.eam.alloy with DATE: 2007-10-12
-
-run 0
 WARNING: No fixes with time integration, atoms won't move
 For more information see https://docs.lammps.org/err0028 (src/verlet.cpp:60)
+Last active /omp style is pair_style eam/alloy/omp
 Neighbor list info ...
   update: every = 1 steps, delay = 0 steps, check = yes
   max neighbors/atom: 2000, page size: 100000
@@ -521,17 +356,21 @@ Neighbor list info ...
   ghost atom cutoff = 12.1025
   binsize = 6.05125, bins = 3 3 3
   1 neighbor lists, perpetual/occasional/extra = 1 0 0
-  (1) pair eam/alloy, perpetual
-      attributes: half, newton on
-      pair build: half/bin/atomonly/newton
+  (1) pair eam/alloy/omp, perpetual
+      attributes: half, newton on, omp
+      pair build: half/bin/atomonly/newton/omp
       stencil: half/bin/3d
       bin: standard
-Per MPI rank memory allocation (min/avg/max) = 3.492 | 3.492 | 3.492 Mbytes
+Setting up Verlet run ...
+  Unit style    : metal
+  Current step  : 0
+  Time step     : 0.001
+Per MPI rank memory allocation (min/avg/max) = 9.67 | 9.67 | 9.67 Mbytes
    Step          Temp          E_pair         E_mol          TotEng         Press     
          0   0             -915.75277      0             -915.75277      23601.197    
-Loop time of 6.32e-07 on 1 procs for 0 steps with 256 atoms
+Loop time of 1.032e-06 on 8 procs for 0 steps with 256 atoms
 
-158.2% CPU use with 1 MPI tasks x 1 OpenMP threads
+193.8% CPU use with 1 MPI tasks x 8 OpenMP threads
 
 MPI task timing breakdown:
 Section |  min time  |  avg time  |  max time  |%varavg| %total
@@ -541,7 +380,7 @@ Neigh   | 0          | 0          | 0          |   0.0 |  0.00
 Comm    | 0          | 0          | 0          |   0.0 |  0.00
 Output  | 0          | 0          | 0          |   0.0 |  0.00
 Modify  | 0          | 0          | 0          |   0.0 |  0.00
-Other   |            | 6.32e-07   |            |       |100.00
+Other   |            | 1.032e-06  |            |       |100.00
 
 Nlocal:            256 ave         256 max         256 min
 Histogram: 1 0 0 0 0 0 0 0 0 0
@@ -554,44 +393,18 @@ Total # of neighbors = 54784
 Ave neighs/atom = 214
 Neighbor list builds = 0
 Dangerous builds = 0
-
-# derived per-atom quantities (equal-style variables are evaluated when used)
-variable vatom equal vol/count(all)
-variable ecoh  equal pe/count(all)
-
-# append one YAML record (a mapping) per lattice constant
-print "- {lattice_constant: ${a}, volume_per_atom: $(v_vatom:%.6f),       cohesive_energy: $(v_ecoh:%.6f)}" append ev.yaml screen no
-
-next a
-jump SELF loop
-
-clear
-OMP_NUM_THREADS environment is not set. Defaulting to 1 thread.
-  using 1 OpenMP thread(s) per MPI task
-units metal
-dimension 3
-boundary p p p
-atom_style atomic
-
-lattice fcc ${a} origin 0.25 0.25 0.25
-lattice fcc 4.075 origin 0.25 0.25 0.25
+  using 8 OpenMP thread(s) per MPI task
+using multi-threaded neighbor list subroutines
 Lattice spacing in x,y,z = 4.075 4.075 4.075
-region box block 0 4 0 4 0 4
-create_box 1 box
 Created orthogonal box = (0 0 0) to (16.3 16.3 16.3)
   1 by 1 by 1 MPI processor grid
-create_atoms 1 box
 Created 256 atoms
   using lattice units in orthogonal box = (0 0 0) to (16.3 16.3 16.3)
   create_atoms CPU = 0.000 seconds
-
-pair_style eam/alloy
-pair_coeff * * Al_zhou.eam.alloy Al
 Reading eam/alloy potential file Al_zhou.eam.alloy with DATE: 2007-10-12
-
-run 0
 WARNING: No fixes with time integration, atoms won't move
 For more information see https://docs.lammps.org/err0028 (src/verlet.cpp:60)
+Last active /omp style is pair_style eam/alloy/omp
 Neighbor list info ...
   update: every = 1 steps, delay = 0 steps, check = yes
   max neighbors/atom: 2000, page size: 100000
@@ -599,17 +412,21 @@ Neighbor list info ...
   ghost atom cutoff = 12.1025
   binsize = 6.05125, bins = 3 3 3
   1 neighbor lists, perpetual/occasional/extra = 1 0 0
-  (1) pair eam/alloy, perpetual
-      attributes: half, newton on
-      pair build: half/bin/atomonly/newton
+  (1) pair eam/alloy/omp, perpetual
+      attributes: half, newton on, omp
+      pair build: half/bin/atomonly/newton/omp
       stencil: half/bin/3d
       bin: standard
-Per MPI rank memory allocation (min/avg/max) = 3.492 | 3.492 | 3.492 Mbytes
+Setting up Verlet run ...
+  Unit style    : metal
+  Current step  : 0
+  Time step     : 0.001
+Per MPI rank memory allocation (min/avg/max) = 9.67 | 9.67 | 9.67 Mbytes
    Step          Temp          E_pair         E_mol          TotEng         Press     
          0   0             -916.4481       0             -916.4481       4778.6082    
-Loop time of 6.51e-07 on 1 procs for 0 steps with 256 atoms
+Loop time of 9.71e-07 on 8 procs for 0 steps with 256 atoms
 
-153.6% CPU use with 1 MPI tasks x 1 OpenMP threads
+0.0% CPU use with 1 MPI tasks x 8 OpenMP threads
 
 MPI task timing breakdown:
 Section |  min time  |  avg time  |  max time  |%varavg| %total
@@ -619,7 +436,7 @@ Neigh   | 0          | 0          | 0          |   0.0 |  0.00
 Comm    | 0          | 0          | 0          |   0.0 |  0.00
 Output  | 0          | 0          | 0          |   0.0 |  0.00
 Modify  | 0          | 0          | 0          |   0.0 |  0.00
-Other   |            | 6.51e-07   |            |       |100.00
+Other   |            | 9.71e-07   |            |       |100.00
 
 Nlocal:            256 ave         256 max         256 min
 Histogram: 1 0 0 0 0 0 0 0 0 0
@@ -632,44 +449,18 @@ Total # of neighbors = 54784
 Ave neighs/atom = 214
 Neighbor list builds = 0
 Dangerous builds = 0
-
-# derived per-atom quantities (equal-style variables are evaluated when used)
-variable vatom equal vol/count(all)
-variable ecoh  equal pe/count(all)
-
-# append one YAML record (a mapping) per lattice constant
-print "- {lattice_constant: ${a}, volume_per_atom: $(v_vatom:%.6f),       cohesive_energy: $(v_ecoh:%.6f)}" append ev.yaml screen no
-
-next a
-jump SELF loop
-
-clear
-OMP_NUM_THREADS environment is not set. Defaulting to 1 thread.
-  using 1 OpenMP thread(s) per MPI task
-units metal
-dimension 3
-boundary p p p
-atom_style atomic
-
-lattice fcc ${a} origin 0.25 0.25 0.25
-lattice fcc 4.10 origin 0.25 0.25 0.25
+  using 8 OpenMP thread(s) per MPI task
+using multi-threaded neighbor list subroutines
 Lattice spacing in x,y,z = 4.1 4.1 4.1
-region box block 0 4 0 4 0 4
-create_box 1 box
 Created orthogonal box = (0 0 0) to (16.4 16.4 16.4)
   1 by 1 by 1 MPI processor grid
-create_atoms 1 box
 Created 256 atoms
   using lattice units in orthogonal box = (0 0 0) to (16.4 16.4 16.4)
   create_atoms CPU = 0.000 seconds
-
-pair_style eam/alloy
-pair_coeff * * Al_zhou.eam.alloy Al
 Reading eam/alloy potential file Al_zhou.eam.alloy with DATE: 2007-10-12
-
-run 0
 WARNING: No fixes with time integration, atoms won't move
 For more information see https://docs.lammps.org/err0028 (src/verlet.cpp:60)
+Last active /omp style is pair_style eam/alloy/omp
 Neighbor list info ...
   update: every = 1 steps, delay = 0 steps, check = yes
   max neighbors/atom: 2000, page size: 100000
@@ -677,17 +468,21 @@ Neighbor list info ...
   ghost atom cutoff = 12.1025
   binsize = 6.05125, bins = 3 3 3
   1 neighbor lists, perpetual/occasional/extra = 1 0 0
-  (1) pair eam/alloy, perpetual
-      attributes: half, newton on
-      pair build: half/bin/atomonly/newton
+  (1) pair eam/alloy/omp, perpetual
+      attributes: half, newton on, omp
+      pair build: half/bin/atomonly/newton/omp
       stencil: half/bin/3d
       bin: standard
-Per MPI rank memory allocation (min/avg/max) = 3.492 | 3.492 | 3.492 Mbytes
+Setting up Verlet run ...
+  Unit style    : metal
+  Current step  : 0
+  Time step     : 0.001
+Per MPI rank memory allocation (min/avg/max) = 9.67 | 9.67 | 9.67 Mbytes
    Step          Temp          E_pair         E_mol          TotEng         Press     
          0   0             -916.24498      0             -916.24498     -12590.481    
-Loop time of 6.22e-07 on 1 procs for 0 steps with 256 atoms
+Loop time of 1.172e-06 on 8 procs for 0 steps with 256 atoms
 
-160.8% CPU use with 1 MPI tasks x 1 OpenMP threads
+85.3% CPU use with 1 MPI tasks x 8 OpenMP threads
 
 MPI task timing breakdown:
 Section |  min time  |  avg time  |  max time  |%varavg| %total
@@ -697,7 +492,7 @@ Neigh   | 0          | 0          | 0          |   0.0 |  0.00
 Comm    | 0          | 0          | 0          |   0.0 |  0.00
 Output  | 0          | 0          | 0          |   0.0 |  0.00
 Modify  | 0          | 0          | 0          |   0.0 |  0.00
-Other   |            | 6.22e-07   |            |       |100.00
+Other   |            | 1.172e-06  |            |       |100.00
 
 Nlocal:            256 ave         256 max         256 min
 Histogram: 1 0 0 0 0 0 0 0 0 0
@@ -710,44 +505,18 @@ Total # of neighbors = 54784
 Ave neighs/atom = 214
 Neighbor list builds = 0
 Dangerous builds = 0
-
-# derived per-atom quantities (equal-style variables are evaluated when used)
-variable vatom equal vol/count(all)
-variable ecoh  equal pe/count(all)
-
-# append one YAML record (a mapping) per lattice constant
-print "- {lattice_constant: ${a}, volume_per_atom: $(v_vatom:%.6f),       cohesive_energy: $(v_ecoh:%.6f)}" append ev.yaml screen no
-
-next a
-jump SELF loop
-
-clear
-OMP_NUM_THREADS environment is not set. Defaulting to 1 thread.
-  using 1 OpenMP thread(s) per MPI task
-units metal
-dimension 3
-boundary p p p
-atom_style atomic
-
-lattice fcc ${a} origin 0.25 0.25 0.25
-lattice fcc 4.125 origin 0.25 0.25 0.25
+  using 8 OpenMP thread(s) per MPI task
+using multi-threaded neighbor list subroutines
 Lattice spacing in x,y,z = 4.125 4.125 4.125
-region box block 0 4 0 4 0 4
-create_box 1 box
 Created orthogonal box = (0 0 0) to (16.5 16.5 16.5)
   1 by 1 by 1 MPI processor grid
-create_atoms 1 box
 Created 256 atoms
   using lattice units in orthogonal box = (0 0 0) to (16.5 16.5 16.5)
   create_atoms CPU = 0.000 seconds
-
-pair_style eam/alloy
-pair_coeff * * Al_zhou.eam.alloy Al
 Reading eam/alloy potential file Al_zhou.eam.alloy with DATE: 2007-10-12
-
-run 0
 WARNING: No fixes with time integration, atoms won't move
 For more information see https://docs.lammps.org/err0028 (src/verlet.cpp:60)
+Last active /omp style is pair_style eam/alloy/omp
 Neighbor list info ...
   update: every = 1 steps, delay = 0 steps, check = yes
   max neighbors/atom: 2000, page size: 100000
@@ -755,17 +524,21 @@ Neighbor list info ...
   ghost atom cutoff = 12.1025
   binsize = 6.05125, bins = 3 3 3
   1 neighbor lists, perpetual/occasional/extra = 1 0 0
-  (1) pair eam/alloy, perpetual
-      attributes: half, newton on
-      pair build: half/bin/atomonly/newton
+  (1) pair eam/alloy/omp, perpetual
+      attributes: half, newton on, omp
+      pair build: half/bin/atomonly/newton/omp
       stencil: half/bin/3d
       bin: standard
-Per MPI rank memory allocation (min/avg/max) = 3.492 | 3.492 | 3.492 Mbytes
+Setting up Verlet run ...
+  Unit style    : metal
+  Current step  : 0
+  Time step     : 0.001
+Per MPI rank memory allocation (min/avg/max) = 9.67 | 9.67 | 9.67 Mbytes
    Step          Temp          E_pair         E_mol          TotEng         Press     
          0   0             -915.20275      0             -915.20275     -28199.161    
-Loop time of 6.11e-07 on 1 procs for 0 steps with 256 atoms
+Loop time of 1.133e-06 on 8 procs for 0 steps with 256 atoms
 
-163.7% CPU use with 1 MPI tasks x 1 OpenMP threads
+88.3% CPU use with 1 MPI tasks x 8 OpenMP threads
 
 MPI task timing breakdown:
 Section |  min time  |  avg time  |  max time  |%varavg| %total
@@ -775,7 +548,7 @@ Neigh   | 0          | 0          | 0          |   0.0 |  0.00
 Comm    | 0          | 0          | 0          |   0.0 |  0.00
 Output  | 0          | 0          | 0          |   0.0 |  0.00
 Modify  | 0          | 0          | 0          |   0.0 |  0.00
-Other   |            | 6.11e-07   |            |       |100.00
+Other   |            | 1.133e-06  |            |       |100.00
 
 Nlocal:            256 ave         256 max         256 min
 Histogram: 1 0 0 0 0 0 0 0 0 0
@@ -788,44 +561,18 @@ Total # of neighbors = 54784
 Ave neighs/atom = 214
 Neighbor list builds = 0
 Dangerous builds = 0
-
-# derived per-atom quantities (equal-style variables are evaluated when used)
-variable vatom equal vol/count(all)
-variable ecoh  equal pe/count(all)
-
-# append one YAML record (a mapping) per lattice constant
-print "- {lattice_constant: ${a}, volume_per_atom: $(v_vatom:%.6f),       cohesive_energy: $(v_ecoh:%.6f)}" append ev.yaml screen no
-
-next a
-jump SELF loop
-
-clear
-OMP_NUM_THREADS environment is not set. Defaulting to 1 thread.
-  using 1 OpenMP thread(s) per MPI task
-units metal
-dimension 3
-boundary p p p
-atom_style atomic
-
-lattice fcc ${a} origin 0.25 0.25 0.25
-lattice fcc 4.15 origin 0.25 0.25 0.25
+  using 8 OpenMP thread(s) per MPI task
+using multi-threaded neighbor list subroutines
 Lattice spacing in x,y,z = 4.15 4.15 4.15
-region box block 0 4 0 4 0 4
-create_box 1 box
 Created orthogonal box = (0 0 0) to (16.6 16.6 16.6)
   1 by 1 by 1 MPI processor grid
-create_atoms 1 box
 Created 256 atoms
   using lattice units in orthogonal box = (0 0 0) to (16.6 16.6 16.6)
   create_atoms CPU = 0.000 seconds
-
-pair_style eam/alloy
-pair_coeff * * Al_zhou.eam.alloy Al
 Reading eam/alloy potential file Al_zhou.eam.alloy with DATE: 2007-10-12
-
-run 0
 WARNING: No fixes with time integration, atoms won't move
 For more information see https://docs.lammps.org/err0028 (src/verlet.cpp:60)
+Last active /omp style is pair_style eam/alloy/omp
 Neighbor list info ...
   update: every = 1 steps, delay = 0 steps, check = yes
   max neighbors/atom: 2000, page size: 100000
@@ -833,17 +580,21 @@ Neighbor list info ...
   ghost atom cutoff = 12.1025
   binsize = 6.05125, bins = 3 3 3
   1 neighbor lists, perpetual/occasional/extra = 1 0 0
-  (1) pair eam/alloy, perpetual
-      attributes: half, newton on
-      pair build: half/bin/atomonly/newton
+  (1) pair eam/alloy/omp, perpetual
+      attributes: half, newton on, omp
+      pair build: half/bin/atomonly/newton/omp
       stencil: half/bin/3d
       bin: standard
-Per MPI rank memory allocation (min/avg/max) = 3.492 | 3.492 | 3.492 Mbytes
+Setting up Verlet run ...
+  Unit style    : metal
+  Current step  : 0
+  Time step     : 0.001
+Per MPI rank memory allocation (min/avg/max) = 9.67 | 9.67 | 9.67 Mbytes
    Step          Temp          E_pair         E_mol          TotEng         Press     
          0   0             -913.39828      0             -913.39828     -41786.104    
-Loop time of 6.11e-07 on 1 procs for 0 steps with 256 atoms
+Loop time of 1.042e-06 on 8 procs for 0 steps with 256 atoms
 
-163.7% CPU use with 1 MPI tasks x 1 OpenMP threads
+96.0% CPU use with 1 MPI tasks x 8 OpenMP threads
 
 MPI task timing breakdown:
 Section |  min time  |  avg time  |  max time  |%varavg| %total
@@ -853,7 +604,7 @@ Neigh   | 0          | 0          | 0          |   0.0 |  0.00
 Comm    | 0          | 0          | 0          |   0.0 |  0.00
 Output  | 0          | 0          | 0          |   0.0 |  0.00
 Modify  | 0          | 0          | 0          |   0.0 |  0.00
-Other   |            | 6.11e-07   |            |       |100.00
+Other   |            | 1.042e-06  |            |       |100.00
 
 Nlocal:            256 ave         256 max         256 min
 Histogram: 1 0 0 0 0 0 0 0 0 0
@@ -866,44 +617,18 @@ Total # of neighbors = 54784
 Ave neighs/atom = 214
 Neighbor list builds = 0
 Dangerous builds = 0
-
-# derived per-atom quantities (equal-style variables are evaluated when used)
-variable vatom equal vol/count(all)
-variable ecoh  equal pe/count(all)
-
-# append one YAML record (a mapping) per lattice constant
-print "- {lattice_constant: ${a}, volume_per_atom: $(v_vatom:%.6f),       cohesive_energy: $(v_ecoh:%.6f)}" append ev.yaml screen no
-
-next a
-jump SELF loop
-
-clear
-OMP_NUM_THREADS environment is not set. Defaulting to 1 thread.
-  using 1 OpenMP thread(s) per MPI task
-units metal
-dimension 3
-boundary p p p
-atom_style atomic
-
-lattice fcc ${a} origin 0.25 0.25 0.25
-lattice fcc 4.175 origin 0.25 0.25 0.25
+  using 8 OpenMP thread(s) per MPI task
+using multi-threaded neighbor list subroutines
 Lattice spacing in x,y,z = 4.175 4.175 4.175
-region box block 0 4 0 4 0 4
-create_box 1 box
 Created orthogonal box = (0 0 0) to (16.7 16.7 16.7)
   1 by 1 by 1 MPI processor grid
-create_atoms 1 box
 Created 256 atoms
   using lattice units in orthogonal box = (0 0 0) to (16.7 16.7 16.7)
   create_atoms CPU = 0.000 seconds
-
-pair_style eam/alloy
-pair_coeff * * Al_zhou.eam.alloy Al
 Reading eam/alloy potential file Al_zhou.eam.alloy with DATE: 2007-10-12
-
-run 0
 WARNING: No fixes with time integration, atoms won't move
 For more information see https://docs.lammps.org/err0028 (src/verlet.cpp:60)
+Last active /omp style is pair_style eam/alloy/omp
 Neighbor list info ...
   update: every = 1 steps, delay = 0 steps, check = yes
   max neighbors/atom: 2000, page size: 100000
@@ -911,17 +636,21 @@ Neighbor list info ...
   ghost atom cutoff = 12.1025
   binsize = 6.05125, bins = 3 3 3
   1 neighbor lists, perpetual/occasional/extra = 1 0 0
-  (1) pair eam/alloy, perpetual
-      attributes: half, newton on
-      pair build: half/bin/atomonly/newton
+  (1) pair eam/alloy/omp, perpetual
+      attributes: half, newton on, omp
+      pair build: half/bin/atomonly/newton/omp
       stencil: half/bin/3d
       bin: standard
-Per MPI rank memory allocation (min/avg/max) = 3.492 | 3.492 | 3.492 Mbytes
+Setting up Verlet run ...
+  Unit style    : metal
+  Current step  : 0
+  Time step     : 0.001
+Per MPI rank memory allocation (min/avg/max) = 9.67 | 9.67 | 9.67 Mbytes
    Step          Temp          E_pair         E_mol          TotEng         Press     
          0   0             -910.92327      0             -910.92327     -53176.306    
-Loop time of 7.92e-07 on 1 procs for 0 steps with 256 atoms
+Loop time of 9.91e-07 on 8 procs for 0 steps with 256 atoms
 
-252.5% CPU use with 1 MPI tasks x 1 OpenMP threads
+100.9% CPU use with 1 MPI tasks x 8 OpenMP threads
 
 MPI task timing breakdown:
 Section |  min time  |  avg time  |  max time  |%varavg| %total
@@ -931,7 +660,7 @@ Neigh   | 0          | 0          | 0          |   0.0 |  0.00
 Comm    | 0          | 0          | 0          |   0.0 |  0.00
 Output  | 0          | 0          | 0          |   0.0 |  0.00
 Modify  | 0          | 0          | 0          |   0.0 |  0.00
-Other   |            | 7.92e-07   |            |       |100.00
+Other   |            | 9.91e-07   |            |       |100.00
 
 Nlocal:            256 ave         256 max         256 min
 Histogram: 1 0 0 0 0 0 0 0 0 0
@@ -944,44 +673,18 @@ Total # of neighbors = 48640
 Ave neighs/atom = 190
 Neighbor list builds = 0
 Dangerous builds = 0
-
-# derived per-atom quantities (equal-style variables are evaluated when used)
-variable vatom equal vol/count(all)
-variable ecoh  equal pe/count(all)
-
-# append one YAML record (a mapping) per lattice constant
-print "- {lattice_constant: ${a}, volume_per_atom: $(v_vatom:%.6f),       cohesive_energy: $(v_ecoh:%.6f)}" append ev.yaml screen no
-
-next a
-jump SELF loop
-
-clear
-OMP_NUM_THREADS environment is not set. Defaulting to 1 thread.
-  using 1 OpenMP thread(s) per MPI task
-units metal
-dimension 3
-boundary p p p
-atom_style atomic
-
-lattice fcc ${a} origin 0.25 0.25 0.25
-lattice fcc 4.20 origin 0.25 0.25 0.25
+  using 8 OpenMP thread(s) per MPI task
+using multi-threaded neighbor list subroutines
 Lattice spacing in x,y,z = 4.2 4.2 4.2
-region box block 0 4 0 4 0 4
-create_box 1 box
 Created orthogonal box = (0 0 0) to (16.8 16.8 16.8)
   1 by 1 by 1 MPI processor grid
-create_atoms 1 box
 Created 256 atoms
   using lattice units in orthogonal box = (0 0 0) to (16.8 16.8 16.8)
   create_atoms CPU = 0.000 seconds
-
-pair_style eam/alloy
-pair_coeff * * Al_zhou.eam.alloy Al
 Reading eam/alloy potential file Al_zhou.eam.alloy with DATE: 2007-10-12
-
-run 0
 WARNING: No fixes with time integration, atoms won't move
 For more information see https://docs.lammps.org/err0028 (src/verlet.cpp:60)
+Last active /omp style is pair_style eam/alloy/omp
 Neighbor list info ...
   update: every = 1 steps, delay = 0 steps, check = yes
   max neighbors/atom: 2000, page size: 100000
@@ -989,17 +692,21 @@ Neighbor list info ...
   ghost atom cutoff = 12.1025
   binsize = 6.05125, bins = 3 3 3
   1 neighbor lists, perpetual/occasional/extra = 1 0 0
-  (1) pair eam/alloy, perpetual
-      attributes: half, newton on
-      pair build: half/bin/atomonly/newton
+  (1) pair eam/alloy/omp, perpetual
+      attributes: half, newton on, omp
+      pair build: half/bin/atomonly/newton/omp
       stencil: half/bin/3d
       bin: standard
-Per MPI rank memory allocation (min/avg/max) = 3.492 | 3.492 | 3.492 Mbytes
+Setting up Verlet run ...
+  Unit style    : metal
+  Current step  : 0
+  Time step     : 0.001
+Per MPI rank memory allocation (min/avg/max) = 9.67 | 9.67 | 9.67 Mbytes
    Step          Temp          E_pair         E_mol          TotEng         Press     
          0   0             -907.8794       0             -907.8794      -62314.205    
-Loop time of 6.41e-07 on 1 procs for 0 steps with 256 atoms
+Loop time of 9.92e-07 on 8 procs for 0 steps with 256 atoms
 
-156.0% CPU use with 1 MPI tasks x 1 OpenMP threads
+100.8% CPU use with 1 MPI tasks x 8 OpenMP threads
 
 MPI task timing breakdown:
 Section |  min time  |  avg time  |  max time  |%varavg| %total
@@ -1009,7 +716,7 @@ Neigh   | 0          | 0          | 0          |   0.0 |  0.00
 Comm    | 0          | 0          | 0          |   0.0 |  0.00
 Output  | 0          | 0          | 0          |   0.0 |  0.00
 Modify  | 0          | 0          | 0          |   0.0 |  0.00
-Other   |            | 6.41e-07   |            |       |100.00
+Other   |            | 9.92e-07   |            |       |100.00
 
 Nlocal:            256 ave         256 max         256 min
 Histogram: 1 0 0 0 0 0 0 0 0 0
@@ -1022,44 +729,18 @@ Total # of neighbors = 48640
 Ave neighs/atom = 190
 Neighbor list builds = 0
 Dangerous builds = 0
-
-# derived per-atom quantities (equal-style variables are evaluated when used)
-variable vatom equal vol/count(all)
-variable ecoh  equal pe/count(all)
-
-# append one YAML record (a mapping) per lattice constant
-print "- {lattice_constant: ${a}, volume_per_atom: $(v_vatom:%.6f),       cohesive_energy: $(v_ecoh:%.6f)}" append ev.yaml screen no
-
-next a
-jump SELF loop
-
-clear
-OMP_NUM_THREADS environment is not set. Defaulting to 1 thread.
-  using 1 OpenMP thread(s) per MPI task
-units metal
-dimension 3
-boundary p p p
-atom_style atomic
-
-lattice fcc ${a} origin 0.25 0.25 0.25
-lattice fcc 4.225 origin 0.25 0.25 0.25
+  using 8 OpenMP thread(s) per MPI task
+using multi-threaded neighbor list subroutines
 Lattice spacing in x,y,z = 4.225 4.225 4.225
-region box block 0 4 0 4 0 4
-create_box 1 box
 Created orthogonal box = (0 0 0) to (16.9 16.9 16.9)
   1 by 1 by 1 MPI processor grid
-create_atoms 1 box
 Created 256 atoms
   using lattice units in orthogonal box = (0 0 0) to (16.9 16.9 16.9)
   create_atoms CPU = 0.000 seconds
-
-pair_style eam/alloy
-pair_coeff * * Al_zhou.eam.alloy Al
 Reading eam/alloy potential file Al_zhou.eam.alloy with DATE: 2007-10-12
-
-run 0
 WARNING: No fixes with time integration, atoms won't move
 For more information see https://docs.lammps.org/err0028 (src/verlet.cpp:60)
+Last active /omp style is pair_style eam/alloy/omp
 Neighbor list info ...
   update: every = 1 steps, delay = 0 steps, check = yes
   max neighbors/atom: 2000, page size: 100000
@@ -1067,17 +748,21 @@ Neighbor list info ...
   ghost atom cutoff = 12.1025
   binsize = 6.05125, bins = 3 3 3
   1 neighbor lists, perpetual/occasional/extra = 1 0 0
-  (1) pair eam/alloy, perpetual
-      attributes: half, newton on
-      pair build: half/bin/atomonly/newton
+  (1) pair eam/alloy/omp, perpetual
+      attributes: half, newton on, omp
+      pair build: half/bin/atomonly/newton/omp
       stencil: half/bin/3d
       bin: standard
-Per MPI rank memory allocation (min/avg/max) = 3.492 | 3.492 | 3.492 Mbytes
+Setting up Verlet run ...
+  Unit style    : metal
+  Current step  : 0
+  Time step     : 0.001
+Per MPI rank memory allocation (min/avg/max) = 9.67 | 9.67 | 9.67 Mbytes
    Step          Temp          E_pair         E_mol          TotEng         Press     
          0   0             -904.3715       0             -904.3715      -69322.611    
-Loop time of 7.51e-07 on 1 procs for 0 steps with 256 atoms
+Loop time of 9.82e-07 on 8 procs for 0 steps with 256 atoms
 
-133.2% CPU use with 1 MPI tasks x 1 OpenMP threads
+101.8% CPU use with 1 MPI tasks x 8 OpenMP threads
 
 MPI task timing breakdown:
 Section |  min time  |  avg time  |  max time  |%varavg| %total
@@ -1087,7 +772,7 @@ Neigh   | 0          | 0          | 0          |   0.0 |  0.00
 Comm    | 0          | 0          | 0          |   0.0 |  0.00
 Output  | 0          | 0          | 0          |   0.0 |  0.00
 Modify  | 0          | 0          | 0          |   0.0 |  0.00
-Other   |            | 7.51e-07   |            |       |100.00
+Other   |            | 9.82e-07   |            |       |100.00
 
 Nlocal:            256 ave         256 max         256 min
 Histogram: 1 0 0 0 0 0 0 0 0 0
@@ -1100,44 +785,18 @@ Total # of neighbors = 48640
 Ave neighs/atom = 190
 Neighbor list builds = 0
 Dangerous builds = 0
-
-# derived per-atom quantities (equal-style variables are evaluated when used)
-variable vatom equal vol/count(all)
-variable ecoh  equal pe/count(all)
-
-# append one YAML record (a mapping) per lattice constant
-print "- {lattice_constant: ${a}, volume_per_atom: $(v_vatom:%.6f),       cohesive_energy: $(v_ecoh:%.6f)}" append ev.yaml screen no
-
-next a
-jump SELF loop
-
-clear
-OMP_NUM_THREADS environment is not set. Defaulting to 1 thread.
-  using 1 OpenMP thread(s) per MPI task
-units metal
-dimension 3
-boundary p p p
-atom_style atomic
-
-lattice fcc ${a} origin 0.25 0.25 0.25
-lattice fcc 4.25 origin 0.25 0.25 0.25
+  using 8 OpenMP thread(s) per MPI task
+using multi-threaded neighbor list subroutines
 Lattice spacing in x,y,z = 4.25 4.25 4.25
-region box block 0 4 0 4 0 4
-create_box 1 box
 Created orthogonal box = (0 0 0) to (17 17 17)
   1 by 1 by 1 MPI processor grid
-create_atoms 1 box
 Created 256 atoms
   using lattice units in orthogonal box = (0 0 0) to (17 17 17)
   create_atoms CPU = 0.000 seconds
-
-pair_style eam/alloy
-pair_coeff * * Al_zhou.eam.alloy Al
 Reading eam/alloy potential file Al_zhou.eam.alloy with DATE: 2007-10-12
-
-run 0
 WARNING: No fixes with time integration, atoms won't move
 For more information see https://docs.lammps.org/err0028 (src/verlet.cpp:60)
+Last active /omp style is pair_style eam/alloy/omp
 Neighbor list info ...
   update: every = 1 steps, delay = 0 steps, check = yes
   max neighbors/atom: 2000, page size: 100000
@@ -1145,17 +804,21 @@ Neighbor list info ...
   ghost atom cutoff = 12.1025
   binsize = 6.05125, bins = 3 3 3
   1 neighbor lists, perpetual/occasional/extra = 1 0 0
-  (1) pair eam/alloy, perpetual
-      attributes: half, newton on
-      pair build: half/bin/atomonly/newton
+  (1) pair eam/alloy/omp, perpetual
+      attributes: half, newton on, omp
+      pair build: half/bin/atomonly/newton/omp
       stencil: half/bin/3d
       bin: standard
-Per MPI rank memory allocation (min/avg/max) = 3.492 | 3.492 | 3.492 Mbytes
+Setting up Verlet run ...
+  Unit style    : metal
+  Current step  : 0
+  Time step     : 0.001
+Per MPI rank memory allocation (min/avg/max) = 9.67 | 9.67 | 9.67 Mbytes
    Step          Temp          E_pair         E_mol          TotEng         Press     
          0   0             -900.48448      0             -900.48448     -74995.979    
-Loop time of 6.41e-07 on 1 procs for 0 steps with 256 atoms
+Loop time of 1.052e-06 on 8 procs for 0 steps with 256 atoms
 
-0.0% CPU use with 1 MPI tasks x 1 OpenMP threads
+95.1% CPU use with 1 MPI tasks x 8 OpenMP threads
 
 MPI task timing breakdown:
 Section |  min time  |  avg time  |  max time  |%varavg| %total
@@ -1165,7 +828,7 @@ Neigh   | 0          | 0          | 0          |   0.0 |  0.00
 Comm    | 0          | 0          | 0          |   0.0 |  0.00
 Output  | 0          | 0          | 0          |   0.0 |  0.00
 Modify  | 0          | 0          | 0          |   0.0 |  0.00
-Other   |            | 6.41e-07   |            |       |100.00
+Other   |            | 1.052e-06  |            |       |100.00
 
 Nlocal:            256 ave         256 max         256 min
 Histogram: 1 0 0 0 0 0 0 0 0 0
@@ -1178,44 +841,18 @@ Total # of neighbors = 48640
 Ave neighs/atom = 190
 Neighbor list builds = 0
 Dangerous builds = 0
-
-# derived per-atom quantities (equal-style variables are evaluated when used)
-variable vatom equal vol/count(all)
-variable ecoh  equal pe/count(all)
-
-# append one YAML record (a mapping) per lattice constant
-print "- {lattice_constant: ${a}, volume_per_atom: $(v_vatom:%.6f),       cohesive_energy: $(v_ecoh:%.6f)}" append ev.yaml screen no
-
-next a
-jump SELF loop
-
-clear
-OMP_NUM_THREADS environment is not set. Defaulting to 1 thread.
-  using 1 OpenMP thread(s) per MPI task
-units metal
-dimension 3
-boundary p p p
-atom_style atomic
-
-lattice fcc ${a} origin 0.25 0.25 0.25
-lattice fcc 4.275 origin 0.25 0.25 0.25
+  using 8 OpenMP thread(s) per MPI task
+using multi-threaded neighbor list subroutines
 Lattice spacing in x,y,z = 4.275 4.275 4.275
-region box block 0 4 0 4 0 4
-create_box 1 box
 Created orthogonal box = (0 0 0) to (17.1 17.1 17.1)
   1 by 1 by 1 MPI processor grid
-create_atoms 1 box
 Created 256 atoms
   using lattice units in orthogonal box = (0 0 0) to (17.1 17.1 17.1)
   create_atoms CPU = 0.000 seconds
-
-pair_style eam/alloy
-pair_coeff * * Al_zhou.eam.alloy Al
 Reading eam/alloy potential file Al_zhou.eam.alloy with DATE: 2007-10-12
-
-run 0
 WARNING: No fixes with time integration, atoms won't move
 For more information see https://docs.lammps.org/err0028 (src/verlet.cpp:60)
+Last active /omp style is pair_style eam/alloy/omp
 Neighbor list info ...
   update: every = 1 steps, delay = 0 steps, check = yes
   max neighbors/atom: 2000, page size: 100000
@@ -1223,17 +860,21 @@ Neighbor list info ...
   ghost atom cutoff = 12.1025
   binsize = 6.05125, bins = 3 3 3
   1 neighbor lists, perpetual/occasional/extra = 1 0 0
-  (1) pair eam/alloy, perpetual
-      attributes: half, newton on
-      pair build: half/bin/atomonly/newton
+  (1) pair eam/alloy/omp, perpetual
+      attributes: half, newton on, omp
+      pair build: half/bin/atomonly/newton/omp
       stencil: half/bin/3d
       bin: standard
-Per MPI rank memory allocation (min/avg/max) = 3.492 | 3.492 | 3.492 Mbytes
+Setting up Verlet run ...
+  Unit style    : metal
+  Current step  : 0
+  Time step     : 0.001
+Per MPI rank memory allocation (min/avg/max) = 9.67 | 9.67 | 9.67 Mbytes
    Step          Temp          E_pair         E_mol          TotEng         Press     
          0   0             -896.27101      0             -896.27101     -79649.745    
-Loop time of 6.11e-07 on 1 procs for 0 steps with 256 atoms
+Loop time of 9.82e-07 on 8 procs for 0 steps with 256 atoms
 
-163.7% CPU use with 1 MPI tasks x 1 OpenMP threads
+203.7% CPU use with 1 MPI tasks x 8 OpenMP threads
 
 MPI task timing breakdown:
 Section |  min time  |  avg time  |  max time  |%varavg| %total
@@ -1243,7 +884,7 @@ Neigh   | 0          | 0          | 0          |   0.0 |  0.00
 Comm    | 0          | 0          | 0          |   0.0 |  0.00
 Output  | 0          | 0          | 0          |   0.0 |  0.00
 Modify  | 0          | 0          | 0          |   0.0 |  0.00
-Other   |            | 6.11e-07   |            |       |100.00
+Other   |            | 9.82e-07   |            |       |100.00
 
 Nlocal:            256 ave         256 max         256 min
 Histogram: 1 0 0 0 0 0 0 0 0 0
@@ -1256,44 +897,18 @@ Total # of neighbors = 48640
 Ave neighs/atom = 190
 Neighbor list builds = 0
 Dangerous builds = 0
-
-# derived per-atom quantities (equal-style variables are evaluated when used)
-variable vatom equal vol/count(all)
-variable ecoh  equal pe/count(all)
-
-# append one YAML record (a mapping) per lattice constant
-print "- {lattice_constant: ${a}, volume_per_atom: $(v_vatom:%.6f),       cohesive_energy: $(v_ecoh:%.6f)}" append ev.yaml screen no
-
-next a
-jump SELF loop
-
-clear
-OMP_NUM_THREADS environment is not set. Defaulting to 1 thread.
-  using 1 OpenMP thread(s) per MPI task
-units metal
-dimension 3
-boundary p p p
-atom_style atomic
-
-lattice fcc ${a} origin 0.25 0.25 0.25
-lattice fcc 4.30 origin 0.25 0.25 0.25
+  using 8 OpenMP thread(s) per MPI task
+using multi-threaded neighbor list subroutines
 Lattice spacing in x,y,z = 4.3 4.3 4.3
-region box block 0 4 0 4 0 4
-create_box 1 box
 Created orthogonal box = (0 0 0) to (17.2 17.2 17.2)
   1 by 1 by 1 MPI processor grid
-create_atoms 1 box
 Created 256 atoms
   using lattice units in orthogonal box = (0 0 0) to (17.2 17.2 17.2)
   create_atoms CPU = 0.000 seconds
-
-pair_style eam/alloy
-pair_coeff * * Al_zhou.eam.alloy Al
 Reading eam/alloy potential file Al_zhou.eam.alloy with DATE: 2007-10-12
-
-run 0
 WARNING: No fixes with time integration, atoms won't move
 For more information see https://docs.lammps.org/err0028 (src/verlet.cpp:60)
+Last active /omp style is pair_style eam/alloy/omp
 Neighbor list info ...
   update: every = 1 steps, delay = 0 steps, check = yes
   max neighbors/atom: 2000, page size: 100000
@@ -1301,17 +916,21 @@ Neighbor list info ...
   ghost atom cutoff = 12.1025
   binsize = 6.05125, bins = 3 3 3
   1 neighbor lists, perpetual/occasional/extra = 1 0 0
-  (1) pair eam/alloy, perpetual
-      attributes: half, newton on
-      pair build: half/bin/atomonly/newton
+  (1) pair eam/alloy/omp, perpetual
+      attributes: half, newton on, omp
+      pair build: half/bin/atomonly/newton/omp
       stencil: half/bin/3d
       bin: standard
-Per MPI rank memory allocation (min/avg/max) = 3.492 | 3.492 | 3.492 Mbytes
+Setting up Verlet run ...
+  Unit style    : metal
+  Current step  : 0
+  Time step     : 0.001
+Per MPI rank memory allocation (min/avg/max) = 9.67 | 9.67 | 9.67 Mbytes
    Step          Temp          E_pair         E_mol          TotEng         Press     
          0   0             -891.77637      0             -891.77637     -83438.509    
-Loop time of 6.22e-07 on 1 procs for 0 steps with 256 atoms
+Loop time of 1.062e-06 on 8 procs for 0 steps with 256 atoms
 
-160.8% CPU use with 1 MPI tasks x 1 OpenMP threads
+94.2% CPU use with 1 MPI tasks x 8 OpenMP threads
 
 MPI task timing breakdown:
 Section |  min time  |  avg time  |  max time  |%varavg| %total
@@ -1321,7 +940,7 @@ Neigh   | 0          | 0          | 0          |   0.0 |  0.00
 Comm    | 0          | 0          | 0          |   0.0 |  0.00
 Output  | 0          | 0          | 0          |   0.0 |  0.00
 Modify  | 0          | 0          | 0          |   0.0 |  0.00
-Other   |            | 6.22e-07   |            |       |100.00
+Other   |            | 1.062e-06  |            |       |100.00
 
 Nlocal:            256 ave         256 max         256 min
 Histogram: 1 0 0 0 0 0 0 0 0 0
@@ -1334,17 +953,4 @@ Total # of neighbors = 47104
 Ave neighs/atom = 184
 Neighbor list builds = 0
 Dangerous builds = 0
-
-# derived per-atom quantities (equal-style variables are evaluated when used)
-variable vatom equal vol/count(all)
-variable ecoh  equal pe/count(all)
-
-# append one YAML record (a mapping) per lattice constant
-print "- {lattice_constant: ${a}, volume_per_atom: $(v_vatom:%.6f),       cohesive_energy: $(v_ecoh:%.6f)}" append ev.yaml screen no
-
-next a
-jump SELF loop
-
-print "Energy-volume scan complete; results written to ev.yaml"
 Energy-volume scan complete; results written to ev.yaml
-Total wall time: 0:00:00

@@ -2,54 +2,30 @@
 # comments start with a # as the first character.
 # comments and empty lines are ignored
 ##############################################################################
-# Tutorial 14: Chemical short-range order in a high-entropy alloy (CoCrFeNi)
+# Tutorial 14: Radiation damage cascade (bcc iron, compute frenkel)
 #
 # 1) input file templates
 # the first file will be automatically loaded
-sro.lmp
-mixing.lmp
-plot.py
+cascade.lmp
+cascade-plot.py
 
 # 2) support files
-FeNiCrCoCu-heafixed.setfl
+Fe_mm.eam.fs
 
 # 3) solution files
 # only downloaded on request
-solution/sro.log
-solution/energy.dat
-solution/anneal.dump
-solution/ordered.dump
-solution/mixing-output.txt
-solution/mixing-2nnmeam-output.txt
-solution/mixing-sharifi-output.txt
-solution/plot-output.txt
-solution/sro-alpha.png
-solution/sro-energy.png
-solution/sro-hot.lmp
-solution/sro-2nnmeam.lmp
-solution/sro-sharifi.lmp
-solution/mixing-2nnmeam.lmp
-solution/mixing-sharifi.lmp
-solution/compareviz.lmp
-solution/compare-alpha.py
-solution/geomviz.lmp
-solution/random.dump
-solution/alloy-geometry.png
-solution/FeNiCrCoCu-heafixed.setfl
-solution/library_2nn.meam
-solution/MoCoNiVFeAlCr_2nn.meam
-solution/library.meam
-solution/FeMnNiTiCuCrCoAl.meam
-solution/anneal-hot.dump
-solution/anneal-2nnmeam.dump
-solution/anneal-sharifi.dump
-solution/energy-hot.dat
-solution/energy-2nnmeam.dat
-solution/energy-sharifi.dat
-solution/ordered-hot.data
-solution/ordered-2nnmeam.data
-solution/ordered-sharifi.data
-solution/compare-alpha.png
-solution/compare-hot.png
-solution/compare-2nnmeam.png
-solution/compare-sharifi.png
+solution/cascade.log
+solution/Fe_mm.eam.fs
+solution/cascade.lmp
+solution/cascade-plot.py
+solution/clusters.lmp
+solution/clusters.txt
+solution/clusters.log
+solution/cascade.dat
+solution/cascade.png
+solution/final.dump
+solution/defectviz.lmp
+solution/defects.png
+solution/peak.dump
+solution/peakviz.lmp
+solution/peak.png

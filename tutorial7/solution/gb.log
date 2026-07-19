@@ -1,0 +1,274 @@
+LAMMPS (30 Mar 2026 - Development - patch_30Mar2026-1121-g91d4111a9)
+  using 4 OpenMP thread(s) per MPI task
+package omp 0
+using multi-threaded neighbor list subroutines
+# LAMMPS Input File
+# Licensed under CC BY 4.0
+# A Set of Materials-Science Tutorials for the LAMMPS Simulation Package
+# Modernized recreation of the MSU/CAVS tutorials by Mark A. Tschopp
+# Tutorial 7: build a Sigma5(310) symmetric tilt grain boundary in fcc Al.
+
+# lattice constant (equilibrium value for the Zhou potential, see Tutorial 1)
+variable a0 equal 4.0817
+
+# Sigma5(310) STGB geometry (box units):
+#   x along [0 3 1]  -> period sqrt(10)*a0   (in the GB plane)
+#   y along [0 -1 3] -> period sqrt(10)*a0   (grain-boundary normal)
+#   z along [1 0 0]  -> period a0            (the [100] tilt axis)
+variable bx equal sqrt(10)*v_a0
+variable bz equal v_a0
+variable ny equal 4                       # number of [0 -1 3] periods per grain
+variable by equal v_ny*sqrt(10)*v_a0
+
+# 1) Initialization
+units metal
+dimension 3
+boundary p p p
+atom_style atomic
+
+# 2) System definition: two mis-oriented grains meeting at y = 0
+lattice fcc ${a0}
+lattice fcc 4.0817
+Lattice spacing in x,y,z = 4.0817 4.0817 4.0817
+region box block 0 ${bx} -${by} ${by} 0 ${bz} units box
+region box block 0 12.9074687255093 -${by} ${by} 0 ${bz} units box
+region box block 0 12.9074687255093 -51.6298749020371 ${by} 0 ${bz} units box
+region box block 0 12.9074687255093 -51.6298749020371 51.6298749020371 0 ${bz} units box
+region box block 0 12.9074687255093 -51.6298749020371 51.6298749020371 0 4.0817 units box
+create_box 2 box
+Created orthogonal box = (0 -51.629875 0) to (12.907469 51.629875 4.0817)
+  1 by 1 by 1 MPI processor grid
+
+region upper block INF INF 0.0 ${by} INF INF units box
+region upper block INF INF 0.0 51.6298749020371 INF INF units box
+lattice fcc ${a0} orient x 0 3 1 orient y 0 -1 3 orient z 1 0 0
+lattice fcc 4.0817 orient x 0 3 1 orient y 0 -1 3 orient z 1 0 0
+Lattice spacing in x,y,z = 5.1629875 5.1629875 4.0817
+create_atoms 1 region upper
+Created 160 atoms
+  using lattice units in orthogonal box = (0 -51.629875 0) to (12.907469 51.629875 4.0817)
+  create_atoms CPU = 0.000 seconds
+
+region lower block INF INF -${by} 0.0 INF INF units box
+region lower block INF INF -51.6298749020371 0.0 INF INF units box
+lattice fcc ${a0} orient x 0 3 -1 orient y 0 1 3 orient z 1 0 0
+lattice fcc 4.0817 orient x 0 3 -1 orient y 0 1 3 orient z 1 0 0
+Lattice spacing in x,y,z = 5.1629875 5.1629875 4.0817
+create_atoms 2 region lower
+Created 162 atoms
+  using lattice units in orthogonal box = (0 -51.629875 0) to (12.907469 51.629875 4.0817)
+  create_atoms CPU = 0.000 seconds
+
+group upper type 1
+160 atoms in group upper
+group lower type 2
+162 atoms in group lower
+
+# 3) Settings
+pair_style eam/alloy
+pair_coeff * * Al_zhou.eam.alloy Al Al
+Reading eam/alloy potential file Al_zhou.eam.alloy with DATE: 2007-10-12
+
+# remove atoms that nearly coincide across the grain boundary
+delete_atoms overlap 0.35 lower upper
+System init for delete_atoms ...
+Last active /omp style is pair_style eam/alloy/omp
+Neighbor list info ...
+  update: every = 1 steps, delay = 0 steps, check = yes
+  max neighbors/atom: 2000, page size: 100000
+  master list distance cutoff = 12.1025
+  ghost atom cutoff = 12.1025
+  binsize = 6.05125, bins = 3 18 1
+  2 neighbor lists, perpetual/occasional/extra = 1 1 0
+  (1) command delete_atoms, occasional
+      attributes: full, newton on, omp
+      pair build: full/bin/atomonly/omp
+      stencil: full/bin/3d
+      bin: standard
+  (2) pair eam/alloy/omp, perpetual
+      attributes: half, newton on, omp
+      pair build: half/bin/atomonly/newton/omp
+      stencil: half/bin/3d
+      bin: standard
+Deleted 2 atoms, new total = 320
+
+compute csym all centro/atom fcc
+compute eng  all pe/atom
+
+# 4) Monitoring
+thermo 50
+thermo_style custom step pe press pxx pyy pzz lx ly lz
+
+# 5) Minimization: relax the atoms, then let the box relax along the GB normal (y)
+min_style cg
+minimize 1.0e-12 1.0e-12 10000 100000
+Last active /omp style is pair_style eam/alloy/omp
+Neighbor list info ...
+  update: every = 1 steps, delay = 0 steps, check = yes
+  max neighbors/atom: 2000, page size: 100000
+  master list distance cutoff = 12.1025
+  ghost atom cutoff = 12.1025
+  binsize = 6.05125, bins = 3 18 1
+  2 neighbor lists, perpetual/occasional/extra = 1 1 0
+  (1) pair eam/alloy/omp, perpetual
+      attributes: half, newton on, omp
+      pair build: half/bin/atomonly/newton/omp
+      stencil: half/bin/3d
+      bin: standard
+  (2) compute centro/atom, occasional
+      attributes: full, newton on, omp
+      pair build: full/bin/atomonly/omp
+      stencil: full/bin/3d
+      bin: standard
+Per MPI rank memory allocation (min/avg/max) = 9.208 | 9.208 | 9.208 Mbytes
+   Step         PotEng         Press           Pxx            Pyy            Pzz             Lx             Ly             Lz      
+         0  -1108.1416      13991.685      883.46227      40307.79       783.80286      12.907469      103.25975      4.0817       
+        50  -1141.7272      6802.3427      4528.4879      10944.438      4934.1021      12.907469      103.25975      4.0817       
+        54  -1141.7272      6802.5188      4528.6107      10944.739      4934.2066      12.907469      103.25975      4.0817       
+Loop time of 0.0299048 on 4 procs for 54 steps with 320 atoms
+
+395.3% CPU use with 1 MPI tasks x 4 OpenMP threads
+
+Minimization stats:
+  Stopping criterion = energy tolerance
+  Energy initial, next-to-last, final = 
+     -1108.14160223696  -1141.72722442685  -1141.72722442778
+  Force two-norm initial, final = 71.025149 6.7946616e-05
+  Force max component initial, final = 25.10582 1.4701278e-05
+  Final line search alpha, max atom move = 1 1.4701278e-05
+  Iterations, force evaluations = 54 102
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 0.027048   | 0.027048   | 0.027048   |   0.0 | 90.45
+Neigh   | 0          | 0          | 0          |   0.0 |  0.00
+Comm    | 0.0020383  | 0.0020383  | 0.0020383  |   0.0 |  6.82
+Output  | 1.1212e-05 | 1.1212e-05 | 1.1212e-05 |   0.0 |  0.04
+Modify  | 0.00047707 | 0.00047707 | 0.00047707 |   0.0 |  1.60
+Other   |            | 0.0003305  |            |       |  1.11
+
+Nlocal:            320 ave         320 max         320 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Nghost:           6966 ave        6966 max        6966 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Neighs:          68536 ave       68536 max       68536 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+FullNghs:            0 ave           0 max           0 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+
+Total # of neighbors = 68536
+Ave neighs/atom = 214.175
+Neighbor list builds = 0
+Dangerous builds = 0
+fix relax all box/relax y 0.0 vmax 0.001
+minimize 1.0e-12 1.0e-12 10000 100000
+Last active /omp style is pair_style eam/alloy/omp
+WARNING: Energy due to 3 extra global DOFs will be included in minimizer energies
+ (src/min.cpp:222)
+Per MPI rank memory allocation (min/avg/max) = 9.208 | 9.208 | 9.208 Mbytes
+   Step         PotEng         Press           Pxx            Pyy            Pzz             Lx             Ly             Lz      
+        54  -1141.7272      6802.5188      4528.6107      10944.739      4934.2066      12.907469      103.25975      4.0817       
+       100  -1141.8928     -1398.6061     -2083.0669      28.418516     -2141.17        12.907469      104.19675      4.0817       
+       150  -1141.8942     -1447.1634     -2133.8405     -33.593603     -2174.0562      12.907469      104.20688      4.0817       
+       200  -1141.8957     -1425.4443     -2128.3194      4.8422215     -2152.8557      12.907469      104.19986      4.0817       
+       250  -1141.8962     -1474.3864     -2226.6296      0.28671073    -2196.8164      12.907469      104.20888      4.0817       
+       300  -1141.8962     -1462.5735     -2201.4174      0.076120991   -2186.3792      12.907469      104.20735      4.0817       
+Loop time of 0.151749 on 4 procs for 246 steps with 320 atoms
+
+397.8% CPU use with 1 MPI tasks x 4 OpenMP threads
+
+Minimization stats:
+  Stopping criterion = energy tolerance
+  Energy initial, next-to-last, final = 
+     -1141.72722442778   -1141.8961820804  -1141.89618208101
+  Force two-norm initial, final = 37.162788 0.00077268919
+  Force max component initial, final = 37.162788 0.00025846831
+  Final line search alpha, max atom move = 0.51090514 0.00013205279
+  Iterations, force evaluations = 246 484
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 0.134      | 0.134      | 0.134      |   0.0 | 88.31
+Neigh   | 0.00025498 | 0.00025498 | 0.00025498 |   0.0 |  0.17
+Comm    | 0.0067079  | 0.0067079  | 0.0067079  |   0.0 |  4.42
+Output  | 2.619e-05  | 2.619e-05  | 2.619e-05  |   0.0 |  0.02
+Modify  | 0.0019383  | 0.0019383  | 0.0019383  |   0.0 |  1.28
+Other   |            | 0.008819   |            |       |  5.81
+
+Nlocal:            320 ave         320 max         320 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Nghost:           6966 ave        6966 max        6966 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Neighs:          68124 ave       68124 max       68124 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+FullNghs:            0 ave           0 max           0 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+
+Total # of neighbors = 68124
+Ave neighs/atom = 212.8875
+Neighbor list builds = 1
+Dangerous builds = 0
+
+# grain-boundary energy: (E_total - N E_coh) / (2 A), two GBs in the periodic cell
+# E_coh is the perfect-crystal cohesive energy for this potential (Tutorial 1)
+variable ecoh   equal -3.5800
+variable gbarea equal lx*lz
+variable gbe    equal (pe-v_ecoh*count(all))/(2.0*v_gbarea)   # eV/Ang^2
+variable gbeJ   equal v_gbe*16021.766                          # mJ/m^2
+print "----------------------------------------------------"
+----------------------------------------------------
+print "Number of atoms       = $(count(all))"
+Number of atoms       = 320
+print "Grain-boundary energy = $(v_gbeJ:%.1f) mJ/m^2"
+Grain-boundary energy = 563.2 mJ/m^2
+print "----------------------------------------------------"
+----------------------------------------------------
+
+# visualization: replicate three GB periods along x (figure only; the energy
+# above is per unit area and independent of this), then render looking down
+# the [100] tilt axis, colored by centrosymmetry
+unfix relax
+replicate 3 1 1
+Replication is creating a 3x1x1 = 3 times larger system...
+  orthogonal box = (0 -52.103673 0) to (38.722406 52.103673 4.0817)
+  1 by 1 by 1 MPI processor grid
+  960 atoms
+  replicate CPU = 0.001 seconds
+run 0
+WARNING: No fixes with time integration, atoms won't move
+For more information see https://docs.lammps.org/err0028 (src/verlet.cpp:60)
+Last active /omp style is pair_style eam/alloy/omp
+Per MPI rank memory allocation (min/avg/max) = 8.246 | 8.246 | 8.246 Mbytes
+   Step         PotEng         Press           Pxx            Pyy            Pzz             Lx             Ly             Lz      
+       300  -3425.6885     -1462.5735     -2201.4174      0.076120991   -2186.3792      38.722406      104.20735      4.0817       
+Loop time of 7.31e-07 on 4 procs for 0 steps with 960 atoms
+
+136.8% CPU use with 1 MPI tasks x 4 OpenMP threads
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 0          | 0          | 0          |   0.0 |  0.00
+Neigh   | 0          | 0          | 0          |   0.0 |  0.00
+Comm    | 0          | 0          | 0          |   0.0 |  0.00
+Output  | 0          | 0          | 0          |   0.0 |  0.00
+Modify  | 0          | 0          | 0          |   0.0 |  0.00
+Other   |            | 7.31e-07   |            |       |100.00
+
+Nlocal:            960 ave         960 max         960 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Nghost:          11446 ave       11446 max       11446 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Neighs:         204324 ave      204324 max      204324 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+FullNghs:            0 ave           0 max           0 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+
+Total # of neighbors = 204324
+Ave neighs/atom = 212.8375
+Neighbor list builds = 0
+Dangerous builds = 0
+write_dump all image gb-structure.png c_csym type adiam 2.6     view 0 0 up 0 1 0 zoom 7.0 size 720 460     shiny 0.15 ssao yes 4539 0.5 fsaa yes     modify backcolor white boxcolor midnightblue amap 0.0 12.0 ca 0.0 2 min steelblue max firebrick
+Total wall time: 0:00:02
