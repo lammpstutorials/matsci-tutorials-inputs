@@ -39,7 +39,7 @@ minimize 1.0e-12 1.0e-12 10000 100000
 variable ncell equal 4
 variable a0    equal lx/v_ncell
 variable ecoh  equal pe/count(all)
-print "----------------------------------------------------"
+print "------- EAM: Al_zhou.eam.alloy ---------------------"
 print "Number of atoms        = $(count(all))"
 print "Equilibrium a0 (Ang)   = ${a0}"
 print "Cohesive energy (eV)   = ${ecoh}"
