@@ -4,10 +4,10 @@
 # By Simon Gravelle, Mark A. Tschopp, Jacob R. Gissinger, and Axel Kohlmeyer
 # Tutorial 1: Generate figures. Use the "Run->Set Variables dialog to change "o" to 0.25
 
-variable o   index 0.0
-
 units metal
-lattice fcc 4.049  origin $o $o $o
+
+# adjust origin as desired
+lattice fcc 4.049 origin 0.25 0.25 0.25
 region box block 0 4 0 4 0 4
 create_box 1 box
 create_atoms 1 box
@@ -15,8 +15,9 @@ create_atoms 1 box
 pair_style eam/alloy
 pair_coeff * * Al_zhou.eam.alloy Al
 
-dump viz all image 1 metals-fcc-${o}-*.png element type &
+dump viz all image 1 metals-fcc-*.png element type &
      view 60 -40 zoom 1.2 box yes 0.028 size 1200 1200 &
      adiam 2.6 shiny 0.15 ssao yes 4539 0.5 fsaa yes
 dump_modify viz backcolor white boxcolor midnightblue
+
 run 0 post no

@@ -24,6 +24,8 @@ compute eng all pe/atom
 compute eatoms all reduce sum c_eng
 
 # 4) Monitoring
+compute eng all pe/atom
+compute eatoms all reduce sum c_eng
 thermo 10
 thermo_style custom step pe c_eatoms press lx ly lz
 
