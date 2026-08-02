@@ -16,6 +16,9 @@ Al_zhou.eam.alloy
 solution/Al_zhou.eam.alloy
 # only downloaded on request
 solution/vacancy.log
+solution/vacancy-2.log
+solution/vacancy-4.log
+solution/vacancy-extrapolation.csv
 solution/interstitial.log
 solution/interstitial.data
 # interactive dumbbell-figure sandbox (loads the relaxed configuration)

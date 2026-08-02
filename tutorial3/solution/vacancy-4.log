@@ -1,0 +1,80 @@
+  using 8 OpenMP thread(s) per MPI task
+using multi-threaded neighbor list subroutines
+Lattice spacing in x,y,z = 4.08165 4.08165 4.08165
+Created orthogonal box = (-16.3266 -16.3266 -16.3266) to (16.3266 16.3266 16.3266)
+  1 by 1 by 1 MPI processor grid
+Created 2048 atoms
+  using lattice units in orthogonal box = (-16.3266 -16.3266 -16.3266) to (16.3266 16.3266 16.3266)
+  create_atoms CPU = 0.001 seconds
+Reading eam/alloy potential file Al_zhou.eam.alloy with DATE: 2007-10-12
+Last active /omp style is pair_style eam/alloy/omp
+Neighbor list info ...
+  update: every = 1 steps, delay = 0 steps, check = yes
+  max neighbors/atom: 2000, page size: 100000
+  master list distance cutoff = 12.1025
+  ghost atom cutoff = 12.1025
+  binsize = 6.05125, bins = 6 6 6
+  1 neighbor lists, perpetual/occasional/extra = 1 0 0
+  (1) pair eam/alloy/omp, perpetual
+      attributes: half, newton on, omp
+      pair build: half/bin/atomonly/newton/omp
+      stencil: half/bin/3d
+      bin: standard
+Setting up Verlet run ...
+  Unit style    : metal
+  Current step  : 0
+  Time step     : 0.001
+Per MPI rank memory allocation (min/avg/max) = 9.903 | 9.903 | 9.903 Mbytes
+   Step         PotEng         Press          Fnorm     
+         0  -7331.8373      3.4796678      2.894764e-13 
+Loop time of 2.024e-06 on 8 procs for 0 steps with 2048 atoms
+
+Deleted 1 atoms, new total = 2047
+Deleted 1 atom(s)
+Last active /omp style is pair_style eam/alloy/omp
+Setting up cg style minimization ...
+  Unit style    : metal
+  Current step  : 0
+Per MPI rank memory allocation (min/avg/max) = 11.03 | 11.03 | 11.03 Mbytes
+   Step         PotEng         Press          Fnorm     
+         0  -7327.4502     -135.54565      0.78376135   
+        10  -7327.541      -167.59545      0.0024836203 
+        12  -7327.541      -167.5964       0.00053392884
+Loop time of 0.0268097 on 8 procs for 12 steps with 2047 atoms
+
+828.2% CPU use with 1 MPI tasks x 8 OpenMP threads
+
+Minimization stats:
+  Stopping criterion = energy tolerance
+  Energy initial, next-to-last, final = 
+     -7327.45022776133   -7327.5410465221  -7327.54104669335
+  Force two-norm initial, final = 0.78376135 0.00053392884
+  Force max component initial, final = 0.15784941 2.6569611e-05
+  Final line search alpha, max atom move = 1 2.6569611e-05
+  Iterations, force evaluations = 12 24
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 0.025244   | 0.025244   | 0.025244   |   0.0 | 94.16
+Neigh   | 0          | 0          | 0          |   0.0 |  0.00
+Comm    | 0.00070587 | 0.00070587 | 0.00070587 |   0.0 |  2.63
+Output  | 1.6793e-05 | 1.6793e-05 | 1.6793e-05 |   0.0 |  0.06
+Modify  | 0.0003297  | 0.0003297  | 0.0003297  |   0.0 |  1.23
+Other   |            | 0.000513   |            |       |  1.91
+
+Nlocal:           2047 ave        2047 max        2047 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Nghost:           8928 ave        8928 max        8928 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Neighs:         437844 ave      437844 max      437844 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+
+Total # of neighbors = 437844
+Ave neighs/atom = 213.89546
+Neighbor list builds = 0
+Dangerous builds = 0
+--------------------------------------------
+Atoms in the perfect cell  = 2048
+Vacancy formation energy   = 0.7162 eV
+--------------------------------------------
