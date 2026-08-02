@@ -32,8 +32,8 @@ run 0 post no
 
 # top view along -z, atoms colored by depth (surface bright, bulk dark),
 # bonds inferred from the neighbor list with autobond (cf. Tutorial 9)
-write_dump all image dimer-${state}.png z type &
+write_dump all image dimer-${state}.png z type autobond 2.7 0.5 &
     view 0 0 zoom 3.1 box no 0.0 size 1000 1000 &
-    shiny 0.15 ssao yes 4539 0.5 fsaa yes autobond 2.7 0.5 &
+    shiny 0.15 ssao yes 4539 0.5 fsaa yes defocus yes 0.75 0.1 &
     modify backcolor white adiam * 1.5 &
     amap $(v_zcut) $(bound(all,zmax)) ca 0.0 2 min steelblue max goldenrod

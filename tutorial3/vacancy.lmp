@@ -1,17 +1,18 @@
 # LAMMPS Input File
 # Licensed under CC BY 4.0
-# A Set of Materials-Science Tutorials for the LAMMPS Simulation Package: 2. Materials Science
+# A Set of Materials-Science Tutorials for the LAMMPS Simulation Package
 # By Simon Gravelle, Mark A. Tschopp, Jacob R. Gissinger, and Axel Kohlmeyer
+
 # Tutorial 3: 1. Vacancy formation energy
 #
 # Build a perfect fcc aluminum supercell at the equilibrium lattice constant
-# of the Zhou EAM potential (from Tutorial 1), record its energy, remove the
-# atom closest to the box center, relax the remaining atoms, and evaluate the
+# of the Zhou EAM potential (from Tutorial 1), record its energy, remove an
+# atom close to the box center, relax the remaining atoms, and evaluate the
 # vacancy formation energy from the energy balance
 #     Ef(vac) = E(N-1) - (N-1)/N * E(N)
-# The supercell size is an index variable, so the size convergence can be
-# checked from the Set Variables dialog or the command line, e.g.
-#     lmp -in vacancy.lmp -var ncell 4
+# The supercell size is determined from an index variable, so the size convergence
+# can be checked from the Set Variables dialog or the command line, e.g.
+#     lmp -in vacancy.lmp -var ncell 2
 
 # 1) Initialization
 units metal
