@@ -21,7 +21,10 @@ solution/Al_zhou.eam.alloy
 solution/initial.log
 solution/minimize.log
 solution/shifted.log
+# input for figures and resulting figures
 solution/render.lmp
+solution/metals-fcc-0.0.png
+solution/metals-fcc-0.25.png
 # units/potential-conversion demonstration: same single-point energy as
 # initial.lmp but in real units (auto-converted via the UNITS: tag)
 solution/initial-real.lmp

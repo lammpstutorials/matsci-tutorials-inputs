@@ -14,9 +14,10 @@ create_atoms 1 box
 
 pair_style eam/alloy
 pair_coeff * * Al_zhou.eam.alloy Al
-
-dump viz all image 1 metals-fcc-${o}-*.png element type &
-     view 60 -40 zoom 1.2 box yes 0.028 size 1200 1200 &
-     adiam 2.6 shiny 0.15 ssao yes 4539 0.5 fsaa yes
-dump_modify viz backcolor white boxcolor midnightblue
 run 0 post no
+
+write_dump  all image metals-fcc-${o}.png element type &
+      size 1200 1200  view 60 -40  center s 0.47 0.47 0.5 &
+      zoom 1.24 box yes 0.03 shiny 0.4 fsaa yes &
+      modify boxcolor midnightblue backcolor white gamma 0.7 &
+      specular wide metal 0.75 element Al adiam 1 2.6

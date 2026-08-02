@@ -12,7 +12,7 @@ atom_style atomic
 
 # 2) System definition
 lattice fcc 4.049
-region box block 0 4 0 4 0 4
+region box block 0 4 0 4 0 4 units lattice
 create_box 1 box
 create_atoms 1 box
 

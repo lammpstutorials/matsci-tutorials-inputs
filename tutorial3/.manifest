@@ -13,6 +13,7 @@ interstitial.lmp
 Al_zhou.eam.alloy
 
 # 3) solution files
+solution/Al_zhou.eam.alloy
 # only downloaded on request
 solution/vacancy.log
 solution/interstitial.log

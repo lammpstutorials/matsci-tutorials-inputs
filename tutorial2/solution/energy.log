@@ -29,9 +29,9 @@ Setting up Verlet run ...
 Per MPI rank memory allocation (min/avg/max) = 9.67 | 9.67 | 9.67 Mbytes
    Step         PotEng         Volume    
          0  -915.70563      4248.3795    
-Loop time of 1.082e-06 on 8 procs for 0 steps with 256 atoms
+Loop time of 1.513e-06 on 8 procs for 0 steps with 256 atoms
 
-92.4% CPU use with 1 MPI tasks x 8 OpenMP threads
+132.2% CPU use with 1 MPI tasks x 8 OpenMP threads
 
 MPI task timing breakdown:
 Section |  min time  |  avg time  |  max time  |%varavg| %total
@@ -41,7 +41,7 @@ Neigh   | 0          | 0          | 0          |   0.0 |  0.00
 Comm    | 0          | 0          | 0          |   0.0 |  0.00
 Output  | 0          | 0          | 0          |   0.0 |  0.00
 Modify  | 0          | 0          | 0          |   0.0 |  0.00
-Other   |            | 1.082e-06  |            |       |100.00
+Other   |            | 1.513e-06  |            |       |100.00
 
 Nlocal:            256 ave         256 max         256 min
 Histogram: 1 0 0 0 0 0 0 0 0 0

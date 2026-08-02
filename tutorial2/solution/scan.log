@@ -32,9 +32,9 @@ Setting up Verlet run ...
 Per MPI rank memory allocation (min/avg/max) = 9.67 | 9.67 | 9.67 Mbytes
    Step          Temp          E_pair         E_mol          TotEng         Press     
          0   0             -891.27405      0             -891.27405      155403.42    
-Loop time of 1.152e-06 on 8 procs for 0 steps with 256 atoms
+Loop time of 1.933e-06 on 8 procs for 0 steps with 256 atoms
 
-173.6% CPU use with 1 MPI tasks x 8 OpenMP threads
+103.5% CPU use with 1 MPI tasks x 8 OpenMP threads
 
 MPI task timing breakdown:
 Section |  min time  |  avg time  |  max time  |%varavg| %total
@@ -44,7 +44,7 @@ Neigh   | 0          | 0          | 0          |   0.0 |  0.00
 Comm    | 0          | 0          | 0          |   0.0 |  0.00
 Output  | 0          | 0          | 0          |   0.0 |  0.00
 Modify  | 0          | 0          | 0          |   0.0 |  0.00
-Other   |            | 1.152e-06  |            |       |100.00
+Other   |            | 1.933e-06  |            |       |100.00
 
 Nlocal:            256 ave         256 max         256 min
 Histogram: 1 0 0 0 0 0 0 0 0 0
@@ -64,7 +64,7 @@ Created orthogonal box = (0 0 0) to (15.7 15.7 15.7)
   1 by 1 by 1 MPI processor grid
 Created 256 atoms
   using lattice units in orthogonal box = (0 0 0) to (15.7 15.7 15.7)
-  create_atoms CPU = 0.001 seconds
+  create_atoms CPU = 0.000 seconds
 Reading eam/alloy potential file Al_zhou.eam.alloy with DATE: 2007-10-12
 WARNING: No fixes with time integration, atoms won't move
 For more information see https://docs.lammps.org/err0028 (src/verlet.cpp:60)
@@ -88,9 +88,9 @@ Setting up Verlet run ...
 Per MPI rank memory allocation (min/avg/max) = 9.67 | 9.67 | 9.67 Mbytes
    Step          Temp          E_pair         E_mol          TotEng         Press     
          0   0             -897.84443      0             -897.84443      131306.8     
-Loop time of 2.054e-06 on 8 procs for 0 steps with 256 atoms
+Loop time of 1.132e-06 on 8 procs for 0 steps with 256 atoms
 
-97.4% CPU use with 1 MPI tasks x 8 OpenMP threads
+88.3% CPU use with 1 MPI tasks x 8 OpenMP threads
 
 MPI task timing breakdown:
 Section |  min time  |  avg time  |  max time  |%varavg| %total
@@ -100,7 +100,7 @@ Neigh   | 0          | 0          | 0          |   0.0 |  0.00
 Comm    | 0          | 0          | 0          |   0.0 |  0.00
 Output  | 0          | 0          | 0          |   0.0 |  0.00
 Modify  | 0          | 0          | 0          |   0.0 |  0.00
-Other   |            | 2.054e-06  |            |       |100.00
+Other   |            | 1.132e-06  |            |       |100.00
 
 Nlocal:            256 ave         256 max         256 min
 Histogram: 1 0 0 0 0 0 0 0 0 0
@@ -144,9 +144,9 @@ Setting up Verlet run ...
 Per MPI rank memory allocation (min/avg/max) = 9.67 | 9.67 | 9.67 Mbytes
    Step          Temp          E_pair         E_mol          TotEng         Press     
          0   0             -903.39679      0             -903.39679      107938.77    
-Loop time of 1.143e-06 on 8 procs for 0 steps with 256 atoms
+Loop time of 9.82e-07 on 8 procs for 0 steps with 256 atoms
 
-87.5% CPU use with 1 MPI tasks x 8 OpenMP threads
+101.8% CPU use with 1 MPI tasks x 8 OpenMP threads
 
 MPI task timing breakdown:
 Section |  min time  |  avg time  |  max time  |%varavg| %total
@@ -156,7 +156,7 @@ Neigh   | 0          | 0          | 0          |   0.0 |  0.00
 Comm    | 0          | 0          | 0          |   0.0 |  0.00
 Output  | 0          | 0          | 0          |   0.0 |  0.00
 Modify  | 0          | 0          | 0          |   0.0 |  0.00
-Other   |            | 1.143e-06  |            |       |100.00
+Other   |            | 9.82e-07   |            |       |100.00
 
 Nlocal:            256 ave         256 max         256 min
 Histogram: 1 0 0 0 0 0 0 0 0 0
@@ -200,9 +200,9 @@ Setting up Verlet run ...
 Per MPI rank memory allocation (min/avg/max) = 9.67 | 9.67 | 9.67 Mbytes
    Step          Temp          E_pair         E_mol          TotEng         Press     
          0   0             -907.94521      0             -907.94521      85777.024    
-Loop time of 1.082e-06 on 8 procs for 0 steps with 256 atoms
+Loop time of 1.042e-06 on 8 procs for 0 steps with 256 atoms
 
-92.4% CPU use with 1 MPI tasks x 8 OpenMP threads
+96.0% CPU use with 1 MPI tasks x 8 OpenMP threads
 
 MPI task timing breakdown:
 Section |  min time  |  avg time  |  max time  |%varavg| %total
@@ -212,7 +212,7 @@ Neigh   | 0          | 0          | 0          |   0.0 |  0.00
 Comm    | 0          | 0          | 0          |   0.0 |  0.00
 Output  | 0          | 0          | 0          |   0.0 |  0.00
 Modify  | 0          | 0          | 0          |   0.0 |  0.00
-Other   |            | 1.082e-06  |            |       |100.00
+Other   |            | 1.042e-06  |            |       |100.00
 
 Nlocal:            256 ave         256 max         256 min
 Histogram: 1 0 0 0 0 0 0 0 0 0
@@ -256,9 +256,9 @@ Setting up Verlet run ...
 Per MPI rank memory allocation (min/avg/max) = 9.67 | 9.67 | 9.67 Mbytes
    Step          Temp          E_pair         E_mol          TotEng         Press     
          0   0             -911.51848      0             -911.51848      64372.69     
-Loop time of 9.62e-07 on 8 procs for 0 steps with 256 atoms
+Loop time of 1.282e-06 on 8 procs for 0 steps with 256 atoms
 
-104.0% CPU use with 1 MPI tasks x 8 OpenMP threads
+78.0% CPU use with 1 MPI tasks x 8 OpenMP threads
 
 MPI task timing breakdown:
 Section |  min time  |  avg time  |  max time  |%varavg| %total
@@ -268,7 +268,7 @@ Neigh   | 0          | 0          | 0          |   0.0 |  0.00
 Comm    | 0          | 0          | 0          |   0.0 |  0.00
 Output  | 0          | 0          | 0          |   0.0 |  0.00
 Modify  | 0          | 0          | 0          |   0.0 |  0.00
-Other   |            | 9.62e-07   |            |       |100.00
+Other   |            | 1.282e-06  |            |       |100.00
 
 Nlocal:            256 ave         256 max         256 min
 Histogram: 1 0 0 0 0 0 0 0 0 0
@@ -312,9 +312,9 @@ Setting up Verlet run ...
 Per MPI rank memory allocation (min/avg/max) = 9.67 | 9.67 | 9.67 Mbytes
    Step          Temp          E_pair         E_mol          TotEng         Press     
          0   0             -914.11771      0             -914.11771      43563.219    
-Loop time of 1.112e-06 on 8 procs for 0 steps with 256 atoms
+Loop time of 1.333e-06 on 8 procs for 0 steps with 256 atoms
 
-89.9% CPU use with 1 MPI tasks x 8 OpenMP threads
+75.0% CPU use with 1 MPI tasks x 8 OpenMP threads
 
 MPI task timing breakdown:
 Section |  min time  |  avg time  |  max time  |%varavg| %total
@@ -324,7 +324,7 @@ Neigh   | 0          | 0          | 0          |   0.0 |  0.00
 Comm    | 0          | 0          | 0          |   0.0 |  0.00
 Output  | 0          | 0          | 0          |   0.0 |  0.00
 Modify  | 0          | 0          | 0          |   0.0 |  0.00
-Other   |            | 1.112e-06  |            |       |100.00
+Other   |            | 1.333e-06  |            |       |100.00
 
 Nlocal:            256 ave         256 max         256 min
 Histogram: 1 0 0 0 0 0 0 0 0 0
@@ -368,9 +368,9 @@ Setting up Verlet run ...
 Per MPI rank memory allocation (min/avg/max) = 9.67 | 9.67 | 9.67 Mbytes
    Step          Temp          E_pair         E_mol          TotEng         Press     
          0   0             -915.75277      0             -915.75277      23601.197    
-Loop time of 1.032e-06 on 8 procs for 0 steps with 256 atoms
+Loop time of 1.042e-06 on 8 procs for 0 steps with 256 atoms
 
-193.8% CPU use with 1 MPI tasks x 8 OpenMP threads
+191.9% CPU use with 1 MPI tasks x 8 OpenMP threads
 
 MPI task timing breakdown:
 Section |  min time  |  avg time  |  max time  |%varavg| %total
@@ -380,7 +380,7 @@ Neigh   | 0          | 0          | 0          |   0.0 |  0.00
 Comm    | 0          | 0          | 0          |   0.0 |  0.00
 Output  | 0          | 0          | 0          |   0.0 |  0.00
 Modify  | 0          | 0          | 0          |   0.0 |  0.00
-Other   |            | 1.032e-06  |            |       |100.00
+Other   |            | 1.042e-06  |            |       |100.00
 
 Nlocal:            256 ave         256 max         256 min
 Histogram: 1 0 0 0 0 0 0 0 0 0
@@ -424,9 +424,9 @@ Setting up Verlet run ...
 Per MPI rank memory allocation (min/avg/max) = 9.67 | 9.67 | 9.67 Mbytes
    Step          Temp          E_pair         E_mol          TotEng         Press     
          0   0             -916.4481       0             -916.4481       4778.6082    
-Loop time of 9.71e-07 on 8 procs for 0 steps with 256 atoms
+Loop time of 1.032e-06 on 8 procs for 0 steps with 256 atoms
 
-0.0% CPU use with 1 MPI tasks x 8 OpenMP threads
+193.8% CPU use with 1 MPI tasks x 8 OpenMP threads
 
 MPI task timing breakdown:
 Section |  min time  |  avg time  |  max time  |%varavg| %total
@@ -436,7 +436,7 @@ Neigh   | 0          | 0          | 0          |   0.0 |  0.00
 Comm    | 0          | 0          | 0          |   0.0 |  0.00
 Output  | 0          | 0          | 0          |   0.0 |  0.00
 Modify  | 0          | 0          | 0          |   0.0 |  0.00
-Other   |            | 9.71e-07   |            |       |100.00
+Other   |            | 1.032e-06  |            |       |100.00
 
 Nlocal:            256 ave         256 max         256 min
 Histogram: 1 0 0 0 0 0 0 0 0 0
@@ -480,9 +480,9 @@ Setting up Verlet run ...
 Per MPI rank memory allocation (min/avg/max) = 9.67 | 9.67 | 9.67 Mbytes
    Step          Temp          E_pair         E_mol          TotEng         Press     
          0   0             -916.24498      0             -916.24498     -12590.481    
-Loop time of 1.172e-06 on 8 procs for 0 steps with 256 atoms
+Loop time of 1.022e-06 on 8 procs for 0 steps with 256 atoms
 
-85.3% CPU use with 1 MPI tasks x 8 OpenMP threads
+0.0% CPU use with 1 MPI tasks x 8 OpenMP threads
 
 MPI task timing breakdown:
 Section |  min time  |  avg time  |  max time  |%varavg| %total
@@ -492,7 +492,7 @@ Neigh   | 0          | 0          | 0          |   0.0 |  0.00
 Comm    | 0          | 0          | 0          |   0.0 |  0.00
 Output  | 0          | 0          | 0          |   0.0 |  0.00
 Modify  | 0          | 0          | 0          |   0.0 |  0.00
-Other   |            | 1.172e-06  |            |       |100.00
+Other   |            | 1.022e-06  |            |       |100.00
 
 Nlocal:            256 ave         256 max         256 min
 Histogram: 1 0 0 0 0 0 0 0 0 0
@@ -536,9 +536,9 @@ Setting up Verlet run ...
 Per MPI rank memory allocation (min/avg/max) = 9.67 | 9.67 | 9.67 Mbytes
    Step          Temp          E_pair         E_mol          TotEng         Press     
          0   0             -915.20275      0             -915.20275     -28199.161    
-Loop time of 1.133e-06 on 8 procs for 0 steps with 256 atoms
+Loop time of 1.002e-06 on 8 procs for 0 steps with 256 atoms
 
-88.3% CPU use with 1 MPI tasks x 8 OpenMP threads
+99.8% CPU use with 1 MPI tasks x 8 OpenMP threads
 
 MPI task timing breakdown:
 Section |  min time  |  avg time  |  max time  |%varavg| %total
@@ -548,7 +548,7 @@ Neigh   | 0          | 0          | 0          |   0.0 |  0.00
 Comm    | 0          | 0          | 0          |   0.0 |  0.00
 Output  | 0          | 0          | 0          |   0.0 |  0.00
 Modify  | 0          | 0          | 0          |   0.0 |  0.00
-Other   |            | 1.133e-06  |            |       |100.00
+Other   |            | 1.002e-06  |            |       |100.00
 
 Nlocal:            256 ave         256 max         256 min
 Histogram: 1 0 0 0 0 0 0 0 0 0
@@ -648,9 +648,9 @@ Setting up Verlet run ...
 Per MPI rank memory allocation (min/avg/max) = 9.67 | 9.67 | 9.67 Mbytes
    Step          Temp          E_pair         E_mol          TotEng         Press     
          0   0             -910.92327      0             -910.92327     -53176.306    
-Loop time of 9.91e-07 on 8 procs for 0 steps with 256 atoms
+Loop time of 9.92e-07 on 8 procs for 0 steps with 256 atoms
 
-100.9% CPU use with 1 MPI tasks x 8 OpenMP threads
+100.8% CPU use with 1 MPI tasks x 8 OpenMP threads
 
 MPI task timing breakdown:
 Section |  min time  |  avg time  |  max time  |%varavg| %total
@@ -660,7 +660,7 @@ Neigh   | 0          | 0          | 0          |   0.0 |  0.00
 Comm    | 0          | 0          | 0          |   0.0 |  0.00
 Output  | 0          | 0          | 0          |   0.0 |  0.00
 Modify  | 0          | 0          | 0          |   0.0 |  0.00
-Other   |            | 9.91e-07   |            |       |100.00
+Other   |            | 9.92e-07   |            |       |100.00
 
 Nlocal:            256 ave         256 max         256 min
 Histogram: 1 0 0 0 0 0 0 0 0 0
@@ -704,9 +704,9 @@ Setting up Verlet run ...
 Per MPI rank memory allocation (min/avg/max) = 9.67 | 9.67 | 9.67 Mbytes
    Step          Temp          E_pair         E_mol          TotEng         Press     
          0   0             -907.8794       0             -907.8794      -62314.205    
-Loop time of 9.92e-07 on 8 procs for 0 steps with 256 atoms
+Loop time of 9.82e-07 on 8 procs for 0 steps with 256 atoms
 
-100.8% CPU use with 1 MPI tasks x 8 OpenMP threads
+0.0% CPU use with 1 MPI tasks x 8 OpenMP threads
 
 MPI task timing breakdown:
 Section |  min time  |  avg time  |  max time  |%varavg| %total
@@ -716,7 +716,7 @@ Neigh   | 0          | 0          | 0          |   0.0 |  0.00
 Comm    | 0          | 0          | 0          |   0.0 |  0.00
 Output  | 0          | 0          | 0          |   0.0 |  0.00
 Modify  | 0          | 0          | 0          |   0.0 |  0.00
-Other   |            | 9.92e-07   |            |       |100.00
+Other   |            | 9.82e-07   |            |       |100.00
 
 Nlocal:            256 ave         256 max         256 min
 Histogram: 1 0 0 0 0 0 0 0 0 0
@@ -760,9 +760,9 @@ Setting up Verlet run ...
 Per MPI rank memory allocation (min/avg/max) = 9.67 | 9.67 | 9.67 Mbytes
    Step          Temp          E_pair         E_mol          TotEng         Press     
          0   0             -904.3715       0             -904.3715      -69322.611    
-Loop time of 9.82e-07 on 8 procs for 0 steps with 256 atoms
+Loop time of 1.032e-06 on 8 procs for 0 steps with 256 atoms
 
-101.8% CPU use with 1 MPI tasks x 8 OpenMP threads
+96.9% CPU use with 1 MPI tasks x 8 OpenMP threads
 
 MPI task timing breakdown:
 Section |  min time  |  avg time  |  max time  |%varavg| %total
@@ -772,7 +772,7 @@ Neigh   | 0          | 0          | 0          |   0.0 |  0.00
 Comm    | 0          | 0          | 0          |   0.0 |  0.00
 Output  | 0          | 0          | 0          |   0.0 |  0.00
 Modify  | 0          | 0          | 0          |   0.0 |  0.00
-Other   |            | 9.82e-07   |            |       |100.00
+Other   |            | 1.032e-06  |            |       |100.00
 
 Nlocal:            256 ave         256 max         256 min
 Histogram: 1 0 0 0 0 0 0 0 0 0
@@ -816,9 +816,9 @@ Setting up Verlet run ...
 Per MPI rank memory allocation (min/avg/max) = 9.67 | 9.67 | 9.67 Mbytes
    Step          Temp          E_pair         E_mol          TotEng         Press     
          0   0             -900.48448      0             -900.48448     -74995.979    
-Loop time of 1.052e-06 on 8 procs for 0 steps with 256 atoms
+Loop time of 1.062e-06 on 8 procs for 0 steps with 256 atoms
 
-95.1% CPU use with 1 MPI tasks x 8 OpenMP threads
+94.2% CPU use with 1 MPI tasks x 8 OpenMP threads
 
 MPI task timing breakdown:
 Section |  min time  |  avg time  |  max time  |%varavg| %total
@@ -828,7 +828,7 @@ Neigh   | 0          | 0          | 0          |   0.0 |  0.00
 Comm    | 0          | 0          | 0          |   0.0 |  0.00
 Output  | 0          | 0          | 0          |   0.0 |  0.00
 Modify  | 0          | 0          | 0          |   0.0 |  0.00
-Other   |            | 1.052e-06  |            |       |100.00
+Other   |            | 1.062e-06  |            |       |100.00
 
 Nlocal:            256 ave         256 max         256 min
 Histogram: 1 0 0 0 0 0 0 0 0 0
@@ -872,9 +872,9 @@ Setting up Verlet run ...
 Per MPI rank memory allocation (min/avg/max) = 9.67 | 9.67 | 9.67 Mbytes
    Step          Temp          E_pair         E_mol          TotEng         Press     
          0   0             -896.27101      0             -896.27101     -79649.745    
-Loop time of 9.82e-07 on 8 procs for 0 steps with 256 atoms
+Loop time of 1.052e-06 on 8 procs for 0 steps with 256 atoms
 
-203.7% CPU use with 1 MPI tasks x 8 OpenMP threads
+95.1% CPU use with 1 MPI tasks x 8 OpenMP threads
 
 MPI task timing breakdown:
 Section |  min time  |  avg time  |  max time  |%varavg| %total
@@ -884,7 +884,7 @@ Neigh   | 0          | 0          | 0          |   0.0 |  0.00
 Comm    | 0          | 0          | 0          |   0.0 |  0.00
 Output  | 0          | 0          | 0          |   0.0 |  0.00
 Modify  | 0          | 0          | 0          |   0.0 |  0.00
-Other   |            | 9.82e-07   |            |       |100.00
+Other   |            | 1.052e-06  |            |       |100.00
 
 Nlocal:            256 ave         256 max         256 min
 Histogram: 1 0 0 0 0 0 0 0 0 0
@@ -928,9 +928,9 @@ Setting up Verlet run ...
 Per MPI rank memory allocation (min/avg/max) = 9.67 | 9.67 | 9.67 Mbytes
    Step          Temp          E_pair         E_mol          TotEng         Press     
          0   0             -891.77637      0             -891.77637     -83438.509    
-Loop time of 1.062e-06 on 8 procs for 0 steps with 256 atoms
+Loop time of 1.052e-06 on 8 procs for 0 steps with 256 atoms
 
-94.2% CPU use with 1 MPI tasks x 8 OpenMP threads
+190.1% CPU use with 1 MPI tasks x 8 OpenMP threads
 
 MPI task timing breakdown:
 Section |  min time  |  avg time  |  max time  |%varavg| %total
@@ -940,7 +940,7 @@ Neigh   | 0          | 0          | 0          |   0.0 |  0.00
 Comm    | 0          | 0          | 0          |   0.0 |  0.00
 Output  | 0          | 0          | 0          |   0.0 |  0.00
 Modify  | 0          | 0          | 0          |   0.0 |  0.00
-Other   |            | 1.062e-06  |            |       |100.00
+Other   |            | 1.052e-06  |            |       |100.00
 
 Nlocal:            256 ave         256 max         256 min
 Histogram: 1 0 0 0 0 0 0 0 0 0

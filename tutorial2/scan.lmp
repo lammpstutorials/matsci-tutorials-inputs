@@ -40,8 +40,10 @@ pair_coeff * * Al_zhou.eam.alloy Al
 run 0
 
 # append one YAML record (a mapping) per lattice constant
-print "- {lattice_constant: ${a0}, volume_per_atom: $(v_vat:%.6f), &
-      cohesive_energy: $(v_ecoh:%.6f)}" append ev.yaml screen no
+print "- {lattice_constant: ${a0}, &
+      volume_per_atom: $(v_vat:%.6f), &
+      cohesive_energy: $(v_ecoh:%.6f)}" &
+      append ev.yaml screen no
 
 # increment and repeat calculation until max loop count
 next i
