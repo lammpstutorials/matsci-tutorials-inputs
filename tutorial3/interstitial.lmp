@@ -18,11 +18,11 @@ boundary p p p
 atom_style atomic
 
 # 2) System definition
-variable ncell index 6           # supercell size in conventional fcc cells
+variable ncell index 3           # half the supercell size in conventional fcc cells
 variable a0 index 4.08165        # Zhou EAM equilibrium value from Tutorial 1
 variable dsep index 0.85         # half-separation used to seed the dumbbell
 lattice fcc ${a0} origin 0.25 0.25 0.25
-region box block 0 ${ncell} 0 ${ncell} 0 ${ncell}
+region box block -${ncell} ${ncell} -${ncell} ${ncell} -${ncell} ${ncell}
 create_box 1 box
 create_atoms 1 box
 
@@ -42,11 +42,10 @@ variable epe0    equal $(pe)
 
 # 6) Seed the <100> dumbbell at the central lattice site: displace the
 #    resident atom by -dsep along x, then add the new atom at +dsep
-variable rc equal (floor(v_ncell/2)+0.25)*v_a0
-region site sphere $(v_rc) $(v_rc) $(v_rc) 0.5 units box
+region site sphere 0.25 0.25 0.25 0.25 units lattice
 group central region site
 displace_atoms central move -${dsep} 0.0 0.0 units box
-create_atoms 1 single $(v_rc+v_dsep) $(v_rc) $(v_rc) units box
+create_atoms 1 single $(0.25+v_dsep/v_a0) 0.25 0.25 units lattice
 
 # 7) Relax the atomic positions at fixed box size
 min_style cg

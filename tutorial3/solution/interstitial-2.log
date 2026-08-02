@@ -5,7 +5,7 @@ Created orthogonal box = (-8.1633 -8.1633 -8.1633) to (8.1633 8.1633 8.1633)
   1 by 1 by 1 MPI processor grid
 Created 256 atoms
   using lattice units in orthogonal box = (-8.1633 -8.1633 -8.1633) to (8.1633 8.1633 8.1633)
-  create_atoms CPU = 0.000 seconds
+  create_atoms CPU = 0.001 seconds
 Reading eam/alloy potential file Al_zhou.eam.alloy with DATE: 2007-10-12
 Last active /omp style is pair_style eam/alloy/omp
 Neighbor list info ...
@@ -27,53 +27,59 @@ Setting up Verlet run ...
 Per MPI rank memory allocation (min/avg/max) = 9.67 | 9.67 | 9.67 Mbytes
    Step         PotEng         Press          Fnorm     
          0  -916.47966      3.4796678      3.2263655e-14
-Loop time of 1.423e-06 on 8 procs for 0 steps with 256 atoms
+Loop time of 1.152e-06 on 8 procs for 0 steps with 256 atoms
 
-Deleted 1 atoms, new total = 255
-Deleted 1 atom(s)
+1 atoms in group central
+Displacing atoms ...
+Created 1 atoms
+  using lattice units in orthogonal box = (-8.1633 -8.1633 -8.1633) to (8.1633 8.1633 8.1633)
+  create_atoms CPU = 0.000 seconds
 Last active /omp style is pair_style eam/alloy/omp
 Setting up cg style minimization ...
   Unit style    : metal
   Current step  : 0
 Per MPI rank memory allocation (min/avg/max) = 10.79 | 10.79 | 10.79 Mbytes
    Step         PotEng         Press          Fnorm     
-         0  -912.09263     -1108.7229      0.78375727   
-         8  -912.18197     -1360.1793      0.00023283716
-Loop time of 0.00354909 on 8 procs for 8 steps with 255 atoms
+         0  -915.32392      5784.5889      9.7544026    
+        10  -918.27613      5132.8501      0.018811058  
+        18  -918.27625      5130.2808      0.00023639897
+Loop time of 0.00622764 on 8 procs for 18 steps with 257 atoms
 
-885.6% CPU use with 1 MPI tasks x 8 OpenMP threads
+949.3% CPU use with 1 MPI tasks x 8 OpenMP threads
 
 Minimization stats:
   Stopping criterion = energy tolerance
   Energy initial, next-to-last, final = 
-     -912.092629284638   -912.18197100988  -912.181971061472
-  Force two-norm initial, final = 0.78375727 0.00023283716
-  Force max component initial, final = 0.15784941 3.385907e-05
-  Final line search alpha, max atom move = 1 3.385907e-05
-  Iterations, force evaluations = 8 16
+     -915.323917656431   -918.27625425177  -918.276254266858
+  Force two-norm initial, final = 9.7544026 0.00023639897
+  Force max component initial, final = 6.404073 9.6409195e-05
+  Final line search alpha, max atom move = 1 9.6409195e-05
+  Iterations, force evaluations = 18 32
 
 MPI task timing breakdown:
 Section |  min time  |  avg time  |  max time  |%varavg| %total
 ---------------------------------------------------------------
-Pair    | 0.0031843  | 0.0031843  | 0.0031843  |   0.0 | 89.72
+Pair    | 0.0054652  | 0.0054652  | 0.0054652  |   0.0 | 87.76
 Neigh   | 0          | 0          | 0          |   0.0 |  0.00
-Comm    | 0.0002099  | 0.0002099  | 0.0002099  |   0.0 |  5.91
-Output  | 0          | 0          | 0          |   0.0 |  0.00
-Modify  | 9.4177e-05 | 9.4177e-05 | 9.4177e-05 |   0.0 |  2.65
-Other   |            | 6.075e-05  |            |       |  1.71
+Comm    | 0.00043387 | 0.00043387 | 0.00043387 |   0.0 |  6.97
+Output  | 3.0027e-05 | 3.0027e-05 | 3.0027e-05 |   0.0 |  0.48
+Modify  | 0.00018214 | 0.00018214 | 0.00018214 |   0.0 |  2.92
+Other   |            | 0.0001164  |            |       |  1.87
 
-Nlocal:            255 ave         255 max         255 min
+Nlocal:            257 ave         257 max         257 min
 Histogram: 1 0 0 0 0 0 0 0 0 0
-Nghost:           3718 ave        3718 max        3718 min
+Nghost:           3770 ave        3770 max        3770 min
 Histogram: 1 0 0 0 0 0 0 0 0 0
-Neighs:          54356 ave       54356 max       54356 min
+Neighs:          55215 ave       55215 max       55215 min
 Histogram: 1 0 0 0 0 0 0 0 0 0
 
-Total # of neighbors = 54356
-Ave neighs/atom = 213.16078
+Total # of neighbors = 55215
+Ave neighs/atom = 214.84436
 Neighbor list builds = 0
 Dangerous builds = 0
 --------------------------------------------
-Atoms in the perfect cell  = 256
-Vacancy formation energy   = 0.7177 eV
+Atoms in the perfect cell       = 256
+Interstitial formation energy   = 1.7834 eV
 --------------------------------------------
+System init for write_data ...
+Last active /omp style is pair_style eam/alloy/omp

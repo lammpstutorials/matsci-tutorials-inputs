@@ -1,10 +1,10 @@
   using 8 OpenMP thread(s) per MPI task
 using multi-threaded neighbor list subroutines
 Lattice spacing in x,y,z = 4.08165 4.08165 4.08165
-Created orthogonal box = (0 0 0) to (24.4899 24.4899 24.4899)
+Created orthogonal box = (-12.24495 -12.24495 -12.24495) to (12.24495 12.24495 12.24495)
   1 by 1 by 1 MPI processor grid
 Created 864 atoms
-  using lattice units in orthogonal box = (0 0 0) to (24.4899 24.4899 24.4899)
+  using lattice units in orthogonal box = (-12.24495 -12.24495 -12.24495) to (12.24495 12.24495 12.24495)
   create_atoms CPU = 0.000 seconds
 Reading eam/alloy potential file Al_zhou.eam.alloy with DATE: 2007-10-12
 Last active /omp style is pair_style eam/alloy/omp
@@ -26,13 +26,13 @@ Setting up Verlet run ...
   Time step     : 0.001
 Per MPI rank memory allocation (min/avg/max) = 9.772 | 9.772 | 9.772 Mbytes
    Step         PotEng         Press          Fnorm     
-         0  -3093.1188      3.4796678      2.1651674e-13
-Loop time of 2.665e-06 on 8 procs for 0 steps with 864 atoms
+         0  -3093.1188      3.4796678      1.488989e-13 
+Loop time of 1.343e-06 on 8 procs for 0 steps with 864 atoms
 
 1 atoms in group central
 Displacing atoms ...
 Created 1 atoms
-  using box units in orthogonal box = (0 0 0) to (24.4899 24.4899 24.4899)
+  using lattice units in orthogonal box = (-12.24495 -12.24495 -12.24495) to (12.24495 12.24495 12.24495)
   create_atoms CPU = 0.000 seconds
 Last active /omp style is pair_style eam/alloy/omp
 Setting up cg style minimization ...
@@ -43,9 +43,9 @@ Per MPI rank memory allocation (min/avg/max) = 10.9 | 10.9 | 10.9 Mbytes
          0  -3091.9631      1716.4009      9.7544033    
         10  -3094.9324      1537.2001      0.036607503  
         20  -3094.9326      1539.5981      0.0009678982 
-Loop time of 0.0191874 on 8 procs for 20 steps with 865 atoms
+Loop time of 0.0154809 on 8 procs for 20 steps with 865 atoms
 
-835.1% CPU use with 1 MPI tasks x 8 OpenMP threads
+858.6% CPU use with 1 MPI tasks x 8 OpenMP threads
 
 Minimization stats:
   Stopping criterion = energy tolerance
@@ -59,12 +59,12 @@ Minimization stats:
 MPI task timing breakdown:
 Section |  min time  |  avg time  |  max time  |%varavg| %total
 ---------------------------------------------------------------
-Pair    | 0.017761   | 0.017761   | 0.017761   |   0.0 | 92.57
+Pair    | 0.014098   | 0.014098   | 0.014098   |   0.0 | 91.06
 Neigh   | 0          | 0          | 0          |   0.0 |  0.00
-Comm    | 0.00071904 | 0.00071904 | 0.00071904 |   0.0 |  3.75
-Output  | 2.119e-05  | 2.119e-05  | 2.119e-05  |   0.0 |  0.11
-Modify  | 0.00033192 | 0.00033192 | 0.00033192 |   0.0 |  1.73
-Other   |            | 0.0003543  |            |       |  1.85
+Comm    | 0.00070293 | 0.00070293 | 0.00070293 |   0.0 |  4.54
+Output  | 9.699e-06  | 9.699e-06  | 9.699e-06  |   0.0 |  0.06
+Modify  | 0.00033408 | 0.00033408 | 0.00033408 |   0.0 |  2.16
+Other   |            | 0.0003365  |            |       |  2.17
 
 Nlocal:            865 ave         865 max         865 min
 Histogram: 1 0 0 0 0 0 0 0 0 0

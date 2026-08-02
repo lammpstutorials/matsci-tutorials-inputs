@@ -14,7 +14,7 @@
 #        cagethr - centrosymmetry above which an atom joins the neighbor cage
 #        ghost   - opacity of the perfect-crystal (bulk) atoms
 variable pairthr index 6.0
-variable cagethr index 3.0
+variable cagethr index 2.0
 variable ghost   index 0.15
 
 units metal
@@ -40,7 +40,7 @@ variable iscage atom "c_csym > v_cagethr"
 group cage variable iscage
 variable ispair atom "c_csym > v_pairthr"
 group pair variable ispair
-region front block 0 12.0 EDGE EDGE EDGE EDGE units box
+region front block EDGE 0 EDGE EDGE EDGE EDGE units box
 group front region front
 set group front type 4
 group cage subtract cage pair
@@ -51,7 +51,7 @@ print "pair: $(count(pair)) atoms, cage: $(count(cage)) atoms"
 # Current figure. Tweak anything here (view, zoom, colors, opacities) and
 # re-run, or experiment interactively in the Image Viewer instead.
 write_dump all image dumbbell.png c_csym type &
-    view 75 -25 zoom 3.6 center s 0.542 0.542 0.542 box no 0.0 size 1000 1000 &
+    view 75 -25 zoom 4.0 center s 0.542 0.542 0.542 box no 0.0 size 1000 1000 &
     shiny 0.15 ssao yes 4539 0.5 fsaa yes &
     modify backcolor white &
     adiam 1 1.8 adiam 2 2.7 adiam 3 2.4 adiam 4 2.4 &

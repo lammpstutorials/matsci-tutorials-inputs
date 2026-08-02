@@ -5,7 +5,7 @@ Created orthogonal box = (-12.24495 -12.24495 -12.24495) to (12.24495 12.24495 1
   1 by 1 by 1 MPI processor grid
 Created 864 atoms
   using lattice units in orthogonal box = (-12.24495 -12.24495 -12.24495) to (12.24495 12.24495 12.24495)
-  create_atoms CPU = 0.001 seconds
+  create_atoms CPU = 0.000 seconds
 Reading eam/alloy potential file Al_zhou.eam.alloy with DATE: 2007-10-12
 Last active /omp style is pair_style eam/alloy/omp
 Neighbor list info ...
@@ -27,7 +27,7 @@ Setting up Verlet run ...
 Per MPI rank memory allocation (min/avg/max) = 9.772 | 9.772 | 9.772 Mbytes
    Step         PotEng         Press          Fnorm     
          0  -3093.1188      3.4796678      1.488989e-13 
-Loop time of 1.202e-06 on 8 procs for 0 steps with 864 atoms
+Loop time of 1.873e-06 on 8 procs for 0 steps with 864 atoms
 
 Deleted 1 atoms, new total = 863
 Deleted 1 atom(s)
@@ -39,9 +39,9 @@ Per MPI rank memory allocation (min/avg/max) = 10.9 | 10.9 | 10.9 Mbytes
    Step         PotEng         Press          Fnorm     
          0  -3088.7318     -326.06182      0.78376135   
         10  -3088.8224     -401.74223      0.00038124833
-Loop time of 0.0122121 on 8 procs for 10 steps with 863 atoms
+Loop time of 0.0103147 on 8 procs for 10 steps with 863 atoms
 
-845.2% CPU use with 1 MPI tasks x 8 OpenMP threads
+806.9% CPU use with 1 MPI tasks x 8 OpenMP threads
 
 Minimization stats:
   Stopping criterion = energy tolerance
@@ -55,12 +55,12 @@ Minimization stats:
 MPI task timing breakdown:
 Section |  min time  |  avg time  |  max time  |%varavg| %total
 ---------------------------------------------------------------
-Pair    | 0.011317   | 0.011317   | 0.011317   |   0.0 | 92.67
+Pair    | 0.0093301  | 0.0093301  | 0.0093301  |   0.0 | 90.45
 Neigh   | 0          | 0          | 0          |   0.0 |  0.00
-Comm    | 0.0004641  | 0.0004641  | 0.0004641  |   0.0 |  3.80
+Comm    | 0.00040002 | 0.00040002 | 0.00040002 |   0.0 |  3.88
 Output  | 0          | 0          | 0          |   0.0 |  0.00
-Modify  | 0.0001975  | 0.0001975  | 0.0001975  |   0.0 |  1.62
-Other   |            | 0.0002332  |            |       |  1.91
+Modify  | 0.00019693 | 0.00019693 | 0.00019693 |   0.0 |  1.91
+Other   |            | 0.0003876  |            |       |  3.76
 
 Nlocal:            863 ave         863 max         863 min
 Histogram: 1 0 0 0 0 0 0 0 0 0

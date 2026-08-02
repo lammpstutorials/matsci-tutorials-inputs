@@ -42,8 +42,8 @@ variable natoms0 equal $(count(all))
 variable epe0    equal $(pe)
 
 # 6) Create the vacancy: delete a random atom near the box center
-region vac sphere 0.25 0.25 0.25 ${a0} units box
-delete_atoms random count 1 no all vac 131212345
+region vac sphere 0.25 0.25 0.25 1.0 units lattice
+delete_atoms random count 1 no all vac 1312123
 print "Deleted $(v_natoms0-count(all)) atom(s)"
 
 # 7) Relax the atomic positions at fixed box size
