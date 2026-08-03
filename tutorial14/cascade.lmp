@@ -83,7 +83,7 @@ thermo_style custom step dt time temp c_fr[1] c_fr[2]
 # integrate to the ballistic peak (~0.28 ps) and save the disordered cascade
 # core for the peak-damage visualization (peakviz.lmp)
 run          320
-write_dump   all custom peak.lammpstrj id type x y z
+write_dump   all custom peak.lammpstrj id type x y z vx vy vz
 # continue to 15 ps; the molten core cools and most Frenkel pairs recombine
 run          14680
 

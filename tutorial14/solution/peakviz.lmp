@@ -24,31 +24,36 @@ pair_style   zero 5.0
 pair_coeff   * *
 
 # load the peak-damage atom positions and place them on the iron color slot
-read_dump    peak.lammpstrj 320 x y z box no add yes
+read_dump    peak.lammpstrj 320 x y z vx vy vz box no add yes
 group        iron type 1
 set          group iron type 3
 
 # distance of each atom from its nearest lattice site (Wigner-Seitz)
 compute      fr all frenkel
-run          0 post no
+compute      ke all ke/atom
 
-# the disordered cascade core = atoms knocked >0.7 A off their lattice site
-variable     hot atom "c_fr > 0.7"
+
+# select all "hot" atoms
+variable     hot atom "c_ke > 0.5"
+variable     acol atom log(c_ke)
+
+fix          spheres all graphics/objects 1 &
+                  sphere 1 80.0 10.0 5.0 3.0 &
+                  sphere 2 80.0 10.0 15.0 3.0
+
+fix          label   all graphics/labels 1 &
+                text "Vacancy" 80.0 25 6 size 48  fontcolor black &
+                text "    Interstitial" 80.0 25 16 size 48 fontcolor black
+
+run          0 post no
 group        core variable hot
 
-# wrap the core atoms in one translucent alpha-shape hull (alpha ~2-3x the
-# nearest-neighbor distance smooths the surface without over-inflating it)
-compute      cc all chunk/atom type
-fix          hull core graphics/chunk 1 cc alpha 6.0
-run          0 post no
-
-# render the hull (orange, half-opaque) inside the translucent simulation cell
-group        boxonly type 1
-# fflag1=1 draws the hull triangles as filled surfaces (0 would draw only edges)
-write_dump   boxonly image peak.png type type adiam 1.0                &
-             fix hull const 1 0                                        &
-             region box lightcyan transparent 0.75                &
-             view 60 -30 zoom 1.2 size 1100 850                        &
-             shiny 0.2 fsaa yes ssao yes 9988 0.6 box yes 0.02         &
-             modify backcolor white boxcolor midnightblue             &
-             fcolor hull red 
+write_dump   core image peak.png v_acol type  center s 0.5 0.5 0.5  adiam 3.0 &
+             compute fr type 0 2 fix spheres type 1 0 fix label type 0 0   &
+             view 75 10 zoom 1.4 size 1200 1200                 &
+             shiny 0.2 fsaa yes ssao yes 9988 0.6 box yes 0.02  &
+             modify backcolor white boxcolor midnightblue       &
+             adiam * 2.5  color map2 0.342 0.062 0.429 &
+                          color map3 0.736 0.216 0.330 &
+             amap -0.5 1 cf 0.0 3 min map2 0.5 map3 max pink   &
+             acolor 1 steelblue acolor 2 darkgoldenrod fcolor label black

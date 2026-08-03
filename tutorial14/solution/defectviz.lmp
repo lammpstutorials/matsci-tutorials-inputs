@@ -32,9 +32,18 @@ pair_coeff   * *
 read_dump    final.lammpstrj 15000 x y z box no add yes
 group        iron type 1
 set          group iron type 3
+group        viz type 1 2
 
 # repeat the Wigner-Seitz analysis on the final configuration
 compute      fr all frenkel
+fix          spheres all graphics/objects 1 &
+                  sphere 1 80.0 10.0 5.0 3.0 &
+                  sphere 2 80.0 10.0 15.0 3.0
+
+fix          label   all graphics/labels 1 &
+                text "Vacancy" 80.0 25 6 size 48  fontcolor black &
+                text "    Interstitial" 80.0 25 16 size 48 fontcolor black
+
 thermo_style custom step c_fr[1] c_fr[2]
 run          0 post no
 
@@ -47,11 +56,9 @@ run          0 post no
 # transparent solid with "region box ... transparent" (clearer than a wireframe
 # frame), and each defect is a sphere whose diameter is enlarged a little by the
 # second compute flag (2.0) so it is easy to see.
-group        boxonly type 1
-write_dump   boxonly image defects.png type type adiam 1.0             &
-             compute fr type 0 2.0                                     &
-             region box lightcyan transparent 0.75                 &
-             view 60 -30 zoom 1.2 size 1100 850                        &
-             shiny 0.2 fsaa yes ssao yes 9988 0.6 box yes 0.02         &
-             modify backcolor white boxcolor midnightblue              &
-             acolor 1 blue acolor 2 red
+write_dump   all image defects.png type type  center s 0.5 0.5 0.5  adiam 3.0 &
+             compute fr type 0 2 fix spheres type 1 0 fix label type 0 0   &
+             view 75 10 zoom 1.4 size 1200 1200                 &
+             shiny 0.2 fsaa yes ssao yes 9988 0.6 box yes 0.02  &
+             modify backcolor white boxcolor midnightblue       &
+             acolor 1 steelblue acolor 2 darkgoldenrod acolor 3 silver atrans 3 0.0 adiam 1 5.0
