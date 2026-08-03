@@ -40,17 +40,17 @@ print("cooling: the melt supercools strongly; in a small, defect-free cell it ma
 print("         not recrystallize at all.  Both transitions are nucleation-limited")
 print("         and only bracket Tm -- part 2 (two-phase) gives the true value.")
 
-plt.figure(figsize=(5.0, 3.8))
+plt.figure(figsize=(6.0, 3.0))
 plt.plot(Th, Vh, ".", ms=3, color="firebrick", label="heating")
 plt.plot(Tc, Vc, ".", ms=3, color="steelblue", label="cooling")
 Tf = np.linspace(300.0, 900.0, 20)
 plt.plot(Tf, (slope * Tf + icpt) ** 3 / 4.0, "k--", lw=1.0,
-         label="thermal expansion fit")
+         label="Thermal expansion fit")
 plt.axvline(T_melt, ls="--", color="gray", lw=1)
 plt.text(T_melt, Vh.min() + 0.05 * (Vh.max() - Vh.min()),
          f"  melt ~{T_melt:.0f} K", color="gray", fontsize=8)
-plt.xlabel("temperature (K)")
-plt.ylabel(r"volume per atom ($\mathrm{\AA}^3$)")
+plt.xlabel("Temperature (K)")
+plt.ylabel(r"Volume per atom ($\mathrm{\AA}^3$)")
 plt.legend(frameon=True, facecolor="white", edgecolor="black", framealpha=1.0)
 plt.tight_layout()
 plt.savefig("hysteresis.png", dpi=200)

@@ -34,15 +34,15 @@ def guides(a):
     a.axvline(T_melt,   ls="--", color="0.4", lw=1)
     a.axvline(T_freeze, ls="--", color="0.4", lw=1)
 
-fig, ax = plt.subplots(1, 2, figsize=(8.4, 3.6))
+fig, ax = plt.subplots(1, 2, figsize=(8.4, 3.0))
 
 # (a) volume per atom: heating, seeded cooling, and the unseeded cooling
 ax[0].plot(hu[:, 1], hu[:, 2], ".", ms=3, color="firebrick", label="heating")
 ax[0].plot(c[:, 1], c[:, 2], ".", ms=3, color="seagreen", label="cooling, seeded")
 ax[0].plot(u[:, 1], u[:, 2], ".", ms=2, color="steelblue", label="cooling, no seed")
 guides(ax[0])
-ax[0].set_xlabel("temperature (K)")
-ax[0].set_ylabel(r"volume per atom ($\mathrm{\AA}^3$)")
+ax[0].set_xlabel("Temperature (K)")
+ax[0].set_ylabel(r"Volume per atom ($\mathrm{\AA}^3$)")
 ax[0].legend(frameon=True, facecolor="white", edgecolor="black", framealpha=1.0,
              fontsize=8)
 ylo, yhi = ax[0].get_ylim()
@@ -55,8 +55,8 @@ ax[0].text(T_melt, ylo + 0.04 * (yhi - ylo), f" melt\n ~{T_melt:.0f} K",
 ax[1].plot(h[:, 1], h[:, 3], ".", ms=3, color="firebrick", label="heating")
 ax[1].plot(c[:, 1], c[:, 3], ".", ms=3, color="seagreen", label="cooling, seeded")
 guides(ax[1])
-ax[1].set_xlabel("temperature (K)")
-ax[1].set_ylabel("number of fcc-coordinated atoms")
+ax[1].set_xlabel("Temperature (K)")
+ax[1].set_ylabel("Number of fcc-coordinated atoms")
 ax[1].legend(frameon=True, facecolor="white", edgecolor="black", framealpha=1.0,
              fontsize=8)
 

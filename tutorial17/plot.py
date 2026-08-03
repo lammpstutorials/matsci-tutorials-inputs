@@ -15,7 +15,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
-DUMPFILE = "anneal.dump"
+DUMPFILE = "anneal.lammpstrj"
 EFILE = "energy.dat"
 RCUT = 3.0          # A; first-neighbor shell (fcc a0=3.56 -> d_NN = 2.52 A)
 NTYPES = 4
@@ -77,7 +77,7 @@ for i, e in enumerate(ELEMENTS):
 
 # --- Figure 1: evolution of selected pairs during the MD/MC run ---
 # faint markers: per-snapshot values; solid lines: running average
-fig, ax = plt.subplots(figsize=(5.0, 3.8))
+fig, ax = plt.subplots(figsize=(6.0, 3.0))
 sel = [((1, 1), "Cr-Cr", "firebrick"), ((1, 2), "Cr-Fe", "steelblue"),
        ((0, 3), "Co-Ni", "darkgoldenrod")]
 NRUN = 7                                  # running-average window (frames)
@@ -89,7 +89,7 @@ for (i, j), lbl, c in sel:
     ax.plot(steps[NRUN - 1:], avg, "-", lw=1.8, color=c, label=lbl)
 ax.axhline(0.0, color="gray", lw=0.8, ls=":")
 ax.annotate("random", (steps[2], 0.004), color="gray", fontsize=8)
-ax.set_xlabel("time step")
+ax.set_xlabel("Time step")
 ax.set_ylabel(r"Warren-Cowley $\alpha$ (first shell)")
 ax.set_title("Development of chemical short-range order")
 ax.legend(frameon=False, fontsize=9)
@@ -98,9 +98,9 @@ fig.savefig("sro-alpha.png", dpi=200)
 
 # --- Figure 2: potential energy during the run ---
 step_e, pe = np.loadtxt(EFILE, comments="#", unpack=True)
-fig, ax = plt.subplots(figsize=(5.0, 3.8))
+fig, ax = plt.subplots(figsize=(6.0, 3.0))
 ax.plot(step_e, 1000.0 * (pe - pe[0]), color="seagreen", lw=1.0)
-ax.set_xlabel("time step")
+ax.set_xlabel("Time step")
 ax.set_ylabel(r"$\Delta E$ (meV/atom)")
 ax.set_title("Potential energy during the MD/MC run")
 fig.tight_layout()

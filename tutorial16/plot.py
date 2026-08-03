@@ -40,14 +40,14 @@ temps = np.array(temps)[order]
 diff = np.array(diff)[order]
 
 # --- Figure 1: MSD(t) with the fitted diffusive slope for each temperature ---
-fig, ax = plt.subplots(figsize=(5.0, 3.8))
+fig, ax = plt.subplots(figsize=(6.0, 3.0))
 colors = plt.cm.viridis(np.linspace(0.1, 0.85, len(temps)))
 for T, c in zip(temps, colors):
     t, msd, slope, intercept, D = fits[T]
     ax.plot(t, msd, color=c, lw=1.2, label=f"{T:.0f} K")
     tf = t[t >= FIT_TMIN]
     ax.plot(tf, slope * tf + intercept, color="k", ls="--", lw=0.8)
-ax.set_xlabel("time (ps)")
+ax.set_xlabel("Time (ps)")
 ax.set_ylabel(r"MSD ($\mathrm{\AA}^2$)")
 ax.set_title("Mean-squared displacement, liquid Al")
 ax.legend(frameon=False, fontsize=8, loc="upper left")
@@ -63,7 +63,7 @@ D0 = np.exp(a_int)
 print(f"\nArrhenius fit:  D0 = {D0:.3f} Ang^2/ps, "
       f"Ea = {Ea:.3f} eV ({Ea*96.485:.1f} kJ/mol)")
 
-fig, ax = plt.subplots(figsize=(5.0, 3.8))
+fig, ax = plt.subplots(figsize=(6.0, 3.0))
 ax.plot(1000.0 / temps, diff * A2PS_TO_M2S * 1e9, "o", color="firebrick",
         ms=7, label="LAMMPS")
 xfit = np.linspace(invT.min(), invT.max(), 50)
