@@ -44,8 +44,8 @@ for fname, label, color in datasets:
 
 plt.axvline(1.0 / 3.0, ls="--", color="gray", lw=1)
 plt.text(1.0 / 3.0, plt.ylim()[1] * 0.04, r"  $b_p$", color="gray", fontsize=9)
-plt.xlabel(r"displacement along $[11\bar 2]$ (in units of the period $a_0\sqrt{6}/2$)")
-plt.ylabel(r"stacking fault energy $\gamma$ (mJ/m$^2$)")
+plt.xlabel(r"Displacement along $[11\bar 2]$ (in units of the period $a_0\sqrt{6}/2$)")
+plt.ylabel(r"Stacking fault energy $\gamma$ (mJ/m$^2$)")
 plt.legend(frameon=True, facecolor="white", edgecolor="black", framealpha=1.0,
            fontsize=8.5)
 plt.tight_layout()

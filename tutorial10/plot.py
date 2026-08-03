@@ -8,16 +8,20 @@
 # gamma-line.
 #
 # Run gsfe.lmp first (e.g. in LAMMPS-GUI), then:
-#     python3 plot.py
+#     python3 plot.py gsfe-al.yaml
 
+import sys
 import yaml
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 
-EV_PER_A2_TO_MJM2 = 16021.766   # 1 eV/Ang^2 = 16021.766 mJ/m^2
+if len(sys.argv) < 2:
+    print("Usage: python3 %s <yaml file>" % sys.argv[0])
+    sys.exit('Missing argument')
 
-with open("gsfe.yaml") as f:
+EV_PER_A2_TO_MJM2 = 16021.766   # 1 eV/Ang^2 = 16021.766 mJ/m^2
+with open(sys.argv[1]) as f:
     df = pd.DataFrame(yaml.safe_load(f))
 
 shift = df["shift"].to_numpy()
@@ -52,10 +56,10 @@ def refine(i):
 x_isf, g_isf = refine(i_isf)
 x_usf, g_usf = refine(i_usf)
 
-print(f"period (a0*sqrt(6)/2)      = {period:.3f} Ang")
+print(f"Period (a0*sqrt(6)/2)      = {period:.3f} Ang")
 print(f"Shockley partial b_p       = {b_partial:.3f} Ang")
-print(f"intrinsic SF energy  (ISF) = {g_isf:6.1f} mJ/m^2  at shift {x_isf:.3f} Ang")
-print(f"unstable  SF energy  (USF) = {g_usf:6.1f} mJ/m^2  at shift {x_usf:.3f} Ang")
+print(f"Intrinsic SF energy  (ISF) = {g_isf:6.1f} mJ/m^2  at shift {x_isf:.3f} Ang")
+print(f"Unstable  SF energy  (USF) = {g_usf:6.1f} mJ/m^2  at shift {x_usf:.3f} Ang")
 
 # plot the gamma-line
 plt.figure(figsize=(5.0, 3.8))
@@ -67,8 +71,8 @@ plt.plot(x_usf, g_usf, "^", color="firebrick", ms=9,
 plt.axvline(b_partial, ls="--", color="gray", lw=1)
 plt.text(b_partial, plt.ylim()[1] * 0.05, r"  $b_p=a_0/\sqrt{6}$",
          color="gray", fontsize=8, ha="left")
-plt.xlabel(r"displacement along $[11\bar 2]$ ($\mathrm{\AA}$)")
-plt.ylabel(r"stacking fault energy $\gamma$ (mJ/m$^2$)")
+plt.xlabel(r"Displacement along $[11\bar 2]$ ($\mathrm{\AA}$)")
+plt.ylabel(r"Stacking fault energy $\gamma$ (mJ/m$^2$)")
 plt.legend(frameon=True, facecolor="white", edgecolor="black", framealpha=1.0,
            fontsize=9)
 plt.tight_layout()

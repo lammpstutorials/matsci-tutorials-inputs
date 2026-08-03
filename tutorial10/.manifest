@@ -17,7 +17,7 @@ Cu_mishin1.eam.alloy
 # 3) solution files
 # only downloaded on request
 solution/gsfe.log
-solution/gsfe.yaml
+solution/gsfe-al.yaml
 solution/gsfe-cu.yaml
 solution/plot-output.txt
 solution/gsfe-curve.png
