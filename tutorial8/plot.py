@@ -14,10 +14,10 @@ import matplotlib.pyplot as plt
 # metal-units force (eV/Angstrom) -> nN
 EV_PER_ANG_TO_NN = 1.602176634
 
-curves = [("load-sphere.csv", "sphere", "firebrick"),
-          ("load-plane.csv", "flat punch", "steelblue")]
+curves = [("load-sphere.csv", "Sphere", "firebrick"),
+          ("load-plane.csv", "Flat punch", "steelblue")]
 
-plt.figure(figsize=(5.0, 3.8))
+plt.figure(figsize=(6.0, 3.0))
 for fname, label, color in curves:
     try:
         d = pd.read_csv(fname)
@@ -26,8 +26,8 @@ for fname, label, color in curves:
     plt.plot(d["depth_Ang"], d["load_eV_per_Ang"] * EV_PER_ANG_TO_NN,
              "-", color=color, lw=1.4, label=label)
 
-plt.xlabel(r"indenter depth ($\mathrm{\AA}$)")
-plt.ylabel("load (nN)")
+plt.xlabel(r"Indenter depth ($\mathrm{\AA}$)")
+plt.ylabel("Load (nN)")
 plt.legend(frameon=False)
 plt.tight_layout()
 plt.savefig("load-displacement.png", dpi=200)

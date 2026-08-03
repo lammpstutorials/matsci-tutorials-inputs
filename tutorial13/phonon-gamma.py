@@ -29,14 +29,14 @@ nu.sort()
 exp_optical = 15.53          # experimental Si Gamma optical mode (THz)
 
 print("%d atoms in the cell -> %d phonon modes at Gamma" % (N, 3 * N))
-print("frequencies (THz):")
+print("Frequencies (THz):")
 for i, f in enumerate(nu):
     kind = "acoustic" if abs(f) < 1.0 else "optical"
     print("  mode %d:  %7.3f  (%s)" % (i + 1, f, kind))
 print("optical mode: %.2f THz   (experiment: %.2f THz)" % (nu.max(), exp_optical))
 
 # level diagram: every mode as a horizontal line, acoustic near 0, optical high
-fig, ax = plt.subplots(figsize=(3.6, 4.2))
+fig, ax = plt.subplots(figsize=(3.6, 4.0))
 for f in nu:
     ax.hlines(f, 0.15, 0.85, color="goldenrod", lw=2.5)
 ax.axhline(exp_optical, ls="--", color="0.4", lw=1.2)
@@ -46,7 +46,7 @@ ax.text(0.5, 0.6, "3 acoustic", ha="center", fontsize=9)
 ax.set_xticks([])
 ax.set_xlim(0, 1)
 ax.set_ylim(-1.0, 20.0)
-ax.set_ylabel("frequency (THz)")
+ax.set_ylabel("Frequency (THz)")
 ax.set_title("Si phonons at $\\Gamma$ (SW)")
 plt.tight_layout()
 plt.savefig("gamma-levels.png", dpi=200)

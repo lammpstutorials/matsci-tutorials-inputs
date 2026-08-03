@@ -34,8 +34,12 @@ pair_coeff  * * Cu_mishin1.eam.alloy Cu
 run 0 post no
 
 # copper-colored spheres, midnightblue cell edges, SSAO depth shading
-write_dump  all image cu-cell.png type type adiam 2.0           &
-            view 85 5 zoom 4.0 size 1100 850                   &
-            shiny 0.15 fsaa yes ssao yes 4321 0.6 box yes 0.025 &
-            modify backcolor white boxcolor midnightblue        &
-            color copper 0.80 0.48 0.23 acolor 1 copper
+
+write_dump  all image cu-cell.png element type &
+            size 1100 850 zoom 4.1 view 85 5 box yes 0.03 &
+            shiny 0.4 fsaa yes ssao yes 453983 0.2 &
+            depthcue yes 0.5 black 0.4 defocus yes 0.75 0.3 &
+            modify boxcolor midnightblue backcolor white &
+            specular narrow  gamma 0.9 &
+            metal 0.75 metalfinish polished ssaosamples 32 &
+            element Cu  adiam 1 2.24  

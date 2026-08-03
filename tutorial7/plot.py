@@ -13,15 +13,15 @@ import matplotlib.pyplot as plt
 data = pd.read_csv("stress-fracture.csv")
 peak = data.loc[data["stress_GPa"].idxmax()]
 
-plt.figure(figsize=(5.0, 3.8))
+plt.figure(figsize=(6.0, 3.0))
 plt.plot(data["strain"], data["stress_GPa"], "-o", color="firebrick",
          markersize=3, lw=1.2)
 plt.plot(peak["strain"], peak["stress_GPa"], "o", color="black", markersize=6,
-         label=f"peak {peak['stress_GPa']:.1f} GPa at "
+         label=f"Peak stress {peak['stress_GPa']:.1f} GPa at "
                f"strain {peak['strain']:.3f}")
 plt.axhline(0.0, color="gray", lw=0.6)
-plt.xlabel("engineering strain")
-plt.ylabel(r"stress $\sigma_{yy}$ (GPa)")
+plt.xlabel("Engineering strain")
+plt.ylabel(r"Stress $\sigma_{yy}$ (GPa)")
 plt.legend(frameon=False)
 plt.tight_layout()
 plt.savefig("fracture-stress-strain.png", dpi=200)

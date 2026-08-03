@@ -15,7 +15,7 @@ CURVES = [("stress-tension.csv", "bulk, Zhou EAM", "firebrick"),
           ("stress-wire-0.csv", "wire, Al-Cu ADP", "steelblue"),
           ("stress-wire-10.csv", "wire +10% Cu, Al-Cu ADP", "seagreen")]
 
-plt.figure(figsize=(5.4, 3.8))
+plt.figure(figsize=(6.0, 3.0))
 for fname, label, color in CURVES:
     df = pd.read_csv(fname)
     plt.plot(df["strain"], df["sxx_GPa"], "-", lw=1.1, color=color,
@@ -24,8 +24,8 @@ for fname, label, color in CURVES:
     print(f"{label:26s} yield {df.sxx_GPa[i]:.2f} GPa at strain {df.strain[i]:.3f}")
 plt.axhline(0.0, color="gray", lw=0.6)
 plt.xlim(0, 0.7)
-plt.xlabel("engineering strain")
-plt.ylabel(r"stress $\sigma_{xx}$ (GPa)")
+plt.xlabel("Engineering strain")
+plt.ylabel(r"Stress $\sigma_{xx}$ (GPa)")
 plt.legend(frameon=False, fontsize=8)
 plt.tight_layout()
 plt.savefig("wire-stress-strain.png", dpi=200)

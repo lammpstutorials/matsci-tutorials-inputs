@@ -28,7 +28,7 @@ for b in range(3):
     ax.plot(qr, branches[:, b], "-", color="firebrick", lw=1.6,
             label="MD (fix phonon)" if b == 0 else None)
 ax.plot(exp[:, 0], exp[:, 1], "o", ms=4, mfc="white", mec="steelblue",
-        mew=1.2, label="neutron exp. (298 K)")
+        mew=1.2, label="Neutron exp. (298 K)")
 
 for t in ticks:
     ax.axvline(t, color="0.6", lw=0.7)
@@ -36,8 +36,8 @@ ax.set_xticks(ticks)
 ax.set_xticklabels(labels)
 ax.set_xlim(0, ticks[-1])
 ax.set_ylim(0, 8.0)
-ax.set_ylabel("frequency (THz)")
-ax.set_xlabel("wave vector")
+ax.set_ylabel("Frequency (THz)")
+ax.set_xlabel("Wave vector")
 ax.legend(frameon=True, facecolor="white", edgecolor="black",
           framealpha=1.0, loc="upper right", fontsize=9)
 plt.tight_layout()

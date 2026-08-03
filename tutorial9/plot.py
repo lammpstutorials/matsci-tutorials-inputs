@@ -81,7 +81,7 @@ responses = [
     (e4, -d4["pyz"].to_numpy() * BAR_TO_GPA, "C$_{44}$: $\\sigma_{yz}$ vs $\\epsilon_{yz}$", C44, "firebrick", "^"),
 ]
 
-plt.figure(figsize=(5.0, 3.8))
+plt.figure(figsize=(6.0, 3.0))
 for x, y, label, slope, color, marker in responses:
     plt.plot(x, y, marker, color=color, ms=5)
     xx = np.linspace(x.min(), x.max(), 50)
@@ -89,8 +89,8 @@ for x, y, label, slope, color, marker in responses:
              label=f"{label}  ({slope:.0f} GPa)")
 plt.axhline(0.0, color="gray", lw=0.6)
 plt.axvline(0.0, color="gray", lw=0.6)
-plt.xlabel("strain (%)")
-plt.ylabel("stress (GPa)")
+plt.xlabel("Strain (%)")
+plt.ylabel("Stress (GPa)")
 plt.legend(frameon=False, fontsize=8)
 plt.tight_layout()
 plt.savefig("elastic-stress-strain.png", dpi=200)

@@ -14,19 +14,19 @@ import matplotlib.pyplot as plt
 tension = pd.read_csv("stress-tension.csv")
 compression = pd.read_csv("stress-compress.csv")
 
-plt.figure(figsize=(5.0, 3.8))
-plt.plot(tension["strain"], tension["sxx_GPa"], "-", color="firebrick", label="tension")
+plt.figure(figsize=(6.0, 3.0))
+plt.plot(tension["strain"], tension["sxx_GPa"], "-", color="firebrick", label="Tension")
 plt.plot(compression["strain"], compression["sxx_GPa"], "-", color="steelblue",
-         label="compression")
+         label="Compression")
 plt.axhline(0.0, color="gray", lw=0.6)
 plt.axvline(0.0, color="gray", lw=0.6)
-plt.xlabel("engineering strain")
-plt.ylabel(r"stress $\sigma_{xx}$ (GPa)")
+plt.xlabel("Engineering strain")
+plt.ylabel(r"Stress $\sigma_{xx}$ (GPa)")
 plt.legend(frameon=False)
 plt.tight_layout()
 plt.savefig("stress-strain.png", dpi=200)
 
-for name, df in [("tension", tension), ("compression", compression)]:
+for name, df in [("Tension", tension), ("Compression", compression)]:
     idx = df["sxx_GPa"].abs().idxmax()
     print(f"{name}: peak |sigma_xx| = {df['sxx_GPa'][idx]:.2f} GPa "
           f"at strain = {df['strain'][idx]:.3f}")

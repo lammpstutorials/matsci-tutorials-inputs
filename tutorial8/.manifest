@@ -23,3 +23,5 @@ solution/visualize_stamp.lmp
 solution/load-displacement.png
 solution/indent-defects.png
 solution/smiley-imprint.png
+solution/load-sphere.csv
+solution/load-plane.csv

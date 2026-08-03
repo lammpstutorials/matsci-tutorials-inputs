@@ -70,21 +70,21 @@ print(f"\nkappa grows by {kappa[-1]/kappa[0]:.1f}x over this length range and is
 r0 = recs[0]
 z, T = read_profile(f"profile_{r0['ncells']}.dat")
 zA = z * r0["length_A"] / 10.0      # nm
-plt.figure(figsize=(5.0, 3.8))
+plt.figure(figsize=(6.0, 3.0))
 plt.plot(zA, T, "o", color="steelblue", ms=4)
 for sel in [(z > 0.10) & (z < 0.45), (z > 0.60) & (z < 0.95)]:
     fit = np.polyfit(zA[sel], T[sel], 1)
     plt.plot(zA[sel], np.polyval(fit, zA[sel]), "-", color="firebrick", lw=2)
-plt.xlabel("position along heat-flow direction (nm)")
-plt.ylabel("temperature (K)")
+plt.xlabel("Position along heat-flow direction (nm)")
+plt.ylabel("Temperature (K)")
 plt.title(f"L = {r0['length_A']/10:.1f} nm  (hot slab in the middle)", fontsize=10)
 plt.tight_layout()
 plt.savefig("kappa-profile.png", dpi=200)
 
 # --- figure 2: finite-size dependence of kappa -----------------------------
-plt.figure(figsize=(5.0, 3.8))
+plt.figure(figsize=(6.0, 3.5))
 plt.plot(L_nm, kappa, "o-", color="steelblue", ms=6)
-plt.xlabel("cell length $L$ (nm)")
-plt.ylabel(r"apparent thermal conductivity $\kappa$ (W/m/K)")
+plt.xlabel("Cell length $L$ (nm)")
+plt.ylabel(r"Apparent thermal conductivity $\kappa$ (W/m/K)")
 plt.tight_layout()
 plt.savefig("kappa-size.png", dpi=200)
