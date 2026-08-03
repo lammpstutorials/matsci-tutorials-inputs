@@ -21,11 +21,12 @@ solution/wire.log
 solution/stress-wire.csv
 solution/stress-wire-0.csv
 solution/stress-wire-10.csv
-solution/wire-0.dump
-solution/wire-10.dump
+solution/wire-0.lammpstrj
+solution/wire-10.lammpstrj
 solution/wire-0-50000.png
 solution/wire-10-50000.png
 solution/wire-stress-strain.png
 solution/wire-failure.png
+solution/wire-failure.xcf
 # bulk reference curve from Tutorial 5 for the comparison plot
 solution/stress-tension.csv

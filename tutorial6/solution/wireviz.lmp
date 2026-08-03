@@ -11,7 +11,7 @@
 #   -v step <N>        which timestep       (default 60000 = strain 0.6)
 
 variable xcu  index 10
-variable step index 60000
+variable step index 50000
 
 units metal
 dimension 3
@@ -36,7 +36,8 @@ pair_coeff * *
 
 read_dump wire-${xcu}.lammpstrj ${step} x y z box yes scaled yes
 
-write_dump all image wire-${xcu}-${step}.png type type size 1600 320 &
-    view 0 0 up 0 1 0 zoom 4.0 shiny 0.2 ssao yes 4539 0.6 fsaa yes &
-    modify backcolor white boxcolor midnightblue &
-    acolor 1 lightgrey acolor 2 firebrick adiam 1 2.6 adiam 2 2.9
+write_dump all image wire-${xcu}-${step}.png element type size 1160 330 &
+    view 0 0 up 0 1 0 zoom 6.5 shiny 0.6 ssao yes 4539 0.2 fsaa yes &
+    modify backcolor white boxcolor midnightblue element Al Cu &
+    acolor 1 lightgrey acolor 2 firebrick adiam 1 2.6 adiam 2 2.9 &
+    specular narrow metal 0.75 metalfinish mirror gamma 1.5
