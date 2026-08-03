@@ -17,8 +17,8 @@ FeNiCrCoCu-heafixed.setfl
 # only downloaded on request
 solution/sro.log
 solution/energy.dat
-solution/anneal.dump
-solution/ordered.dump
+solution/anneal.lammpstrj
+solution/ordered.lammpstrj
 solution/mixing-output.txt
 solution/mixing-2nnmeam-output.txt
 solution/mixing-sharifi-output.txt
@@ -33,16 +33,16 @@ solution/mixing-sharifi.lmp
 solution/compareviz.lmp
 solution/compare-alpha.py
 solution/geomviz.lmp
-solution/random.dump
+solution/random.lammpstrj
 solution/alloy-geometry.png
 solution/FeNiCrCoCu-heafixed.setfl
 solution/library_2nn.meam
 solution/MoCoNiVFeAlCr_2nn.meam
 solution/library.meam
 solution/FeMnNiTiCuCrCoAl.meam
-solution/anneal-hot.dump
-solution/anneal-2nnmeam.dump
-solution/anneal-sharifi.dump
+solution/anneal-hot.lammpstrj
+solution/anneal-2nnmeam.lammpstrj
+solution/anneal-sharifi.lammpstrj
 solution/energy-hot.dat
 solution/energy-2nnmeam.dat
 solution/energy-sharifi.dat

@@ -23,9 +23,9 @@ solution/clusters.txt
 solution/clusters.log
 solution/cascade.dat
 solution/cascade.png
-solution/final.dump
+solution/final.lammpstrj
 solution/defectviz.lmp
 solution/defects.png
-solution/peak.dump
+solution/peak.lammpstrj
 solution/peakviz.lmp
 solution/peak.png

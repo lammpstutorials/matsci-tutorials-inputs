@@ -22,4 +22,4 @@ solution/stress-strain.png
 solution/deform-dislocations.png
 # interactive dislocation-figure sandbox (loads a pre-recorded frame)
 solution/visualize.lmp
-solution/tension-yield.dump
+solution/tension-yield.lammpstrj
